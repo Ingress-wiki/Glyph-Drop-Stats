@@ -1,0 +1,15 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "glyph-drop-stats",
+	"main": "src/worker/index.ts",
+	"compatibility_date": "2026-10-01",
+	"assets": {
+		"not_found_handling": "single-page-application",
+		// API routes must reach the Worker even when a static asset path could match.
+		"run_worker_first": ["/api/*"]
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true
+}
