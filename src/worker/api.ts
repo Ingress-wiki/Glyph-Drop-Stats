@@ -1,18 +1,33 @@
 import { DEFAULT_LIMITS, parseExport } from "../domain/importer.ts";
 import { previewOf } from "../domain/preview.ts";
+import { hashReceiptSecret, isReceiptSecret } from "../domain/receipt.ts";
+import { emptyOutcomeCounts } from "../domain/versions.ts";
+import type { Db } from "./db.ts";
+import { classify, confirmSubmission, countOutcomes, findSubmission } from "./submissions.ts";
 
-const JSON_HEADERS = { "cache-control": "no-store" };
+export interface ApiEnv {
+  DB: Db;
+}
+
+const NO_STORE = { "cache-control": "no-store" };
+
+function json(status: number, body: unknown): Response {
+  return Response.json(body, { status, headers: NO_STORE });
+}
 
 function error(status: number, code: string, message: string): Response {
-  return Response.json({ ok: false, issues: [{ code, message }] }, { status, headers: JSON_HEADERS });
+  return json(status, { ok: false, issues: [{ code, message }] });
 }
+
+const tooLarge = () => error(413, "file_too_large", `The file is larger than ${DEFAULT_LIMITS.maxBytes} bytes.`);
 
 /**
  * Reads the body into memory, giving up as soon as it passes `maxBytes`, so
  * a body without a Content-Length can't make the Worker buffer more.
  * Returns null when the body is too large.
  */
-export async function readBodyLimited(request: Request, maxBytes: number): Promise<Uint8Array | null> {
+export async function readBodyLimited(request: Request, maxBytes: number): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (Number(request.headers.get("content-length") ?? "0") > maxBytes) return null;
   if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -37,28 +52,74 @@ export async function readBodyLimited(request: Request, maxBytes: number): Promi
 }
 
 /**
- * Validates an export and describes it. Nothing is stored: the file is read
- * from the request body, checked, and discarded with the request.
+ * The receipt travels in `Authorization: Receipt <secret>`, never in a URL,
+ * so it doesn't end up in logs, history or referrers.
  */
-async function preview(request: Request): Promise<Response> {
-  const tooLarge = () => error(413, "file_too_large", `The file is larger than ${DEFAULT_LIMITS.maxBytes} bytes.`);
-  const declared = Number(request.headers.get("content-length") ?? "0");
-  if (declared > DEFAULT_LIMITS.maxBytes) return tooLarge();
+function receiptSecret(request: Request): string | null {
+  const match = /^Receipt (\S+)$/.exec(request.headers.get("authorization") ?? "");
+  return match && isReceiptSecret(match[1]) ? match[1] : null;
+}
+
+/** Validates an export and compares it with accepted data. Nothing is stored. */
+async function preview(request: Request, env: ApiEnv): Promise<Response> {
   const body = await readBodyLimited(request, DEFAULT_LIMITS.maxBytes);
   if (body === null) return tooLarge();
   const result = parseExport(body);
-  return Response.json(previewOf(result), { status: result.ok ? 200 : 422, headers: JSON_HEADERS });
+  if (!result.ok) return json(422, previewOf(result, emptyOutcomeCounts()));
+  const classified = await classify(
+    env.DB,
+    result.records.map((entry) => entry.record),
+  );
+  return json(200, previewOf(result, countOutcomes(classified)));
 }
 
-export async function handleApi(request: Request): Promise<Response> {
+/** Confirms an upload. The file is validated again here; the preview decided nothing. */
+async function submit(request: Request, env: ApiEnv): Promise<Response> {
+  const secret = receiptSecret(request);
+  if (!secret) return error(400, "invalid_receipt", "Send the receipt as `Authorization: Receipt <receipt>`.");
+  const body = await readBodyLimited(request, DEFAULT_LIMITS.maxBytes);
+  if (body === null) return tooLarge();
+  const parsed = parseExport(body);
+  if (!parsed.ok) return json(422, { ok: false, issues: parsed.issues });
+  if (parsed.records.length === 0) {
+    return error(422, "no_valid_records", "The file has no valid records to submit.");
+  }
+  const result = await confirmSubmission(env.DB, {
+    secret,
+    fileBytes: body,
+    parsed,
+    now: Math.floor(Date.now() / 1000),
+  });
+  switch (result.kind) {
+    case "created":
+      return json(201, { ok: true, replayed: false, submission: result.summary });
+    case "replayed":
+      return json(200, { ok: true, replayed: true, submission: result.summary });
+    case "receipt_in_use":
+      return error(409, "receipt_in_use", "This receipt was already used for a different file. Make a new one.");
+  }
+}
+
+async function status(request: Request, env: ApiEnv): Promise<Response> {
+  const secret = receiptSecret(request);
+  if (!secret) return error(400, "invalid_receipt", "Send the receipt as `Authorization: Receipt <receipt>`.");
+  const found = await findSubmission(env.DB, await hashReceiptSecret(secret));
+  if (!found) return error(404, "not_found", "No submission has this receipt.");
+  return json(200, { ok: true, submission: found.summary });
+}
+
+const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiEnv) => Promise<Response>>>> = {
+  "/api/health": { GET: async () => json(200, { ok: true }) },
+  "/api/preview": { POST: preview },
+  "/api/submissions": { POST: submit },
+  "/api/submission": { GET: status },
+};
+
+export async function handleApi(request: Request, env: ApiEnv): Promise<Response> {
   const { pathname } = new URL(request.url);
-  if (pathname === "/api/health") {
-    return request.method === "GET"
-      ? Response.json({ ok: true }, { headers: JSON_HEADERS })
-      : error(405, "method_not_allowed", "Use GET.");
-  }
-  if (pathname === "/api/preview") {
-    return request.method === "POST" ? preview(request) : error(405, "method_not_allowed", "Use POST.");
-  }
-  return error(404, "not_found", "No such endpoint.");
+  const route = ROUTES[pathname];
+  if (!route) return error(404, "not_found", "No such endpoint.");
+  const handler = route[request.method];
+  if (!handler) return error(405, "method_not_allowed", `Use ${Object.keys(route).join(" or ")}.`);
+  return handler(request, env);
 }

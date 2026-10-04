@@ -64,3 +64,21 @@ export function compareVersions(accepted: ObservationRecord, incoming: Observati
     originCompatible(accepted, incoming);
   return lateReading ? "update_candidate" : "conflict";
 }
+
+/** How one record of a confirmed upload was classified. */
+export type Outcome = "new" | VersionRelation;
+
+export const OUTCOMES: readonly Outcome[] = [
+  "new",
+  "duplicate",
+  "duplicate_other_precision",
+  "update_candidate",
+  "conflict",
+];
+
+/** Outcomes whose link keeps the accepted version counted. */
+export const SUPPORTING_OUTCOMES: readonly Outcome[] = ["new", "duplicate", "duplicate_other_precision"];
+
+export function emptyOutcomeCounts(): Record<Outcome, number> {
+  return { new: 0, duplicate: 0, duplicate_other_precision: 0, update_candidate: 0, conflict: 0 };
+}

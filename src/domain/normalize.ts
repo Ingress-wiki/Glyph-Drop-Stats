@@ -1,3 +1,4 @@
+import { sha256Hex } from "./hash.ts";
 import type { ObservationRecord } from "./record.ts";
 
 /**
@@ -21,8 +22,6 @@ export function canonicalJson(value: unknown): string {
  * in disclosed time precision hash differently; `compareVersions` decides
  * whether two versions are equivalent.
  */
-export async function contentHash(record: ObservationRecord): Promise<string> {
-  const bytes = new TextEncoder().encode(canonicalJson(record));
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+export function contentHash(record: ObservationRecord): Promise<string> {
+  return sha256Hex(canonicalJson(record));
 }

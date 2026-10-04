@@ -9,6 +9,7 @@
 
 ```sh
 npm install
+npm run db:migrate:local   # create the local D1 tables (once, and after new migrations)
 npm run dev        # Vite with the Worker in the local Workers runtime
 npm test           # unit and API tests
 npm run typecheck
@@ -31,8 +32,19 @@ Validation of a real export takes about 10 ms, and of a maximum-size export
 over a second (see [import format](import-format.md#measurements)). Both
 exceed the Workers Free CPU limit, so deployment assumes **Workers Paid**.
 
+Before the pilot, repeat the measurements in the deployed environment:
+
+- preview and confirmation of a typical and a maximum-size export;
+- the CPU time used, against a deliberately set CPU limit;
+- the single-batch commit on deployed D1;
+- the upload limits (`DEFAULT_LIMITS` in `src/domain/importer.ts`).
+
 ## Deployment
 
-Not configured yet. Milestone 5 adds separate development and production
-environments, a D1 database for each, and an explicitly triggered production
-deploy.
+Not configured yet. `wrangler.jsonc` binds D1 as `DB` without a
+`database_id`, which local development doesn't need. Milestone 5 adds:
+
+- separate development and production environments, each with its own D1
+  database;
+- migrations applied with `wrangler d1 migrations apply`;
+- an explicitly triggered production deploy.

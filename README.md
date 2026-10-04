@@ -13,18 +13,21 @@ The code is public. Individual submissions and private receipts are not.
 | Milestone | State |
 | --- | --- |
 | 1. Format contract: parsing, validation, normalization, tests | Done |
-| 2. Submission lifecycle: D1, confirm, receipts, deduplication | Next |
-| 3. Withdrawal | Planned |
+| 2. Submission lifecycle: D1, confirm, receipts, deduplication | Done |
+| 3. Withdrawal | Next |
 | 4. Basic statistics | Planned |
 | 5. Pilot deployment | Planned |
 
-Today the site can **check** an export (`POST /api/preview`) and explain
-which records are usable. It stores nothing.
+Today a player can check an export, see which records are usable and which
+are already known, and submit it with a private receipt. The receipt is
+also used to look the submission up later. Withdrawal and statistics come
+next.
 
 ## Quick start
 
 ```sh
 npm install
+npm run db:migrate:local
 npm run dev
 ```
 

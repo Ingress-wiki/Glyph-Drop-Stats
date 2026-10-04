@@ -1,11 +1,15 @@
 import { useRef, useState, type FormEvent } from "react";
 import type { Preview } from "../domain/preview.ts";
 import { LatestOnly, STALE } from "./latest.ts";
+import { OutcomeList } from "./Outcomes.tsx";
+import { StatusCheck } from "./Status.tsx";
+import { SubmitPanel } from "./Submit.tsx";
 
 type State =
   | { phase: "idle" }
   | { phase: "checking" }
-  | { phase: "done"; preview: Preview }
+  /** `file` is the exact file this preview describes; only it may be submitted. */
+  | { phase: "done"; file: File; preview: Preview; checkId: number }
   | { phase: "failed"; message: string };
 
 function isPreview(value: unknown): value is Preview {
@@ -18,6 +22,7 @@ export function App() {
   // A slow answer for an earlier file must never be shown, or later confirmed, while another
   // file is selected.
   const latest = useRef(new LatestOnly());
+  const checks = useRef(0);
 
   async function check(event: FormEvent) {
     event.preventDefault();
@@ -35,7 +40,7 @@ export function App() {
         if (!isPreview(body)) throw new Error(`Unexpected response (${response.status}).`);
         return body;
       });
-      if (preview !== STALE) setState({ phase: "done", preview });
+      if (preview !== STALE) setState({ phase: "done", file, preview, checkId: ++checks.current });
     } catch (error) {
       setState({ phase: "failed", message: error instanceof Error ? error.message : String(error) });
     }
@@ -45,7 +50,8 @@ export function App() {
     <main>
       <h1>Glyph Drop Stats</h1>
       <p className="lede">
-        Check a DynamicGlyph gear export (<code>DynamicGlyph-gear-v1-….csv</code>). Checking stores nothing.
+        Check a DynamicGlyph gear export (<code>DynamicGlyph-gear-v1-….csv</code>), then submit it if you want to.
+        Checking stores nothing.
       </p>
       <section>
         <form onSubmit={check}>
@@ -65,6 +71,10 @@ export function App() {
       </section>
       {state.phase === "failed" && <p className="error">Couldn't check the file: {state.message}</p>}
       {state.phase === "done" && <PreviewView preview={state.preview} />}
+      {state.phase === "done" && state.preview.ok && state.preview.records.valid > 0 && (
+        <SubmitPanel key={state.checkId} file={state.file} preview={state.preview} />
+      )}
+      <StatusCheck />
     </main>
   );
 }
@@ -101,6 +111,10 @@ function PreviewView({ preview }: { preview: Preview }) {
           <dd>
             {records.byReadStatus.read} read ({records.partlyRead} partly), {records.byReadStatus.notRead} not read,{" "}
             {records.byReadStatus.unavailable} unavailable, {records.byReadStatus.unsupported} unsupported
+          </dd>
+          <dt>Compared with accepted data</dt>
+          <dd>
+            <OutcomeList outcomes={preview.outcomes} />
           </dd>
           <dt>Unusable records</dt>
           <dd>{records.rejected}</dd>

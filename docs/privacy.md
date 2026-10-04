@@ -13,10 +13,13 @@ This must be finished, and reviewed, before real submissions are accepted.
   out of item statistics until a maintainer reviews the name. Rejected
   names are deleted.
 - **Never stored:**
-  - the original CSV file;
+  - the original CSV file (only its SHA-256, to recognize a retry of the
+    same upload);
   - the file name;
   - `session` and `order`, which are file-local;
-  - the receipt secret itself (only its hash).
+  - the receipt secret itself (only its SHA-256).
+- **Kept with each upload:** its time, row count, rejected-record count and
+  the exporting app's version and build.
 - The export holds no exact times, portal names, notes, images, device
   details or storage keys.
 - `record_id` is a hash of a key with a random number made at app launch.
@@ -40,4 +43,9 @@ This must be finished, and reviewed, before real submissions are accepted.
 - The preview goes only to the uploader. It echoes record ids, line numbers
   and reasons. The one cell value it repeats is an item name not yet on the
   server's list, so the uploader can see what will be held for review.
-- Never put a receipt secret in a URL.
+- Never put a receipt secret in a URL. It travels only in the
+  `Authorization: Receipt …` header.
+- The receipt is made in the player's browser and never sent anywhere
+  except to authorize their own requests. The server can't check that it
+  is random; a player who picks a weak one only weakens their own
+  submission.

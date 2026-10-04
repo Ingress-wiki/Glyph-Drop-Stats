@@ -42,6 +42,11 @@ written.
     arbitrarily and may overlap.
   - So the first release publishes descriptive statistics, sample counts
     and limitations only. Intervals wait for a defensible sampling unit.
+- **Records without a UTC offset** come from builds before the offset was
+  kept; most current data is like this. Their intervals are UTC hours or
+  days. They stay in every UTC-based analysis. They are excluded only from
+  analyses that need the original local time, such as by local hour or
+  local date. A time zone is never reconstructed for them.
 - **Time.** Use the stored interval and its offset. A record whose interval
   overlaps an event boundary can't be assigned to either side and is
   reported separately. `time_basis` is when the app received the hack or

@@ -18,6 +18,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Apply migrations to a fresh local D1
+        run: npm run db:migrate:local
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test

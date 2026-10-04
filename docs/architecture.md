@@ -4,10 +4,10 @@
 
 | Path | Role |
 | --- | --- |
-| `src/domain/` | CSV reading, validation, normalization and (later) statistics rules. Uses only web-standard APIs, with no Cloudflare APIs, so it runs and is tested in Node. |
-| `src/worker/` | The Cloudflare Worker: the `/api/*` endpoints. `api.ts` holds the handlers; `index.ts` is the Worker entry. |
+| `src/domain/` | CSV reading, validation, normalization, version comparison and receipts. Uses only web-standard APIs, with no Cloudflare APIs, so it runs and is tested in Node. |
+| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `index.ts` (entry). |
 | `src/web/` | The React site, served as Workers Static Assets. |
-| `migrations/` | D1 schema migrations (from milestone 2). |
+| `migrations/` | D1 schema migrations. |
 
 The server decides whether data is accepted. The browser only displays what
 the server returns.
@@ -15,44 +15,79 @@ the server returns.
 ## Submission lifecycle
 
 ```
-upload → validate → preview → confirm → receipt → (withdraw)
+upload → validate → preview → receipt → confirm → status → (withdraw)
 ```
 
-**Status:** validate and preview (`POST /api/preview`) are built. Nothing is
-stored yet.
+**Status:** everything up to status is built. Withdrawal is milestone 3.
+
+| Endpoint | Does |
+| --- | --- |
+| `POST /api/preview` | Validates the file and classifies its records against accepted data. Stores nothing. |
+| `POST /api/submissions` | Confirms the file with `Authorization: Receipt <secret>`. Returns 201, 200 (`replayed`) or 409 (`receipt_in_use`). |
+| `GET /api/submission` | Reports the submission for `Authorization: Receipt <secret>`. |
 
 ### Preview and confirm are stateless
 
 The preview stores nothing. To confirm, the browser sends the same file
-again, and the server validates it again, then checks duplicates and
-conflicts at that point. The original CSV is never kept, and there are no
-staged rows to clean up. Re-validation also covers another submission
-landing between preview and confirm.
+again, and the server validates and classifies it again. The original CSV
+is never kept, and there are no staged rows to clean up. Re-validation also
+covers another submission landing between preview and confirm.
 
-### Atomic visibility on D1 (milestone 2)
+The page submits the exact `File` its preview describes. Choosing another
+file discards the preview, the receipt and any check still in flight.
 
-A large import doesn't fit in one D1 batch, and separate batches aren't one
-transaction. So:
+### Receipts and lost responses
 
-1. Insert an `uploads` row with status `processing`.
-2. Insert record versions and links in bounded batches. Each insert is
-   idempotent (`INSERT … ON CONFLICT DO NOTHING` on unique keys), so a retry
-   can't count anything twice.
-3. Mark the upload `completed` in the final batch.
-4. Statistics read only uploads that are `completed` and not withdrawn.
-5. A scheduled job deletes `processing` uploads older than a timeout.
+The receipt secret (`gds1_` plus 256 random bits) is made in the browser,
+and the page has the player save it **before** confirming. The server
+stores only its SHA-256.
 
-## Data model (milestone 2, proposed)
+- The receipt is the **idempotency key**. Confirming again with the same
+  receipt and the same file returns the original result (`replayed`) and
+  counts nothing twice. So when a confirmation commits but its response is
+  lost, the page retries with the receipt it still holds, and the player
+  still has a working receipt.
+- The same receipt with a different file is refused (409), because the
+  upload stores the SHA-256 of its bytes.
+- Two simultaneous confirmations with one receipt produce one upload. The
+  second hits the unique `secret_hash`, finds the first, and replays it.
+- The secret travels only in the `Authorization` header, never in a URL,
+  and is never logged.
+
+### One transaction per confirmation
+
+Confirmation builds a single D1 batch, which is one transaction. It holds
+the upload row, the new versions with their panels and items, claims on
+records nobody had accepted, and every link. Bulk rows go through one bound
+JSON parameter per statement (`json_each`), chunked under 512 KB, so even a
+maximum-size export is a handful of statements. The result:
+
+- **No partial imports.** The batch applies completely or not at all, so an
+  interrupted confirmation leaves nothing behind and needs no cleanup job.
+- **Retries are safe.** The receipt's unique key stops a second commit, and
+  versions are content-addressed, so re-inserting one changes nothing.
+- **Concurrency is safe.** A record is claimed with a plain `INSERT` on
+  `accepted_versions.record_id`. If a concurrent upload claimed it after
+  this one classified, the batch fails on that key and rolls back.
+  Confirmation then classifies again against the now-accepted version, up
+  to four attempts.
+
+Measured in local `wrangler dev` (2026-10-04), a maximum-size synthetic
+export (2,000 records, 50,000 rows, 16.7 MB) commits in one batch in about
+1.9 s. This must be measured again on deployed D1 before the pilot.
+
+## Data model
+
+See `migrations/0001_initial.sql`.
 
 | Table | Holds |
 | --- | --- |
-| `uploads` | Status (`processing`, `completed`, `withdrawn`), times, counts, exporter build, the receipt secret's hash. |
-| `record_versions` | One row per distinct `(record_id, content_hash)`: the record-level fields. |
+| `uploads` | Status (`completed`, `withdrawn`), time, counts, exporter build, the receipt secret's hash, the file's hash. |
+| `record_versions` | One immutable row per version, keyed by its content hash (which covers `record_id`). |
 | `panels`, `items` | A version's panels and items. |
-| `upload_records` | Which upload supplied which version, and how it was classified. |
-| `accepted_versions` | The single accepted version of each `record_id`, the upload that established it, and when. |
-
-A version is never overwritten while any upload links to it.
+| `accepted_versions` | The single accepted version of each `record_id`, how it was decided, the upload, and when. |
+| `upload_records` | Which version each upload supplied for each record, and its outcome. |
+| `counted_records` (view) | Accepted versions still supported by a completed upload. Statistics read only this. |
 
 ## Equivalent copies and accepted versions
 
@@ -73,35 +108,43 @@ equivalence, so a change in time precision isn't mistaken for a conflict.
 Excluding time from comparison altogether would hide real conflicts, so it
 isn't excluded.
 
-### Acceptance is a recorded decision
+### Acceptance policy
 
 Which version of a record counts is **recorded**, not recomputed from
-whichever uploads happen to be active:
+whichever uploads happen to be active.
 
-1. The first confirmed upload of a `record_id` establishes its accepted
-   version.
-2. Later copies are classified against that version. Duplicates link to it.
-   Update candidates and conflicts are stored but don't count.
+1. **The initial version is selected automatically, once.** The first
+   confirmed upload of a `record_id` sets `accepted_versions`, with
+   `decision = 'first_confirmed'`.
+2. **Any later change needs an explicit, auditable review decision.**
+   - Later copies are classified against the accepted version. Duplicates
+     link to it. Update candidates and conflicts are stored with their
+     upload links but don't count.
+   - In the first release, a late gear reading is applied only with
+     **explicit maintainer approval**. A matching id and more complete data
+     don't show that an update is authentic, or that it comes from the
+     original contributor.
+   - When review is built, it will record who decided what and when (a new
+     `decision` value and a log). No moderation interface exists yet. Until
+     it does, accepted versions never change.
 3. **Withdrawal never promotes anything.**
    - When an upload is withdrawn, its links stop supporting the accepted
      version.
-   - If another active upload still supports that exact version, through a
+   - If another completed upload still supports that version, through a
      duplicate link, the record keeps counting.
-   - Otherwise the record stops counting. A conflicting or candidate
-     version doesn't take its place automatically.
+   - Otherwise the record stops counting, and no conflict or update
+     candidate takes its place.
    - Without this, someone could submit altered content under an existing
      id and see it become accepted once the original uploader withdrew.
-4. Applying an update candidate is a separate, explicit operation. Whether a
-   maintainer or a defined rule does it is to be decided before the pilot.
 
 ### Failure and retry
 
-- **Retry.** Confirmation is idempotent. Retrying the same file creates no
-  new samples.
-- **Lost response.** If the commit succeeds but the receipt response is
-  lost, the uploader can't recover the secret. The upload is either
-  reachable through a retry that returns the same receipt, or else
-  documented. This is to be designed and tested in milestone 2.
-- **Concurrency.** Two uploads confirming the same new `record_id` at the
-  same moment must leave exactly one accepted version. A uniqueness
-  constraint on `accepted_versions.record_id` enforces this.
+All of this is covered by `tests/d1/`, against a local D1:
+
+- a failed commit leaves no rows;
+- a stale prepared batch fails and is reclassified;
+- simultaneous overlapping uploads leave exactly one accepted version per
+  record;
+- a duplicate receipt confirms once;
+- a retry after a lost response returns the original result;
+- withdrawal promotes nothing.

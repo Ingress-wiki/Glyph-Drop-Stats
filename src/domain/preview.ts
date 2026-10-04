@@ -1,5 +1,6 @@
 import type { Exporter, ImportResult, Issue, RejectedRecord } from "./importer.ts";
 import type { Kind, ReadStatus } from "./record.ts";
+import type { Outcome } from "./versions.ts";
 
 /**
  * What the uploader sees before confirming. It echoes record ids, line
@@ -21,10 +22,15 @@ export type Preview =
         /** Read records where a panel was partial or a row unidentified. */
         partlyRead: number;
       };
+      /**
+       * How the valid records compare with accepted data right now. Another
+       * upload may land before confirmation, so the final result can differ.
+       */
+      outcomes: Record<Outcome, number>;
       rejected: RejectedRecord[];
     };
 
-export function previewOf(result: ImportResult): Preview {
+export function previewOf(result: ImportResult, outcomes: Record<Outcome, number>): Preview {
   if (!result.ok) return result;
   const byKind: Record<Kind, number> = { hack: 0, drop: 0 };
   const byReadStatus: Record<ReadStatus, number> = { read: 0, notRead: 0, unavailable: 0, unsupported: 0 };
@@ -41,6 +47,7 @@ export function previewOf(result: ImportResult): Preview {
     rowCount: result.rowCount,
     warnings: result.warnings,
     records: { valid: result.records.length, rejected: result.rejected.length, byKind, byReadStatus, partlyRead },
+    outcomes,
     rejected: result.rejected,
   };
 }

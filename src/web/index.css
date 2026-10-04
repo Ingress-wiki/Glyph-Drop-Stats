@@ -101,3 +101,19 @@ dl {
 dd {
   margin: 0;
 }
+
+.receipt {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+}
+
+.receipt p {
+  margin: 0 0 0.5rem;
+}
+
+dd ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}

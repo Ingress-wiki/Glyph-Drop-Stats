@@ -144,3 +144,8 @@ export function csv(rows: Row[], options: { header?: readonly string[]; extra?: 
 export function bytes(text: string): Uint8Array {
   return new TextEncoder().encode(text);
 }
+
+/** The n-th synthetic hack id, distinct from the fixed ids above. */
+export function hackId(n: number): string {
+  return `h${n.toString(16).padStart(32, "0")}`;
+}
