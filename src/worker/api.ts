@@ -3,7 +3,7 @@ import { previewOf } from "../domain/preview.ts";
 import { hashReceiptSecret, isReceiptSecret } from "../domain/receipt.ts";
 import { emptyOutcomeCounts } from "../domain/versions.ts";
 import type { Db } from "./db.ts";
-import { classify, confirmSubmission, countOutcomes, findSubmission } from "./submissions.ts";
+import { classify, confirmSubmission, countOutcomes, findSubmission, withdrawSubmission } from "./submissions.ts";
 
 export interface ApiEnv {
   DB: Db;
@@ -108,11 +108,21 @@ async function status(request: Request, env: ApiEnv): Promise<Response> {
   return json(200, { ok: true, submission: found.summary });
 }
 
+/** Idempotent: withdrawing again reports the earlier withdrawal and changes nothing. */
+async function withdraw(request: Request, env: ApiEnv): Promise<Response> {
+  const secret = receiptSecret(request);
+  if (!secret) return error(400, "invalid_receipt", "Send the receipt as `Authorization: Receipt <receipt>`.");
+  const result = await withdrawSubmission(env.DB, await hashReceiptSecret(secret), Math.floor(Date.now() / 1000));
+  if (result.kind === "not_found") return error(404, "not_found", "No submission has this receipt.");
+  return json(200, { ok: true, alreadyWithdrawn: result.kind === "already_withdrawn", submission: result.summary });
+}
+
 const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiEnv) => Promise<Response>>>> = {
   "/api/health": { GET: async () => json(200, { ok: true }) },
   "/api/preview": { POST: preview },
   "/api/submissions": { POST: submit },
   "/api/submission": { GET: status },
+  "/api/submission/withdraw": { POST: withdraw },
 };
 
 export async function handleApi(request: Request, env: ApiEnv): Promise<Response> {

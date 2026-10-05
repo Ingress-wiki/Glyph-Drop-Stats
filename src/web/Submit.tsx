@@ -3,6 +3,7 @@ import type { Preview } from "../domain/preview.ts";
 import { newReceiptSecret, receiptText } from "../domain/receipt.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import { confirmUpload } from "./api.ts";
+import { confirmationMessage } from "./messages.ts";
 import { OutcomeList } from "./Outcomes.tsx";
 
 type Phase =
@@ -45,10 +46,11 @@ export function SubmitPanel({ file, preview }: { file: File; preview: Extract<Pr
   }
 
   if (phase.step === "done") {
+    const message = confirmationMessage(phase.summary, phase.replayed);
     return (
       <section>
-        <h2>Submitted</h2>
-        <p>{phase.replayed ? "This upload had already been confirmed; nothing was counted twice." : "Thank you."}</p>
+        <h2>{message.heading}</h2>
+        <p>{message.text}</p>
         <OutcomeList outcomes={phase.summary.outcomes} />
         <ReceiptBox secret={phase.secret} />
       </section>

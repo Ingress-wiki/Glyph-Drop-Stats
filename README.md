@@ -14,14 +14,13 @@ The code is public. Individual submissions and private receipts are not.
 | --- | --- |
 | 1. Format contract: parsing, validation, normalization, tests | Done |
 | 2. Submission lifecycle: D1, confirm, receipts, deduplication | Done |
-| 3. Withdrawal | Next |
-| 4. Basic statistics | Planned |
+| 3. Withdrawal | Done |
+| 4. Basic statistics | Next |
 | 5. Pilot deployment | Planned |
 
 Today a player can check an export, see which records are usable and which
-are already known, and submit it with a private receipt. The receipt is
-also used to look the submission up later. Withdrawal and statistics come
-next.
+are already known, and submit it with a private receipt. With the receipt
+they can later look the submission up or withdraw it. Statistics come next.
 
 ## Quick start
 

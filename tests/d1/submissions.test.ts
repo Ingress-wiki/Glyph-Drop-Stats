@@ -9,6 +9,7 @@ import {
   confirmSubmission,
   loadVersions,
   prepareSubmission,
+  withdrawSubmission,
   type SubmissionInput,
 } from "../../src/worker/submissions.ts";
 import { localD1 } from "../helpers/d1.ts";
@@ -59,12 +60,9 @@ const countedIds = async () =>
 const acceptedHash = (recordId: string) =>
   scalar("SELECT version_hash FROM accepted_versions WHERE record_id = ?1", recordId);
 
-/** Marks an upload withdrawn the way milestone 3 will, to test what counting does. */
 async function withdrawUpload(secret: string): Promise<void> {
-  await db
-    .prepare("UPDATE uploads SET status = 'withdrawn', withdrawn_at = ?2 WHERE secret_hash = ?1")
-    .bind(await hashReceiptSecret(secret), NOW)
-    .run();
+  const result = await withdrawSubmission(db, await hashReceiptSecret(secret), NOW);
+  if (result.kind !== "withdrawn") throw new Error(`expected withdrawn, got ${result.kind}`);
 }
 
 const NO_READING: Row = {

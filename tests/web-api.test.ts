@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { confirmUpload, submissionStatus } from "../src/web/api.ts";
+import { confirmUpload, submissionStatus, withdrawUpload } from "../src/web/api.ts";
 
 const SECRET = `gds1_${"a".repeat(43)}`;
 const FILE = new File(["format_version\r\n"], "export.csv", { type: "text/csv" });
@@ -7,6 +7,7 @@ const FILE = new File(["format_version\r\n"], "export.csv", { type: "text/csv" }
 const SUMMARY = {
   status: "completed",
   createdAt: 1_791_158_163,
+  withdrawnAt: null,
   rowCount: 7,
   rejected: 0,
   outcomes: { new: 3, duplicate: 0, duplicate_other_precision: 0, update_candidate: 0, conflict: 0 },
@@ -115,5 +116,39 @@ describe("submissionStatus", () => {
       }),
     );
     await expect(submissionStatus(SECRET, controller.signal)).rejects.toThrow("aborted");
+  });
+});
+
+describe("withdrawUpload", () => {
+  const WITHDRAWN = { ...SUMMARY, status: "withdrawn", withdrawnAt: 1_791_160_000 };
+
+  it("reports a withdrawal and an earlier one", async () => {
+    answer(json(200, { ok: true, alreadyWithdrawn: false, submission: WITHDRAWN }));
+    expect(await withdrawUpload(SECRET)).toEqual({ kind: "withdrawn", alreadyWithdrawn: false, submission: WITHDRAWN });
+    answer(json(200, { ok: true, alreadyWithdrawn: true, submission: WITHDRAWN }));
+    expect(await withdrawUpload(SECRET)).toMatchObject({ kind: "withdrawn", alreadyWithdrawn: true });
+  });
+
+  it("treats a lost or inconsistent answer as uncertain", async () => {
+    answer(new Response('{"ok":tr', { status: 200 }));
+    expect(await withdrawUpload(SECRET)).toMatchObject({ kind: "uncertain" });
+    answer(json(200, { ok: true, alreadyWithdrawn: false, submission: SUMMARY }));
+    expect(await withdrawUpload(SECRET)).toMatchObject({ kind: "uncertain" });
+    answer(new TypeError("Failed to fetch"));
+    expect(await withdrawUpload(SECRET)).toMatchObject({ kind: "uncertain" });
+  });
+
+  it("reports an unknown receipt as refused", async () => {
+    answer(json(404, { ok: false, issues: [{ code: "not_found", message: "No submission has this receipt." }] }));
+    expect(await withdrawUpload(SECRET)).toMatchObject({ kind: "refused" });
+  });
+});
+
+describe("summary validation", () => {
+  it("requires withdrawnAt to match the status", async () => {
+    answer(json(200, { ok: true, submission: { ...SUMMARY, withdrawnAt: 5 } }));
+    expect(await submissionStatus(SECRET)).toMatchObject({ kind: "failed" });
+    answer(json(200, { ok: true, submission: { ...SUMMARY, status: "withdrawn" } }));
+    expect(await submissionStatus(SECRET)).toMatchObject({ kind: "failed" });
   });
 });

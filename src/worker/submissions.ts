@@ -196,6 +196,7 @@ export async function prepareSubmission(db: Db, input: SubmissionInput): Promise
     summary: {
       status: "completed",
       createdAt: now,
+      withdrawnAt: null,
       rowCount: parsed.rowCount,
       rejected: parsed.rejected.length,
       outcomes: countOutcomes(classified),
@@ -210,13 +211,16 @@ interface StoredUpload {
 
 export async function findSubmission(db: Db, secretHash: string): Promise<StoredUpload | null> {
   const upload = await db
-    .prepare("SELECT id, file_hash, status, created_at, row_count, rejected_count FROM uploads WHERE secret_hash = ?1")
+    .prepare(
+      "SELECT id, file_hash, status, created_at, withdrawn_at, row_count, rejected_count FROM uploads WHERE secret_hash = ?1",
+    )
     .bind(secretHash)
     .first<{
       id: number;
       file_hash: string;
       status: SubmissionSummary["status"];
       created_at: number;
+      withdrawn_at: number | null;
       row_count: number;
       rejected_count: number;
     }>();
@@ -234,6 +238,7 @@ export async function findSubmission(db: Db, secretHash: string): Promise<Stored
     summary: {
       status: upload.status,
       createdAt: upload.created_at,
+      withdrawnAt: upload.withdrawn_at,
       rowCount: upload.row_count,
       rejected: upload.rejected_count,
       outcomes,
@@ -282,4 +287,26 @@ export async function confirmSubmission(db: Db, input: SubmissionInput): Promise
     }
   }
   throw new Error(`Confirmation kept conflicting with concurrent uploads: ${String(lastError)}`);
+}
+
+export type WithdrawResult =
+  | { kind: "withdrawn"; summary: SubmissionSummary }
+  /** It was withdrawn before; nothing changed. A retry after a lost response lands here. */
+  | { kind: "already_withdrawn"; summary: SubmissionSummary }
+  | { kind: "not_found" };
+
+/**
+ * Withdraws the submission whose receipt hashes to `secretHash`. Its links
+ * stop supporting accepted versions, so `counted_records` drops every record
+ * no other completed upload supports. Accepted versions don't change:
+ * nothing is promoted in a withdrawn record's place.
+ */
+export async function withdrawSubmission(db: Db, secretHash: string, now: number): Promise<WithdrawResult> {
+  const update = await db
+    .prepare("UPDATE uploads SET status = 'withdrawn', withdrawn_at = ?2 WHERE secret_hash = ?1 AND status = 'completed'")
+    .bind(secretHash, now)
+    .run();
+  const found = await findSubmission(db, secretHash);
+  if (!found) return { kind: "not_found" };
+  return { kind: update.meta.changes === 1 ? "withdrawn" : "already_withdrawn", summary: found.summary };
 }

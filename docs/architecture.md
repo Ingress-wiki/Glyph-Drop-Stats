@@ -15,16 +15,17 @@ the server returns.
 ## Submission lifecycle
 
 ```
-upload → validate → preview → receipt → confirm → status → (withdraw)
+upload → validate → preview → receipt → confirm → status → withdraw
 ```
 
-**Status:** everything up to status is built. Withdrawal is milestone 3.
+**Status:** the whole lifecycle is built.
 
 | Endpoint | Does |
 | --- | --- |
 | `POST /api/preview` | Validates the file and classifies its records against accepted data. Stores nothing. |
 | `POST /api/submissions` | Confirms the file with `Authorization: Receipt <secret>`. Returns 201, 200 (`replayed`) or 409 (`receipt_in_use`). |
 | `GET /api/submission` | Reports the submission for `Authorization: Receipt <secret>`. |
+| `POST /api/submission/withdraw` | Withdraws it. Idempotent: again, it returns 200 with `alreadyWithdrawn: true` and changes nothing. A record id is never authorization. |
 
 ### Preview and confirm are stateless
 
@@ -147,4 +148,8 @@ All of this is covered by `tests/d1/`, against a local D1:
   record;
 - a duplicate receipt confirms once;
 - a retry after a lost response returns the original result;
-- withdrawal promotes nothing.
+- withdrawal needs the receipt, is idempotent, keeps records another active
+  submission supplied, and promotes nothing;
+- retrying a confirmation after withdrawing replays it as withdrawn and
+  doesn't reactivate it;
+- a later submission of the accepted version makes the record count again.

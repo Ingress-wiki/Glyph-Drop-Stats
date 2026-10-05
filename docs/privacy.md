@@ -26,11 +26,40 @@ This must be finished, and reviewed, before real submissions are accepted.
   It doesn't identify a player. It is stable, though, so a player's uploads
   that overlap can be linked by their shared ids.
 
+## Withdrawal
+
+**What it does now:**
+
+- The submission is marked withdrawn, with the time, at once.
+- Its links stop supporting accepted versions, so statistics, which read
+  only `counted_records`, stop counting every record that no other active
+  submission supplied.
+- Nothing is promoted in its place.
+- There are no cached aggregates yet, so nothing else needs refreshing.
+
+**What it doesn't do yet:** delete rows.
+
+- The upload row, its links and the versions it supplied stay in the
+  database, marked withdrawn and no longer counted.
+- Versions can't simply be deleted. An accepted version may also be
+  supported by other submissions, and it is what later uploads of the same
+  record are compared with.
+- Withdrawn data also stays in D1 Time Travel backups for their retention
+  window.
+
 ## Not yet decided
 
-- **Withdrawal.** What it removes from stored data, and how quickly. Also
-  how cached aggregates and backups reflect it: D1 Time Travel keeps earlier
-  database states for its retention window.
+- **Deleting withdrawn data.** The current indefinite retention is for
+  development only and must not become the production default. Before
+  accepting real submissions, define and implement:
+  - a bounded deletion period for observation payloads supported only by
+    withdrawn submissions;
+  - the minimal metadata kept after that, for retry handling and to keep
+    a conflict from being promoted automatically;
+  - backup retention, and what a restore does to withdrawals made since
+    the backup.
+- **Withdrawn records under review.** A maintainer review of update
+  candidates and conflicts should ignore those from withdrawn submissions.
 - **Operational logging.** What Cloudflare records about requests (IP
   addresses, user agents), and for how long. Having no accounts does not
   mean no connection metadata.

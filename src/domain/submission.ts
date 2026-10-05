@@ -5,6 +5,8 @@ export interface SubmissionSummary {
   status: "completed" | "withdrawn";
   /** Unix seconds. */
   createdAt: number;
+  /** Unix seconds; null while the submission is active. */
+  withdrawnAt: number | null;
   rowCount: number;
   /** Records in the file that failed validation; they were not stored. */
   rejected: number;
