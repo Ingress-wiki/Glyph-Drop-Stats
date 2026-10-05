@@ -25,6 +25,7 @@ upload → validate → preview → receipt → confirm → status → withdraw
 | `POST /api/preview` | Validates the file and classifies its records against accepted data. Stores nothing. |
 | `POST /api/submissions` | Confirms the file with `Authorization: Receipt <secret>`. Returns 201, 200 (`replayed`) or 409 (`receipt_in_use`). |
 | `GET /api/submission` | Reports the submission for `Authorization: Receipt <secret>`. |
+| `GET /api/statistics` | Descriptive statistics over `counted_records`, with optional filters. See [statistics](statistics.md). |
 | `POST /api/submission/withdraw` | Withdraws it. Idempotent: again, it returns 200 with `alreadyWithdrawn: true` and changes nothing. A record id is never authorization. |
 
 ### Preview and confirm are stateless
