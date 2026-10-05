@@ -20,8 +20,8 @@ The code is public. Individual submissions and private receipts are not.
 
 Today a player can check an export, see which records are usable and which
 are already known, and submit it with a private receipt. With the receipt
-they can later look the submission up or withdraw it. `GET /api/statistics`
-serves counts and item averages with their denominators and exclusions.
+they can later look the submission up or withdraw it. The statistics view
+shows counts and item averages with their denominators and exclusions.
 
 ## Quick start
 
@@ -44,3 +44,21 @@ See [docs/deployment.md](docs/deployment.md) for every command.
 ## Licence
 
 Code: [MIT](LICENSE). Terms for submitted data will be published separately.
+
+### Third-party notices
+
+The site self-hosts these fonts, unmodified apart from the Latin subset, each
+under the [SIL Open Font License 1.1](https://openfontlicense.org). The
+licence is next to each font in `public/fonts/`.
+
+| Font | Copyright | Source |
+| --- | --- | --- |
+| Departure Mono | Helena Zhang | github.com/rektdeckard/departure-mono |
+| IBM Plex Mono | IBM Corp. | Fontsource (`@fontsource/ibm-plex-mono`) |
+| Inter | The Inter Project Authors | Fontsource (`@fontsource/inter`) |
+
+The visual style is inspired by PlasticList (plasticlist.org). No PlasticList
+code, styles or content is used.
+
+Glyph Drop Stats is not affiliated with Niantic. Ingress and its item names
+are Niantic's.

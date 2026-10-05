@@ -57,7 +57,7 @@ export function StatusCheck() {
   return (
     <section>
       <h2>Check or withdraw a submission</h2>
-      <form onSubmit={check}>
+      <form className="toolbar bare" onSubmit={check}>
         <input
           type="password"
           autoComplete="off"

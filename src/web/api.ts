@@ -1,4 +1,5 @@
 import type { Issue } from "../domain/importer.ts";
+import type { Statistics } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import { OUTCOMES } from "../domain/versions.ts";
 
@@ -134,6 +135,43 @@ export async function submissionStatus(secret: string, signal?: AbortSignal): Pr
     return { kind: "found", submission: body.submission };
   }
   if (response.status >= 400 && response.status < 500 && isObject(body) && body.ok === false && isIssues(body.issues)) {
+    return { kind: "refused", issues: body.issues };
+  }
+  return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
+}
+
+export type StatisticsOutcome =
+  | { kind: "ok"; statistics: Statistics }
+  | { kind: "refused"; issues: Issue[] }
+  | { kind: "failed"; message: string };
+
+function isStatistics(value: unknown): value is Statistics {
+  if (!isObject(value) || !isObject(value.selection) || !isObject(value.records) || !isObject(value.items)) return false;
+  const { items } = value;
+  return (
+    isCount(value.selection.matched) &&
+    isCount(value.records.total) &&
+    isCount(items.eligible) &&
+    isObject(items.excluded) &&
+    Array.isArray(items.byItem) &&
+    (items.averagePerObservation === null || typeof items.averagePerObservation === "number")
+  );
+}
+
+/** `query` is a `statsQueryString`; the server validates it and refuses anything it can't read. */
+export async function fetchStatistics(query: string, signal?: AbortSignal): Promise<StatisticsOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/statistics${query ? `?${query}` : ""}`, { signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return { kind: "failed", message: describe(error) };
+  }
+  const body = await readJson(response);
+  if (response.status === 200 && isObject(body) && body.ok === true && isStatistics(body.statistics)) {
+    return { kind: "ok", statistics: body.statistics };
+  }
+  if (response.status === 400 && isObject(body) && body.ok === false && isIssues(body.issues)) {
     return { kind: "refused", issues: body.issues };
   }
   return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
