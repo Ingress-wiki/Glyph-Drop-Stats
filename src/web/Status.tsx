@@ -1,18 +1,23 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { isReceiptSecret } from "../domain/receipt.ts";
-import { submissionStatus, type StatusResponse } from "./api.ts";
+import { submissionStatus, type StatusOutcome } from "./api.ts";
+import { LatestOnly, STALE } from "./latest.ts";
 import { OutcomeList } from "./Outcomes.tsx";
 
 export function StatusCheck() {
   const [secret, setSecret] = useState("");
-  const [result, setResult] = useState<StatusResponse | { ok: false; message: string } | null>(null);
+  const [result, setResult] = useState<StatusOutcome | null>(null);
+  // An answer for a receipt that has since been changed must never be shown under the new one.
+  const latest = useRef(new LatestOnly());
 
   async function check(event: FormEvent) {
     event.preventDefault();
+    setResult(null);
     try {
-      setResult(await submissionStatus(secret.trim()));
+      const outcome = await latest.current.run((signal) => submissionStatus(secret.trim(), signal));
+      if (outcome !== STALE) setResult(outcome);
     } catch (error) {
-      setResult({ ok: false, message: error instanceof Error ? error.message : String(error) });
+      setResult({ kind: "failed", message: error instanceof Error ? error.message : String(error) });
     }
   }
 
@@ -27,6 +32,7 @@ export function StatusCheck() {
           aria-label="Receipt"
           value={secret}
           onChange={(event) => {
+            latest.current.cancel();
             setSecret(event.target.value);
             setResult(null);
           }}
@@ -35,7 +41,7 @@ export function StatusCheck() {
           Check
         </button>
       </form>
-      {result?.ok === true && (
+      {result?.kind === "found" && (
         <>
           <p>
             {result.submission.status === "completed" ? "Active" : "Withdrawn"}, submitted{" "}
@@ -45,9 +51,8 @@ export function StatusCheck() {
           <OutcomeList outcomes={result.submission.outcomes} />
         </>
       )}
-      {result?.ok === false && (
-        <p className="error">{"issues" in result ? result.issues.map((issue) => issue.message).join(" ") : result.message}</p>
-      )}
+      {result?.kind === "refused" && <p className="error">{result.issues.map((issue) => issue.message).join(" ")}</p>}
+      {result?.kind === "failed" && <p className="error">Couldn't check: {result.message}</p>}
     </section>
   );
 }

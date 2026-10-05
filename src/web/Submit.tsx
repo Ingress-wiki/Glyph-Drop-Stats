@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Preview } from "../domain/preview.ts";
 import { newReceiptSecret, receiptText } from "../domain/receipt.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
-import { RetryableError, submit } from "./api.ts";
+import { confirmUpload } from "./api.ts";
 import { OutcomeList } from "./Outcomes.tsx";
 
 type Phase =
@@ -29,18 +29,18 @@ export function SubmitPanel({ file, preview }: { file: File; preview: Extract<Pr
 
   async function send(secret: string) {
     setPhase({ step: "sending", secret });
-    try {
-      const response = await submit(file, secret);
-      if (response.ok) {
-        setPhase({ step: "done", secret, summary: response.submission, replayed: response.replayed });
-      } else {
-        setPhase({ step: "refused", message: response.issues.map((issue) => issue.message).join(" ") });
-      }
-    } catch (error) {
-      // The upload may or may not have committed. Retrying with the same receipt is safe either way.
-      const message = error instanceof Error ? error.message : String(error);
-      if (error instanceof RetryableError) setPhase({ step: "retry", secret, message });
-      else setPhase({ step: "refused", message });
+    const outcome = await confirmUpload(file, secret);
+    switch (outcome.kind) {
+      case "submitted":
+        setPhase({ step: "done", secret, summary: outcome.submission, replayed: outcome.replayed });
+        return;
+      case "refused":
+        setPhase({ step: "refused", message: outcome.issues.map((issue) => issue.message).join(" ") });
+        return;
+      case "uncertain":
+        // It may have committed. The receipt stays on the page, and retrying with it is safe.
+        setPhase({ step: "retry", secret, message: outcome.message });
+        return;
     }
   }
 
