@@ -1,5 +1,5 @@
 import type { Issue } from "../domain/importer.ts";
-import type { Statistics } from "../domain/statistics.ts";
+import { COVERAGES, ITEM_EXCLUSIONS, UNPLACED_REASONS, type ItemTotal, type Statistics } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import { OUTCOMES } from "../domain/versions.ts";
 
@@ -145,16 +145,47 @@ export type StatisticsOutcome =
   | { kind: "refused"; issues: Issue[] }
   | { kind: "failed"; message: string };
 
-function isStatistics(value: unknown): value is Statistics {
-  if (!isObject(value) || !isObject(value.selection) || !isObject(value.records) || !isObject(value.items)) return false;
-  const { items } = value;
+const isAverage = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
+
+/** An object with a count for every one of `keys`. */
+function isCounts(value: unknown, keys: readonly string[]): boolean {
+  return isObject(value) && keys.every((key) => isCount(value[key]));
+}
+
+function isItemTotal(value: unknown): value is ItemTotal {
+  if (!isObject(value)) return false;
+  const { item, quantity, averagePerObservation, multiplied, multipliedUnknown, levels } = value;
   return (
-    isCount(value.selection.matched) &&
-    isCount(value.records.total) &&
+    typeof item === "string" &&
+    isCount(quantity) &&
+    isAverage(averagePerObservation) &&
+    isCount(multiplied) &&
+    isCount(multipliedUnknown) &&
+    (levels === null || (Array.isArray(levels) && levels.length === 8 && levels.every(isCount)))
+  );
+}
+
+/** Checks every field the dashboard reads, so a malformed answer fails cleanly instead of crashing the page. */
+export function isStatistics(value: unknown): value is Statistics {
+  if (!isObject(value)) return false;
+  const { selection, records, items } = value;
+  return (
+    isObject(selection) &&
+    isCount(selection.matched) &&
+    isCounts(selection.unplaced, UNPLACED_REASONS) &&
+    isObject(records) &&
+    isCount(records.total) &&
+    isCounts(records.byKind, ["hack", "drop"]) &&
+    isCounts(records.byReadStatus, ["read", "notRead", "unavailable", "unsupported"]) &&
+    isCounts(records.byCoverage, COVERAGES) &&
+    isObject(items) &&
+    (items.panels === "portal" || items.panels === "bonus" || items.panels === "both") &&
     isCount(items.eligible) &&
-    isObject(items.excluded) &&
+    isCounts(items.excluded, ITEM_EXCLUSIONS) &&
+    isCount(items.totalQuantity) &&
+    (items.averagePerObservation === null || isAverage(items.averagePerObservation)) &&
     Array.isArray(items.byItem) &&
-    (items.averagePerObservation === null || typeof items.averagePerObservation === "number")
+    items.byItem.every(isItemTotal)
   );
 }
 

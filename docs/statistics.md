@@ -60,9 +60,9 @@ The page shows matching records by kind, read status and coverage:
 
 | Coverage | Meaning |
 | --- | --- |
-| both panels in full | `both_panels_read` |
-| seen panels in full | read in full, but not both panels (an unlisted item name still counts as read) |
-| partly read | a panel partly read, or a row unidentified |
+| both panels in full | `both_panels_read` **and** `observed_panels_read_in_full`: both panels, neither partial, every row identified |
+| seen panels in full | every panel seen read in full with every row identified, but not both panels (an unlisted item name still counts as read) |
+| partly read | a panel partly read, or a row whose name or level is unreadable, even when `both_panels_read` is true |
 | no panel | read, but no panel seen |
 | `notRead`, `unavailable`, `unsupported` | no reading, by status |
 
@@ -79,7 +79,12 @@ reason that applies:
 2. `panel_not_seen`: a selected panel is missing. **A missing panel is
    unknown, never zero.**
 3. `partly_read`: a selected panel was only partly read.
-4. `unidentified_items`: an item's name or level is unreadable.
+4. `unidentified_items`: an item's name or level is unreadable. Excluding
+   records with an unreadable level, not just an unreadable name, follows
+   the app's "read in full" and keeps the per-level columns complete. It
+   reduces coverage and may bias the sample, for example if levels are
+   harder to read on some panels or devices. The direction of any effect
+   on averages is unknown.
 5. `unlisted_item_names`: an item name isn't on the server's list yet.
    Records with such names are excluded until the name is reviewed.
 
@@ -110,6 +115,27 @@ Intervals wait for a defensible sampling unit.
 ## Scale
 
 Each request loads the accepted versions of the counted records into the
-Worker (bounded in SQL by any UTC range) and computes in memory. That is
-fine at pilot scale (thousands of records). Before it isn't, move the
-aggregation into SQL or add a cache that withdrawals invalidate.
+Worker, bounded in SQL by any UTC range, and computes in memory. Panel and
+item rows are grouped by version once, so the work grows linearly with the
+rows loaded.
+
+Measured in local `wrangler dev` on an Apple-silicon Mac (2026-10-05).
+Each upload was a maximum-size synthetic export (2,000 hacks × 25 item
+rows):
+
+| Counted records | Item rows | `GET /api/statistics` |
+| --- | --- | --- |
+| 2,000 | 50,000 | about 0.14 s |
+| 6,000 | 150,000 | about 0.4 s |
+| 16,000 | 400,000 | about 1.1 s |
+| 20,000 | 500,000 | about 1.4 s |
+
+The response stays about 1 KB. Local workerd doesn't enforce production
+CPU or memory limits, so before accepting real uploads:
+- repeat this on deployed Workers and D1 against a realistic accumulated
+  database (the per-upload limit doesn't bound the database);
+- watch the 128 MB Worker memory limit, since every counted record's items
+  are loaded at once.
+
+When either limit gets close, move the aggregation into SQL or add a cache
+that withdrawals invalidate.

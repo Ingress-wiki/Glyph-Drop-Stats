@@ -177,14 +177,19 @@ export function place(record: ObservationRecord, filter: StatsFilter): Placement
   return verdicts.find((verdict) => verdict !== "in") ?? "in";
 }
 
+/**
+ * `both_panels_read` only says neither panel was partial; a panel can still
+ * hold an unidentified row. "In full" therefore always needs
+ * `observed_panels_read_in_full` as well.
+ */
 export function coverage(record: ObservationRecord): Coverage {
   if (record.readStatus !== "read" || record.reading === null) {
     return record.readStatus === "read" ? "no_panel" : record.readStatus;
   }
   const { reading } = record;
   if (reading.panels.length === 0) return "no_panel";
-  if (reading.bothPanelsRead) return "both_panels_in_full";
-  return reading.observedPanelsReadInFull ? "seen_panels_in_full" : "partly_read";
+  if (!reading.observedPanelsReadInFull) return "partly_read";
+  return reading.bothPanelsRead ? "both_panels_in_full" : "seen_panels_in_full";
 }
 
 const STAGES: Record<PanelSelection, PanelStage[]> = {

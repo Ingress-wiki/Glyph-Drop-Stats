@@ -4,7 +4,7 @@ import type { ObservationRecord } from "../src/domain/record.ts";
 import { computeStatistics, NO_FILTER, type StatsFilter } from "../src/domain/statistics.ts";
 import { parseStatsQuery, statsQueryString } from "../src/domain/statsQuery.ts";
 import { datasetCsv, EXPECTED } from "./helpers/dataset.ts";
-import { hackId } from "./helpers/export.ts";
+import { csv, hackId, hackRecord, item, type Row } from "./helpers/export.ts";
 
 const NOW = Date.UTC(2026, 9, 4) / 1000;
 
@@ -28,6 +28,36 @@ describe("the whole dataset", () => {
 
   it("sums items only over observations whose portal panel was read completely", () => {
     expect(result.items).toEqual({ panels: "portal", ...EXPECTED.portalItems });
+  });
+});
+
+describe("coverage", () => {
+  // Both panels present and neither partial, so the app sets both_panels_read; but one row is
+  // not fully recognized, so observed_panels_read_in_full is false.
+  const bothPanelsWith = (cells: Row) => {
+    const record = hackRecord({ record_id: hackId(20), observed_panels_read_in_full: "false", both_panels_read: "true" });
+    return [
+      { ...record, ...item("portal", 0, cells) },
+      { ...record, ...item("bonus", 0, { item: "Hypercube", level: "", level_state: "notApplicable" }) },
+    ];
+  };
+  const coverageOf = (rows: Row[]) => {
+    const result = parseExport(new TextEncoder().encode(csv(rows)), { now: NOW });
+    if (!result.ok || result.records.length !== 1) throw new Error(`rejected: ${JSON.stringify(result)}`);
+    return computeStatistics([result.records[0].record], NO_FILTER);
+  };
+
+  it("never counts both panels as read in full with an unidentified name", () => {
+    const result = coverageOf(bothPanelsWith({ item: "" }));
+    expect(result.records.byCoverage.both_panels_in_full).toBe(0);
+    expect(result.records.byCoverage.partly_read).toBe(1);
+    expect(result.items.excluded.unidentified_items).toBe(1);
+  });
+
+  it("never counts both panels as read in full with an unreadable level", () => {
+    const result = coverageOf(bothPanelsWith({ level: "", level_state: "unreadable" }));
+    expect(result.records.byCoverage.both_panels_in_full).toBe(0);
+    expect(result.records.byCoverage.partly_read).toBe(1);
   });
 });
 

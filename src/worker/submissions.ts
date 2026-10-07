@@ -26,6 +26,17 @@ export interface Classified {
 /** Ids or hashes as JSON arrays small enough for one bound parameter each. */
 const idChunks = (values: readonly string[]) => jsonChunks(values);
 
+function groupByVersion<T extends { version_hash: unknown }>(rows: readonly T[]): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const hash = String(row.version_hash);
+    const group = groups.get(hash);
+    if (group) group.push(row);
+    else groups.set(hash, [row]);
+  }
+  return groups;
+}
+
 /** Stored versions rebuilt as records, by version hash. */
 export async function loadVersions(db: Db, hashes: readonly string[]): Promise<Map<string, ObservationRecord>> {
   const versions = new Map<string, ObservationRecord>();
@@ -36,16 +47,12 @@ export async function loadVersions(db: Db, hashes: readonly string[]): Promise<M
       db.prepare(`SELECT * FROM panels WHERE ${inChunk}`).bind(chunk).all<PanelRow>(),
       db.prepare(`SELECT * FROM items WHERE ${inChunk}`).bind(chunk).all<ItemRow>(),
     ]);
+    // Grouped once, so rebuilding a chunk is linear in its rows rather than versions × rows.
+    const panelsByVersion = groupByVersion(panelRows.results);
+    const itemsByVersion = groupByVersion(itemRows.results);
     for (const version of versionRows.results) {
-      const hash = version.version_hash;
-      versions.set(
-        String(hash),
-        fromRows(
-          version,
-          panelRows.results.filter((row) => row.version_hash === hash),
-          itemRows.results.filter((row) => row.version_hash === hash),
-        ),
-      );
+      const hash = String(version.version_hash);
+      versions.set(hash, fromRows(version, panelsByVersion.get(hash) ?? [], itemsByVersion.get(hash) ?? []));
     }
   }
   return versions;

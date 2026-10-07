@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { confirmUpload, submissionStatus, withdrawUpload } from "../src/web/api.ts";
+import { computeStatistics, NO_FILTER } from "../src/domain/statistics.ts";
+import { confirmUpload, fetchStatistics, isStatistics, submissionStatus, withdrawUpload } from "../src/web/api.ts";
 
 const SECRET = `gds1_${"a".repeat(43)}`;
 const FILE = new File(["format_version\r\n"], "export.csv", { type: "text/csv" });
@@ -150,5 +151,65 @@ describe("summary validation", () => {
     expect(await submissionStatus(SECRET)).toMatchObject({ kind: "failed" });
     answer(json(200, { ok: true, submission: { ...SUMMARY, status: "withdrawn" } }));
     expect(await submissionStatus(SECRET)).toMatchObject({ kind: "failed" });
+  });
+});
+
+describe("fetchStatistics", () => {
+  const valid = () => computeStatistics([], NO_FILTER);
+  const withItem = () => {
+    const statistics = valid();
+    statistics.items.eligible = 1;
+    statistics.items.byItem = [
+      {
+        item: "Resonator",
+        quantity: 2,
+        averagePerObservation: 2,
+        multiplied: 0,
+        multipliedUnknown: 0,
+        levels: [0, 0, 0, 0, 0, 2, 0, 0],
+      },
+    ];
+    return statistics;
+  };
+  const answerWith = (statistics: unknown) => answer(json(200, { ok: true, statistics }));
+
+  it("accepts a complete answer", async () => {
+    answerWith(withItem());
+    expect(await fetchStatistics("")).toMatchObject({ kind: "ok" });
+    expect(isStatistics(valid())).toBe(true);
+  });
+
+  it("fails cleanly on an answer missing what the dashboard reads", async () => {
+    const broken = valid() as unknown as { records: Record<string, unknown>; selection: Record<string, unknown> };
+    delete broken.records.byKind;
+    delete broken.records.byCoverage;
+    delete broken.selection.unplaced;
+    answerWith(broken);
+    expect(await fetchStatistics("")).toMatchObject({ kind: "failed" });
+  });
+
+  it("rejects each missing or malformed field", () => {
+    const cases: [string, (s: Record<string, any>) => void][] = [
+      ["unplaced reason", (s) => delete s.selection.unplaced.no_local_time],
+      ["kind count", (s) => (s.records.byKind.drop = -1)],
+      ["read status", (s) => delete s.records.byReadStatus.unsupported],
+      ["coverage", (s) => (s.records.byCoverage.partly_read = "3")],
+      ["panels", (s) => (s.items.panels = "all")],
+      ["exclusion", (s) => delete s.items.excluded.unlisted_item_names],
+      ["total quantity", (s) => (s.items.totalQuantity = 1.5)],
+      ["average", (s) => (s.items.averagePerObservation = Number.NaN)],
+      ["item rows", (s) => (s.items.byItem = {})],
+      ["item name", (s) => (s.items.byItem[0].item = null)],
+      ["item average", (s) => (s.items.byItem[0].averagePerObservation = -1)],
+      ["level array length", (s) => (s.items.byItem[0].levels = [1, 2, 3])],
+      ["level value", (s) => (s.items.byItem[0].levels[5] = null)],
+      ["multiplied", (s) => delete s.items.byItem[0].multipliedUnknown],
+    ];
+    for (const [name, breakIt] of cases) {
+      // A test fixture deliberately broken field by field; the validator is what's under test.
+      const statistics = structuredClone(withItem()) as unknown as Record<string, any>;
+      breakIt(statistics);
+      expect([name, isStatistics(statistics)]).toEqual([name, false]);
+    }
   });
 });

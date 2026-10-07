@@ -37,6 +37,9 @@ Before the pilot, repeat the measurements in the deployed environment:
 - preview and confirmation of a typical and a maximum-size export;
 - the CPU time used, against a deliberately set CPU limit;
 - the single-batch commit on deployed D1;
+- `GET /api/statistics` against an accumulated database of tens of
+  thousands of records (see [statistics](statistics.md#scale)), within
+  the CPU and 128 MB memory limits;
 - the upload limits (`DEFAULT_LIMITS` in `src/domain/importer.ts`).
 
 ## Deployment
