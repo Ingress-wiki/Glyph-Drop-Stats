@@ -78,3 +78,13 @@ export async function newContext(browser, options) {
   });
   return context;
 }
+
+/**
+ * Wait until a frame has taken the keys sent so far. synth-ui moves the focus
+ * for Tab as soon as it reads a frame's input but gives typed text to
+ * whatever is focused when it draws, so text and a Tab in one frame would
+ * land in the next field. Two animation frames include one drawn after the keys.
+ */
+export async function framesDrawn(page) {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}

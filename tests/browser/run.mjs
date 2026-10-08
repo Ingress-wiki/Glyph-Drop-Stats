@@ -56,7 +56,8 @@ try {
   }
   const lan = lanAddress();
   // CI runners have no GPU: WebGL2 there comes from SwiftShader, which Chrome only allows when asked.
-  const args = process.env.CI ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [];
+  // SOFTWARE_GL=1 renders the same way locally, to reproduce CI's slow frames.
+  const args = process.env.CI || process.env.SOFTWARE_GL ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [];
   const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true, args });
   try {
     const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir, screens: screenshots });

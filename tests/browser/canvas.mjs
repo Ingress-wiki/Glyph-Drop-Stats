@@ -3,7 +3,7 @@
 // then Enter) and reads results from the accessible mirror.
 import { readFileSync } from "node:fs";
 import { webcrypto } from "node:crypto";
-import { activate, checks, dialogsClosed, newContext } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed, framesDrawn, newContext } from "./keyboard.mjs";
 
 /**
  * The whole flow: statistics, filters, search and sorting, then checking a
@@ -35,6 +35,7 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR, scr
     await activate(page, label, "End");
     for (let i = 0; i < 80; i++) await page.keyboard.press("Backspace");
     if (text) await page.keyboard.type(text, { delay: 10 });
+    await framesDrawn(page);
   }
 
   try {
