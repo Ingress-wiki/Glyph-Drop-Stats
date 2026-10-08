@@ -1,4 +1,4 @@
-/* The page is one canvas; everything else is the accessible mirror and its fallback. */
+/* The canvas has a native text layer for selection and a semantic accessible mirror. */
 
 :root {
   color-scheme: dark;
@@ -22,6 +22,30 @@ body {
   height: 100vh;
   height: 100dvh;
   outline: none;
+}
+
+#canvas-text {
+  position: fixed;
+  pointer-events: none;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.canvas-text-run {
+  position: absolute;
+  white-space: pre;
+  color: transparent;
+  cursor: text;
+}
+
+.canvas-text-run span {
+  display: inline-block;
+}
+
+.canvas-text-run span::selection {
+  color: transparent;
+  background: #e8591a80;
 }
 
 /* Present for the canvas's CHOOSE FILE button to open, never shown. */
@@ -63,7 +87,9 @@ body {
 
 /* Without a canvas, or in the text view, the mirror is the page. */
 .fallback #screen,
-.text-view #screen {
+.text-view #screen,
+.fallback #canvas-text,
+.text-view #canvas-text {
   display: none !important;
 }
 

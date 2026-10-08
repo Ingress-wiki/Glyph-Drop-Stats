@@ -22,6 +22,7 @@ effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
 | --- | --- |
 | `src/web/app/store.ts` | All page state and actions, with no drawing. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
 | `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
+| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying. |
 | `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
 | `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
 
@@ -37,8 +38,13 @@ no native controls. So:
     one. synth-ui's own buttons don't take focus, so the site draws its own.
   - F1 shows statistics, F2 submitting, F3 the filters, F4 the guide, F8
     the CRT effect, F9 the text view.
-- **Selecting and copying:** canvas text is pixels, so it can't be
-  selected or found with the browser's search.
+- **Selecting and copying:** a transparent HTML text layer follows the
+  canvas's glyph positions and clipping. Drag or double-click to select
+  visible text, then copy normally; Mod+A selects the visible text. The
+  layer leaves interactive controls with the canvas and preserves text
+  nodes across redraws so hovering doesn't discard a selection. Modal
+  backdrops exclude covered text, and wheel events over text still scroll
+  the canvas.
   - **Receipts** are drawn in a read-only selectable widget: drag,
     double-click, Tab or Mod+A selects, and Mod+C copies through synth-ui's
     copy-event path, which works over plain HTTP.

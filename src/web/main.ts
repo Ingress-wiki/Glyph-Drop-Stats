@@ -4,6 +4,7 @@ import { confirmUpload, fetchStatistics, previewFile, submissionStatus, withdraw
 import { announcement, renderMirror } from "./app/mirror.ts";
 import { Store, type View } from "./app/store.ts";
 import { paint } from "./canvas/app.ts";
+import { TextLayer } from "./canvas/textLayer.ts";
 import { COLORS, FONTS, PALETTE } from "./canvas/theme.ts";
 import { endFrame } from "./canvas/ui.ts";
 import "./index.css";
@@ -67,6 +68,7 @@ async function copyText(text: string, restoreFocus: HTMLElement): Promise<void> 
 
 async function main(): Promise<void> {
   const canvas = element("screen", HTMLCanvasElement);
+  const textLayer = new TextLayer(canvas, element("canvas-text", HTMLElement));
   const mirror = element("mirror", HTMLElement);
   const live = element("live", HTMLElement);
   const focusLive = element("focus-live", HTMLElement);
@@ -113,13 +115,28 @@ async function main(): Promise<void> {
   // The text view shows the mirror on screen in place of the canvas.
   const backToCanvas = element("canvas-view", HTMLButtonElement);
   backToCanvas.addEventListener("click", () => store.setTextView(false));
-  // F9 is handled here for both views, so it works the moment the canvas is shown again,
-  // before its frame loop has picked up keys.
+  // Native selection moves focus away from the canvas. Keep page shortcuts
+  // available there and in the text view, without sending them twice to the host.
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "F9" || event.repeat) return;
+    if (event.repeat) return;
+    switch (event.key) {
+      case "F1": store.setView("statistics"); break;
+      case "F2": store.setView("submit"); break;
+      case "F3":
+        if (store.state.view !== "statistics") return;
+        store.toggleFilters();
+        break;
+      case "F4":
+        if (store.state.view !== "statistics") return;
+        store.setGuideOpen(true);
+        break;
+      case "F8": store.toggleCrt(); break;
+      case "F9": store.setTextView(!store.state.textView); break;
+      default: return;
+    }
     event.preventDefault();
-    store.setTextView(!store.state.textView);
-  });
+    event.stopImmediatePropagation();
+  }, true);
 
   let host: ViewHost | null = null;
   let previous = store.state;
@@ -153,7 +170,8 @@ async function main(): Promise<void> {
     host = await createViewHost(
       canvas,
       (ctx) => {
-        paint(ctx, store, env);
+        if (host) textLayer.paint(host.ui, () => paint(ctx, store, env));
+        else paint(ctx, store, env);
         const focused = endFrame();
         if (focused) focusLive.textContent = focused;
       },

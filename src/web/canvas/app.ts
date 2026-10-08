@@ -18,12 +18,6 @@ export function paint(ctx: Context, store: Store, env: SubmitEnv): void {
   const { view, statistics, status } = store.state;
   ctx.fillRect(ctx.bounds, c.bg);
 
-  if (ctx.shortcut("F1")) store.setView("statistics");
-  if (ctx.shortcut("F2")) store.setView("submit");
-  if (view === "statistics" && ctx.shortcut("F3")) store.toggleFilters();
-  if (view === "statistics" && ctx.shortcut("F4")) store.setGuideOpen(true);
-  if (ctx.shortcut("F8")) store.toggleCrt();
-
   topBar(ctx, store);
   const footer = ctx.cutBottom(11);
   ctx.hline(footer.x, footer.y, footer.w, c.line);
