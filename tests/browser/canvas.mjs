@@ -3,7 +3,7 @@
 // then Enter) and reads results from the accessible mirror.
 import { readFileSync } from "node:fs";
 import { webcrypto } from "node:crypto";
-import { activate, checks } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed } from "./keyboard.mjs";
 
 /**
  * The whole flow: statistics, filters, search and sorting, then checking a
@@ -53,6 +53,7 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await page.locator("[data-testid=headline]").waitFor();
     check("the canvas started (no fallback)", !(await page.evaluate(() => document.body.classList.contains("fallback"))));
     await activate(page, "Got it");
+    await dialogsClosed(page);
     check("headline numbers", (await headline(page)) === "Records10Eligible observations5 of 10Items10Per observation2.00", await headline(page));
     const resonator = (await itemRows(page)).find((row) => row.startsWith("Resonator"));
     check("Resonator row matches hand calculation", resonator === "Resonator71.400000340023", resonator);
@@ -168,8 +169,7 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await page.screenshot({ path: `${DIR}/smoke-submit.png` });
 
     // Statistics reflect the withdrawal at once. The UI upload of a.csv still supports h1-h6.
-    // (The confirmation sheet keeps the keyboard while it slides shut.)
-    await page.waitForTimeout(1000);
+    await dialogsClosed(page);
     await page.keyboard.press("F1");
     await page.waitForTimeout(800);
     check("statistics after withdrawal", (await headline(page)).startsWith("Records10"), await headline(page));

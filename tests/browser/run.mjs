@@ -2,7 +2,7 @@
 // on a throwaway local D1, runs every suite in the installed Chrome, and always
 // stops the server. CHROME_CHANNEL picks another Chromium channel.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, firefox } from "playwright-core";
@@ -19,6 +19,7 @@ const dir = mkdtempSync(join(tmpdir(), "gds-browser-"));
 const state = join(dir, "state");
 /** Screenshots outlive the run, for a look at each language; SCREENSHOT_DIR picks where. */
 const screenshots = process.env.SCREENSHOT_DIR ?? mkdtempSync(join(tmpdir(), "gds-screens-"));
+mkdirSync(screenshots, { recursive: true });
 
 /** The overlapping synthetic uploads the suites expect: h1–h6, and h4 onwards. */
 const records = datasetRecords();
@@ -66,7 +67,9 @@ try {
     await browser.close();
   }
   // Playwright's own Firefox (`npx playwright-core install firefox`); CI always has it.
-  const gecko = await firefox.launch({ headless: true }).catch(() => null);
+  // Without a GPU, Firefox only offers WebGL when told to (software rendering).
+  const firefoxUserPrefs = process.env.CI ? { "webgl.force-enabled": true, "webgl.disable-fail-if-major-performance-caveat": true } : {};
+  const gecko = await firefox.launch({ headless: true, firefoxUserPrefs }).catch(() => null);
   if (gecko) {
     try {
       passed = (await firefoxSuite({ browser: gecko, base })) && passed;

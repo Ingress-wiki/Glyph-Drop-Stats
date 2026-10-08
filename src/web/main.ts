@@ -205,8 +205,8 @@ async function main(): Promise<void> {
     openFilePicker: () => fileInput.click(),
     openSource: () => window.open(SOURCE_URL, "_blank", "noopener,noreferrer"),
   };
-  try {
-    host = await createViewHost(
+  const startHost = () =>
+    createViewHost(
       canvas,
       (ctx) => {
         if (host) textLayer.paint(host.ui, () => paint(ctx, store, env));
@@ -226,6 +226,8 @@ async function main(): Promise<void> {
         label: store.strings.app.canvasLabel,
       },
     );
+  try {
+    host = await startHost();
     localizePage(store.state.locale, canvas);
     if (store.state.textView) showTextView(true);
     else canvas.focus();
@@ -236,6 +238,25 @@ async function main(): Promise<void> {
     document.body.classList.add("fallback");
     element("fallback-reason", HTMLElement).textContent = error instanceof Error ? error.message : String(error);
   }
+
+  // Browsers drop the WebGL contexts of background tabs (Firefox does when a link opens in
+  // a new one), and synth-ui never draws again on a lost context. Claiming the loss lets the
+  // browser restore the context when the tab returns; then a new host draws on it, and the
+  // store keeps everything the page showed.
+  canvas.addEventListener("webglcontextlost", (event) => event.preventDefault());
+  canvas.addEventListener("webglcontextrestored", () => {
+    host?.destroy();
+    host = null;
+    startHost().then(
+      (restarted) => {
+        host = restarted;
+        localizePage(store.state.locale, canvas);
+        if (store.state.textView) restarted.stop();
+      },
+      // The context came back but can't be drawn on: the text version still works.
+      () => store.setTextView(true),
+    );
+  });
   void store.loadConfig();
   if (store.state.view === "statistics") void store.loadStatistics("");
 }

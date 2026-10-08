@@ -1,4 +1,4 @@
-import { activate, checks } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed } from "./keyboard.mjs";
 
 /**
  * The transparent text layer over the canvas: selecting, copying and finding
@@ -24,12 +24,12 @@ export async function textLayerSuite({ browser, base: BASE, upload: UPLOAD }) {
     await page.waitForTimeout(800);
     check("F4 doesn't open the guide over the first-visit note", !(await guideShown()));
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(800);
+    await dialogsClosed(page);
     await page.keyboard.press("F4");
     await run("ABOUT THESE NUMBERS").waitFor();
     check("F4 opens the guide once the note is closed", true);
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(800);
+    await dialogsClosed(page);
 
     // Drag-select ordinary canvas text and copy it.
     const res = await run("Resonator").boundingBox();

@@ -33,6 +33,28 @@ export async function firefoxSuite({ browser, base: BASE }) {
     const prose = await run(/^Each counted once\s*$/i).boundingBox();
     await page.mouse.dblclick(prose.x + prose.width * 0.85, prose.y + prose.height / 2);
     check("double-click selects a whole word", (await selected()).trim() === "once", JSON.stringify(await selected()));
+    // Firefox drops a background tab's WebGL context (opening the GitHub link in a new tab
+    // does it); the page must draw and respond again once the context is restored.
+    const lost = await page.evaluate(() => {
+      const gl = document.getElementById("screen")?.getContext("webgl2");
+      const extension = gl?.getExtension("WEBGL_lose_context");
+      if (!extension) return false;
+      window.__loseContext = extension;
+      extension.loseContext();
+      return true;
+    });
+    if (lost) {
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.__loseContext.restoreContext());
+      await page.waitForFunction(() => document.querySelectorAll("#canvas-text .canvas-text-run").length > 0, null, { timeout: 10000 });
+      const submit = await run(/^Submit\s*$/i).boundingBox();
+      await page.mouse.click(submit.x + submit.width / 2, submit.y + submit.height / 2);
+      await page.waitForTimeout(500);
+      const drawn = await page.locator("#canvas-text .canvas-text-run").filter({ hasText: /^Check a file\s*$/i }).count();
+      check("draws and responds again after the WebGL context is lost and restored", drawn > 0);
+    } else {
+      check("draws and responds again after the WebGL context is lost and restored", true, "not WebGL here: skipped");
+    }
     check("no page errors", errors.length === 0, errors.join("; "));
   } catch (error) {
     check("Firefox check ran to the end", false, String(error).slice(0, 400));

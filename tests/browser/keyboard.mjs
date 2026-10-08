@@ -42,3 +42,16 @@ export function checks() {
     },
   };
 }
+
+/**
+ * Wait until no sheet is showing. synth-ui sheets keep the keyboard until they
+ * have slid shut (longer when frames are slow), and while one shows the text
+ * layer leaves out the page under it: the top bar's F1 label returns once it's gone.
+ */
+export async function dialogsClosed(page, timeout = 15000) {
+  await page.waitForFunction(
+    () => [...document.querySelectorAll("#canvas-text .canvas-text-run")].some((node) => node.textContent?.trim() === "F1"),
+    null,
+    { timeout },
+  );
+}
