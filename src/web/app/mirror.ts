@@ -3,6 +3,7 @@ import type { Messages } from "../i18n/en.ts";
 import { issuesText, issueText, messages, problemText } from "../i18n/index.ts";
 import { matchesSearch } from "../items.ts";
 import { sortItems } from "../itemTable.ts";
+import { SOURCE_URL } from "../site.ts";
 import { confirmationMessage } from "../messages.ts";
 import type { AppState } from "./store.ts";
 
@@ -167,6 +168,7 @@ export function renderMirror(state: AppState, root: HTMLElement): void {
     el("p", { class: "keyboard-help" }, s.app.keyboardHelp),
     state.view === "statistics" ? statisticsSection(s, state) : submitSection(s, state),
     el("p", {}, s.notices),
+    el("p", {}, el("a", { href: SOURCE_URL }, s.app.source)),
   );
 }
 

@@ -9,7 +9,7 @@ import type {
   StatusOutcome,
   WithdrawOutcome,
 } from "../src/web/api.ts";
-import { CRT_KEY, DISCLAIMER_KEY, Store, TEXT_VIEW_KEY, type StoreDeps } from "../src/web/app/store.ts";
+import { CRT_KEY, DISCLAIMER_KEY, SMOOTH_TEXT_KEY, Store, TEXT_VIEW_KEY, type StoreDeps } from "../src/web/app/store.ts";
 import { LOCALE_KEY, type Locale } from "../src/web/i18n/index.ts";
 
 /** A promise the test settles by hand. */
@@ -306,6 +306,14 @@ describe("per-viewer preferences", () => {
     store.toggleCrt();
     expect(saved.get(CRT_KEY)).toBe("off");
     expect(store.state.crt).toBe(false);
+  });
+
+  it("remembers the font switch, starting with the pixel font", () => {
+    const { store, saved } = setup();
+    expect(store.state.smoothText).toBe(false);
+    store.toggleSmoothText();
+    expect(saved.get(SMOOTH_TEXT_KEY)).toBe("on");
+    expect(store.state.smoothText).toBe(true);
   });
 });
 

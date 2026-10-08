@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { LOCALES, messages } from "../../src/web/i18n/index.ts";
+import { SOURCE_URL } from "../../src/web/site.ts";
 import { checks } from "./keyboard.mjs";
 
 /** Tab until the focus announcement is exactly `announced`, then press `key`. */
@@ -72,6 +73,36 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
       .waitFor({ state: "attached", timeout: 10000 })
       .then(() => true, () => false);
     check("server messages are shown in the page's language", translated, translated ? "" : (await page.locator("#mirror").textContent()).slice(0, 300));
+
+    // The smooth font: the text layer shows the text, and the choice is remembered.
+    await page.keyboard.press("F1");
+    await page.locator("[data-testid=headline]").waitFor();
+    await page.waitForTimeout(500);
+    const inkOf = () =>
+      page.evaluate(() => {
+        const run = [...document.querySelectorAll("#canvas-text .canvas-text-run")].find((node) => node.textContent?.trim() === "Resonator");
+        return run ? getComputedStyle(run).color : null;
+      });
+    check("pixel font: the text layer is transparent", (await inkOf()) === "rgba(0, 0, 0, 0)", await inkOf());
+    await activateExactly(page, ko.a11y.button(ko.app.fontPixel));
+    await page.waitForTimeout(300);
+    const smoothInk = await inkOf();
+    check("smooth font: the text layer shows the text", smoothInk !== null && smoothInk !== "rgba(0, 0, 0, 0)", smoothInk);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("[data-testid=headline]").waitFor();
+    await page.waitForTimeout(1000);
+    check("the font choice is remembered", (await inkOf()) !== "rgba(0, 0, 0, 0)");
+    await activateExactly(page, ko.a11y.button(ko.app.fontSmooth));
+    await page.waitForTimeout(300);
+    check("back to the pixel font", (await inkOf()) === "rgba(0, 0, 0, 0)");
+
+    // The code's link: the top bar opens it, and the text view has it as a link.
+    await context.route("https://github.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "ok" }));
+    const [popup] = await Promise.all([context.waitForEvent("page"), activateExactly(page, ko.a11y.button(ko.app.source))]);
+    await popup.waitForURL(SOURCE_URL);
+    check("GitHub opens the repository in a new tab", popup.url() === SOURCE_URL, popup.url());
+    await popup.close();
+    check("the text view links to the repository", (await page.locator(`#mirror a[href="${SOURCE_URL}"]`).count()) === 1);
 
     // Every language draws without errors; screenshots for a look.
     await page.keyboard.press("F1");

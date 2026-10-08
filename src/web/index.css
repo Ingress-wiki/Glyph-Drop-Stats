@@ -48,6 +48,19 @@ body {
   background: #e8591a80;
 }
 
+/* Smooth font: the same text, shown in the system's font in each glyph's cell. */
+#canvas-text.smooth .canvas-text-run {
+  color: var(--ink);
+}
+
+#canvas-text.smooth .canvas-text-run.caps {
+  text-transform: uppercase;
+}
+
+#canvas-text.smooth .canvas-text-run span::selection {
+  color: #fff;
+}
+
 /* Present for the canvas's CHOOSE FILE button to open, never shown. */
 .file-input {
   position: absolute;

@@ -14,7 +14,7 @@ function frame(draw: (ctx: Context) => void) {
   const runs: TextRun[] = [];
   const text = backend.text.bind(backend);
   backend.text = (layer, clip, font, value, x, y, color, scale) => {
-    runs.push({ layer, clip, font, text: value, x, y, scale });
+    runs.push({ layer, clip, font, text: value, color, x, y, scale });
     text(layer, clip, font, value, x, y, color, scale);
   };
   const ui = new UI({ backend, palette: PALETTE });

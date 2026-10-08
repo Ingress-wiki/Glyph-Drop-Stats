@@ -4,6 +4,11 @@ import type { AppState, Store, View } from "../app/store.ts";
 import { LOCALES, messages, problemText } from "../i18n/index.ts";
 import { drawStatistics } from "./statisticsView.ts";
 import { drawSubmit, type SubmitEnv } from "./submitView.ts";
+
+export interface PageEnv extends SubmitEnv {
+  /** Opens the site's code on GitHub in a new tab. */
+  openSource(): void;
+}
 import { FONT, fontRoles, useLocale } from "./theme.ts";
 import { actionButton, beginFrame, buttonHeight, bullets, drawFocusRing, errorLine, lineHeight, paragraph, pressable } from "./ui.ts";
 
@@ -27,7 +32,7 @@ let shownMessage: StatusMessage | null = null;
  */
 const pickerFocus = { wasOpen: false, toPicker: false, toSwitch: false };
 
-export function paint(ctx: Context, store: Store, env: SubmitEnv): void {
+export function paint(ctx: Context, store: Store, env: PageEnv): void {
   const s = store.strings;
   useLocale(ctx, store.state.locale);
   beginFrame(s);
@@ -40,7 +45,7 @@ export function paint(ctx: Context, store: Store, env: SubmitEnv): void {
   }
   ctx.fillRect(ctx.bounds, c.bg);
 
-  topBar(ctx, store);
+  topBar(ctx, store, env);
   const lineH = Math.max(lineHeight(ctx, FONT.caps), lineHeight(ctx, FONT.small));
   const footer = ctx.cutBottom(lineH + 4);
   ctx.hline(footer.x, footer.y, footer.w, c.line);
@@ -145,7 +150,7 @@ export function paint(ctx: Context, store: Store, env: SubmitEnv): void {
 const BAR_PAD = 8;
 
 /** The wordmark, the view tabs and the switches; the tabs take a second row when the screen is narrow. */
-function topBar(ctx: Context, store: Store): void {
+function topBar(ctx: Context, store: Store, env: PageEnv): void {
   const s = store.strings;
   const { colors: c } = useTheme(ctx);
   const capsH = lineHeight(ctx, FONT.caps);
@@ -157,7 +162,15 @@ function topBar(ctx: Context, store: Store): void {
   const keyW = (key: string) => ctx.measureText(key, { font: FONT.small }) + 3;
   const tabWidths = TABS.map((tab) => keyW(tab.key) + ctx.measureText(tabLabel(tab.view), { font: FONT.caps }) + 10);
   const switches = [
+    { key: "source", text: "GitHub", label: s.app.source, hint: s.app.source, act: () => env.openSource() },
     { key: "language", text: s.language.code, label: s.app.language, hint: s.app.languageHint, act: () => store.setLanguageOpen(true) },
+    {
+      key: "font",
+      text: store.state.smoothText ? s.app.fontSmooth : s.app.fontPixel,
+      label: store.state.smoothText ? s.app.fontSmooth : s.app.fontPixel,
+      hint: s.app.fontHint,
+      act: () => store.toggleSmoothText(),
+    },
     { key: "crt", text: store.state.crt ? s.app.crtOn : s.app.crtOff, label: s.a11y.crt(store.state.crt), hint: s.app.crtHint, act: () => store.toggleCrt() },
     { key: "text-view", text: s.app.textView, label: s.app.textView, hint: s.app.textViewHint, act: () => store.setTextView(true) },
   ];

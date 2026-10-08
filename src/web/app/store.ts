@@ -77,6 +77,8 @@ export interface AppState {
   status: StatusState;
   statistics: StatisticsState;
   crt: boolean;
+  /** Text in the system's font instead of the pixel faces. */
+  smoothText: boolean;
   /** The page shown as plain HTML instead of the canvas: text can be selected, copied and found. */
   textView: boolean;
   /** The page's language. */
@@ -113,6 +115,7 @@ export interface StoreDeps {
 export const DISCLAIMER_KEY = "glyph-drop-stats:disclaimer-seen";
 export const CRT_KEY = "glyph-drop-stats:crt";
 export const TEXT_VIEW_KEY = "glyph-drop-stats:text-view";
+export const SMOOTH_TEXT_KEY = "glyph-drop-stats:smooth-text";
 
 
 
@@ -145,6 +148,7 @@ export class Store {
         disclaimerOpen: deps.storage.get(DISCLAIMER_KEY) !== "1",
       },
       crt: deps.storage.get(CRT_KEY) !== "off",
+      smoothText: deps.storage.get(SMOOTH_TEXT_KEY) === "on",
       locale,
       languageOpen: false,
       textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
@@ -207,6 +211,12 @@ export class Store {
     const crt = !this.state.crt;
     this.deps.storage.set(CRT_KEY, crt ? "on" : "off");
     this.update({ crt });
+  }
+
+  toggleSmoothText(): void {
+    const smoothText = !this.state.smoothText;
+    this.deps.storage.set(SMOOTH_TEXT_KEY, smoothText ? "on" : "off");
+    this.update({ smoothText });
   }
 
   /**

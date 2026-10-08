@@ -15,14 +15,14 @@ the server returns.
 ## The web page
 
 The interface is drawn into one `<canvas>` by [synth-ui](https://github.com/unixzii/synth-ui):
-immediate-mode, at two CSS pixels per virtual pixel, with an optional CRT
+immediate-mode, at 2.4 CSS pixels per virtual pixel (120%), with an optional CRT
 effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
 
 | Path | Role |
 | --- | --- |
 | `src/web/app/store.ts` | All page state and actions, with no drawing. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
 | `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
-| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0: check the text layer (`npm run test:browser`) before upgrading it. |
+| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying, and shows it in the system font when the font switch says so. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0: check the text layer (`npm run test:browser`) before upgrading it. |
 | `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
 | `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
 
@@ -43,7 +43,9 @@ no native controls. So:
   - While a dialog is open (the first-visit note, the guide, the
     withdrawal confirmation), only F9 works, as synth-ui dialogs keep the
     keyboard.
-- **Selecting and copying:** a transparent HTML text layer follows the
+- **Selecting and copying:** synth-ui 0.1.0 selects text only inside its
+  editable `textField` (its demo works the same way); labels and prose
+  can't be selected. So a transparent HTML text layer follows the
   canvas's glyph positions and clipping. Drag or double-click to select
   visible text, then copy normally; Mod+A selects the visible text. The
   layer leaves interactive controls with the canvas and preserves text
@@ -65,6 +67,16 @@ no native controls. So:
   from the public-domain X.org misc-fixed 5×7 font
   (`scripts/bdf-to-face.mjs`), and COPY puts the exact text on the
   clipboard.
+
+- **Font switch:** PIXEL FONT / SMOOTH FONT in the top bar, remembered per
+  browser. synth-ui draws bitmap faces only, so smooth text is the text
+  layer made visible in the system font (coloured from the palette, the
+  capitals-only faces kept in capitals) while the canvas skips its glyphs.
+  Each run keeps the pixel text's place: control labels stay centred in
+  it, and a run whose system glyphs would be wider is set smaller to fit.
+  Layout, clipping and scrolling are the canvas's either way.
+- **Source:** GITHUB in the top bar opens the repository; the text view
+  links to it.
 
 ### Languages
 

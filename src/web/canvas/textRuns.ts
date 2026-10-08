@@ -5,6 +5,8 @@ export interface TextRun {
   clip: number;
   font: string;
   text: string;
+  /** Palette index. */
+  color: number;
   x: number;
   y: number;
   scale: number;

@@ -8,6 +8,7 @@ import { paint } from "./canvas/app.ts";
 import { TextLayer } from "./canvas/textLayer.ts";
 import { COLORS, FONTS, PALETTE } from "./canvas/theme.ts";
 import { endFrame } from "./canvas/ui.ts";
+import { SOURCE_URL } from "./site.ts";
 import "./index.css";
 
 function element<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T {
@@ -188,6 +189,7 @@ async function main(): Promise<void> {
     previous = next;
     if (said) live.textContent = said;
     renderMirror(next, mirror);
+    textLayer.smooth = next.smoothText;
     if (host) {
       host.fx.enabled = next.crt;
       // A control the canvas draws can change the state mid-frame, and an invalidation
@@ -197,8 +199,12 @@ async function main(): Promise<void> {
   });
   localizePage(store.state.locale, canvas);
   renderMirror(store.state, mirror);
+  textLayer.smooth = store.state.smoothText;
 
-  const env = { openFilePicker: () => fileInput.click() };
+  const env = {
+    openFilePicker: () => fileInput.click(),
+    openSource: () => window.open(SOURCE_URL, "_blank", "noopener,noreferrer"),
+  };
   try {
     host = await createViewHost(
       canvas,
@@ -209,7 +215,8 @@ async function main(): Promise<void> {
         if (focused) focusLive.textContent = focused;
       },
       {
-        pixelScale: 2,
+        // 120%: two CSS pixels per virtual pixel read as too small.
+        pixelScale: 2.4,
         palette: PALETTE,
         fonts: FONTS,
         defaultFont: "text",
