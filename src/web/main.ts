@@ -1,6 +1,6 @@
 import { createViewHost, DEFAULT_FX, type ViewHost } from "@synth-ui/backend";
 import { newReceiptSecret } from "../domain/receipt.ts";
-import { confirmUpload, fetchStatistics, previewFile, submissionStatus, withdrawUpload } from "./api.ts";
+import { confirmUpload, fetchConfig, fetchStatistics, previewFile, submissionStatus, withdrawUpload } from "./api.ts";
 import { announcement, renderMirror } from "./app/mirror.ts";
 import { Store, type View } from "./app/store.ts";
 import { detectLocale, isLocale, LOCALE_KEY, messages, type Locale } from "./i18n/index.ts";
@@ -99,6 +99,7 @@ async function main(): Promise<void> {
       submissionStatus,
       withdrawUpload,
       fetchStatistics,
+      fetchConfig,
       newSecret: newReceiptSecret,
       download,
       copy: (text) => copyText(text, canvas),
@@ -228,6 +229,7 @@ async function main(): Promise<void> {
     document.body.classList.add("fallback");
     element("fallback-reason", HTMLElement).textContent = error instanceof Error ? error.message : String(error);
   }
+  void store.loadConfig();
   if (store.state.view === "statistics") void store.loadStatistics("");
 }
 

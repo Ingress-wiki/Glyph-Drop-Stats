@@ -221,6 +221,8 @@ export const en = {
       "Withdrawing removes this submission's support. A record another active submission also supplied stays in the statistics.",
       "A record already accepted from an earlier submission isn't replaced. A different or more complete copy is kept for review.",
     ],
+    closed:
+      "Submitting isn't open yet. It opens once the data terms and the retention rules are published. You can still check a file: checking stores nothing.",
     createReceipt: "Create my receipt",
     receiptHeading: "Your receipt. Keep it private.",
     yourReceipt: "Your receipt",

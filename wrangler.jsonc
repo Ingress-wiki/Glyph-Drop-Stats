@@ -12,11 +12,37 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	// Local development and tests accept submissions; production opens them
+	// deliberately, once retention and the data terms are in place.
+	"vars": {
+		"SUBMISSIONS_OPEN": "true"
+	},
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "glyph-drop-stats",
 			"migrations_dir": "migrations"
 		}
-	]
+	],
+	"env": {
+		// `npm run deploy` builds and deploys this one (CLOUDFLARE_ENV=production).
+		"production": {
+			"name": "glyph-drop-stats",
+			// One address only: receipts record the site they were made on.
+			"routes": [{ "pattern": "stats.ingress.wiki", "custom_domain": true }],
+			"workers_dev": false,
+			"preview_urls": false,
+			"vars": {
+				"SUBMISSIONS_OPEN": "false"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "glyph-drop-stats",
+					"database_id": "e7ba0fcb-908d-4731-95cc-a335e3cca1ae",
+					"migrations_dir": "migrations"
+				}
+			]
+		}
+	}
 }

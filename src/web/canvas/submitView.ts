@@ -160,6 +160,11 @@ function submitSection(ctx: Context, store: Store, s: Messages, valid: number): 
     return;
   }
   heading(ctx, s.submit.heading);
+  if (store.state.submissionsOpen === false && submit.step === "explain") {
+    paragraph(ctx, s.submit.closed, { color: COLORS.ash });
+    ctx.place({ w: 0, h: 6 });
+    return;
+  }
   bullets(ctx, s.submit.notes);
   ctx.place({ w: 0, h: 4 });
   if (submit.step === "explain") {

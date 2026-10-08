@@ -10,7 +10,15 @@ import { classify, confirmSubmission, countOutcomes, findSubmission, withdrawSub
 
 export interface ApiEnv {
   DB: Db;
+  /**
+   * "true" to accept submissions. Anything else keeps them closed (checking a
+   * file, statistics, lookups and withdrawal still work): a deployment opens
+   * them deliberately, once retention and the data terms are in place.
+   */
+  SUBMISSIONS_OPEN?: string;
 }
+
+const submissionsOpen = (env: ApiEnv) => env.SUBMISSIONS_OPEN === "true";
 
 const NO_STORE = { "cache-control": "no-store" };
 
@@ -78,6 +86,7 @@ async function preview(request: Request, env: ApiEnv): Promise<Response> {
 
 /** Confirms an upload. The file is validated again here; the preview decided nothing. */
 async function submit(request: Request, env: ApiEnv): Promise<Response> {
+  if (!submissionsOpen(env)) return error(403, "submissions_closed", "api.submissionsClosed");
   const secret = receiptSecret(request);
   if (!secret) return error(400, "invalid_receipt", "api.invalidReceipt");
   const body = await readBodyLimited(request, DEFAULT_LIMITS.maxBytes);
@@ -126,8 +135,14 @@ async function stats(request: Request, env: ApiEnv): Promise<Response> {
   return json(200, { ok: true, statistics: await statistics(env.DB, parsed.filter) });
 }
 
+/** What this deployment allows, so the page can say so before anyone makes a receipt. */
+async function config(...[, env]: [Request, ApiEnv]): Promise<Response> {
+  return json(200, { ok: true, submissionsOpen: submissionsOpen(env) });
+}
+
 const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiEnv) => Promise<Response>>>> = {
   "/api/health": { GET: async () => json(200, { ok: true }) },
+  "/api/config": { GET: config },
   "/api/preview": { POST: preview },
   "/api/submissions": { POST: submit },
   "/api/submission": { GET: status },

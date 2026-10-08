@@ -206,6 +206,7 @@ export const zhHans: Messages = {
       "撤回会取消此次提交对其记录的支持。若另一份仍有效的提交也提供了同一条记录，该记录仍会保留在统计中。",
       "先前提交中已接受的记录不会被替换。不同或更完整的副本会保留下来以待审核。",
     ],
+    closed: "提交尚未开放。数据条款和保留规则发布后才会开放。你仍可以检查文件：检查不会存储任何内容。",
     createReceipt: "生成我的回执",
     receiptHeading: "你的回执。请妥善保密。",
     yourReceipt: "你的回执",
@@ -392,6 +393,7 @@ export const zhHans: Messages = {
     "api.notFound": "没有与此回执对应的提交。",
     "api.noEndpoint": "没有此端点。",
     "api.methodNotAllowed": "请使用 {methods}。",
+    "api.submissionsClosed": "提交尚未开放。仍可检查文件，检查不会存储任何内容。",
 
     "filter.unknown": "{name} 不是已知的筛选条件。",
     "filter.repeated": "{name}给出了不止一次。",

@@ -83,6 +83,11 @@ export interface AppState {
   locale: Locale;
   /** The language picker is open. */
   languageOpen: boolean;
+  /**
+   * Whether this deployment accepts submissions; null until known (or if it
+   * couldn't be read, when the server's refusal still says so).
+   */
+  submissionsOpen: boolean | null;
   /** A short message for the status line, by id. A new object each time. */
   notice: { id: keyof Messages["notice"] } | null;
 }
@@ -93,6 +98,7 @@ export interface StoreDeps {
   submissionStatus(secret: string, signal: AbortSignal): Promise<StatusOutcome>;
   withdrawUpload(secret: string): Promise<WithdrawOutcome>;
   fetchStatistics(query: string, signal: AbortSignal): Promise<StatisticsOutcome>;
+  fetchConfig(): Promise<{ submissionsOpen: boolean } | null>;
   newSecret(): string;
   download(name: string, text: string, type: string): void;
   copy(text: string): Promise<void>;
@@ -142,8 +148,14 @@ export class Store {
       locale,
       languageOpen: false,
       textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
+      submissionsOpen: null,
       notice: null,
     };
+  }
+
+  async loadConfig(): Promise<void> {
+    const config = await this.deps.fetchConfig();
+    if (config) this.update({ submissionsOpen: config.submissionsOpen });
   }
 
   subscribe(listener: () => void): () => void {
@@ -308,7 +320,7 @@ export class Store {
   }
 
   createReceipt(): void {
-    if (this.state.submit.step !== "explain") return;
+    if (this.state.submit.step !== "explain" || this.state.submissionsOpen === false) return;
     this.update({ submit: { step: "receipt", secret: this.deps.newSecret(), saved: false } });
   }
 

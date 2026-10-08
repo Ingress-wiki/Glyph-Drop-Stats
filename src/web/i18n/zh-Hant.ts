@@ -206,6 +206,7 @@ export const zhHant: Messages = {
       "撤回會取消此次提交對統計的支持。如果另一份仍有效的提交也提供了同一筆記錄，該記錄仍會保留在統計中。",
       "先前提交中已被接受的記錄不會被取代。不同或更完整的副本會保留下來等待審核。",
     ],
+    closed: "提交尚未開放。資料條款與保留規則公布後才會開放。你仍可以檢查檔案：檢查不會儲存任何內容。",
     createReceipt: "建立我的憑證",
     receiptHeading: "你的憑證。請妥善保密。",
     yourReceipt: "你的憑證",
@@ -392,6 +393,7 @@ export const zhHant: Messages = {
     "api.notFound": "沒有任何提交使用此憑證。",
     "api.noEndpoint": "沒有這個端點。",
     "api.methodNotAllowed": "請使用 {methods}。",
+    "api.submissionsClosed": "提交尚未開放。仍可檢查檔案，檢查不會儲存任何內容。",
 
     "filter.unknown": "{name} 不是已知的篩選條件。",
     "filter.repeated": "{name} 指定了不只一次。",

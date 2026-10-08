@@ -154,6 +154,19 @@ export function withdrawUpload(secret: string): Promise<WithdrawOutcome> {
   );
 }
 
+/** What this deployment allows. Null when it couldn't be read: the server still enforces it. */
+export async function fetchConfig(): Promise<{ submissionsOpen: boolean } | null> {
+  try {
+    const response = await fetch("/api/config");
+    const body = await readJson(response);
+    return response.ok && isObject(body) && body.ok === true && typeof body.submissionsOpen === "boolean"
+      ? { submissionsOpen: body.submissionsOpen }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function submissionStatus(secret: string, signal?: AbortSignal): Promise<StatusOutcome> {
   let response: Response;
   try {

@@ -46,6 +46,7 @@ function setup(overrides: Partial<StoreDeps> = {}, locale: Locale = "en") {
       }),
     ),
     fetchStatistics: vi.fn(async (): Promise<StatisticsOutcome> => ({ kind: "ok", statistics: computeStatistics([], NO_FILTER) })),
+    fetchConfig: vi.fn(async () => ({ submissionsOpen: true })),
     newSecret: vi.fn(() => `gds1_${"a".repeat(43)}`),
     download: vi.fn(),
     copy: vi.fn(async () => {}),
@@ -329,5 +330,22 @@ describe("language", () => {
     const [, text] = vi.mocked(deps.download).mock.calls[0];
     expect(text).toContain(store.strings.receiptFile.title);
     expect(text).toContain(`gds1_${"a".repeat(43)}`);
+  });
+});
+
+describe("a deployment with submissions closed", () => {
+  it("still checks files but makes no receipt", async () => {
+    const { store } = await checkedStore({ fetchConfig: async () => ({ submissionsOpen: false }) });
+    await store.loadConfig();
+    expect(store.state.submissionsOpen).toBe(false);
+    expect(store.state.check.phase).toBe("done");
+    store.createReceipt();
+    expect(store.state.submit).toEqual({ step: "explain" });
+  });
+
+  it("assumes nothing when the setting can't be read", async () => {
+    const { store } = setup({ fetchConfig: async () => null });
+    await store.loadConfig();
+    expect(store.state.submissionsOpen).toBeNull();
   });
 });

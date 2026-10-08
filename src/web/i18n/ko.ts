@@ -207,6 +207,7 @@ export const ko: Messages = {
       "철회하면 이 제출의 뒷받침이 사라집니다. 다른 활성 제출도 제공한 기록은 계속 통계에 남습니다.",
       "이전 제출에서 이미 승인된 기록은 대체되지 않습니다. 내용이 다르거나 더 완전한 사본은 검토를 위해 보관됩니다.",
     ],
+    closed: "아직 제출을 받지 않습니다. 데이터 이용 약관과 보관 규칙이 공개되면 시작됩니다. 파일 확인은 계속 할 수 있으며, 확인할 때는 아무것도 저장되지 않습니다.",
     createReceipt: "영수증 만들기",
     receiptHeading: "내 영수증입니다. 비공개로 보관하세요.",
     yourReceipt: "내 영수증",
@@ -396,6 +397,7 @@ export const ko: Messages = {
     "api.notFound": "이 영수증에 해당하는 제출이 없습니다.",
     "api.noEndpoint": "해당 엔드포인트가 없습니다.",
     "api.methodNotAllowed": "다음 메서드를 사용하세요: {methods}.",
+    "api.submissionsClosed": "아직 제출을 받지 않습니다. 파일 확인은 할 수 있으며 아무것도 저장되지 않습니다.",
 
     "filter.unknown": "알 수 없는 필터입니다: {name}.",
     "filter.repeated": "{name} 값이 두 번 이상 지정되었습니다.",

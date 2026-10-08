@@ -12,7 +12,7 @@ let dispose: () => Promise<void>;
 
 beforeAll(async () => {
   const d1 = await localD1();
-  env = { DB: d1.db };
+  env = { DB: d1.db, SUBMISSIONS_OPEN: "true" };
   reset = d1.reset;
   dispose = d1.dispose;
 });

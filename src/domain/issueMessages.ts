@@ -89,6 +89,7 @@ export const ISSUE_MESSAGES = {
   "api.notFound": "No submission has this receipt.",
   "api.noEndpoint": "No such endpoint.",
   "api.methodNotAllowed": "Use {methods}.",
+  "api.submissionsClosed": "Submitting isn't open yet. Checking a file still works and stores nothing.",
 
   "filter.unknown": "{name} is not a known filter.",
   "filter.repeated": "{name} is given more than once.",

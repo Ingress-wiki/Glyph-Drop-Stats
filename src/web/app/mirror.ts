@@ -126,7 +126,9 @@ function submitSection(s: Messages, state: AppState): HTMLElement {
         counts(s, s.outcomes, preview.outcomes),
       );
       if (preview.records.valid > 0) {
-        section.append(el("h3", {}, s.submit.heading), list(s.submit.notes));
+        section.append(el("h3", {}, s.submit.heading));
+        if (state.submissionsOpen === false && submit.step === "explain") section.append(el("p", { "data-testid": "closed" }, s.submit.closed));
+        else section.append(list(s.submit.notes));
         if ("secret" in submit) section.append(el("p", { "data-testid": "receipt" }, s.submit.receiptMirror(submit.secret)));
         if (submit.step === "receipt") section.append(el("p", {}, s.submit.savedMirror(submit.saved)));
         if (submit.step === "sending") section.append(el("p", {}, s.submit.sending));

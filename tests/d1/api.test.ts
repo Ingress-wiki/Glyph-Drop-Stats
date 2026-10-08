@@ -13,7 +13,7 @@ let dispose: () => Promise<void>;
 
 beforeAll(async () => {
   const d1 = await localD1();
-  env = { DB: d1.db };
+  env = { DB: d1.db, SUBMISSIONS_OPEN: "true" };
   reset = d1.reset;
   dispose = d1.dispose;
 });
@@ -46,6 +46,24 @@ describe("health and routing", () => {
     expect((await call("/api/preview")).status).toBe(405);
     expect((await call("/api/submissions")).status).toBe(405);
     expect((await call("/api/nope")).status).toBe(404);
+  });
+});
+
+describe("while submissions are closed", () => {
+  const closed = (path: string, init: RequestInit = {}) => handleApi(new Request(`https://stats.test${path}`, init), { DB: env.DB });
+
+  it("refuses submissions, stores nothing, and says so in its config", async () => {
+    const secret = newReceiptSecret();
+    const response = await closed("/api/submissions", { method: "POST", body: SAMPLE, headers: { authorization: `Receipt ${secret}` } });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ ok: false, issues: [{ code: "submissions_closed", key: "api.submissionsClosed" }] });
+    expect((await status(secret)).status).toBe(404);
+    expect(await (await closed("/api/config")).json()).toEqual({ ok: true, submissionsOpen: false });
+    expect(await (await call("/api/config")).json()).toEqual({ ok: true, submissionsOpen: true });
+  });
+
+  it("still checks files", async () => {
+    expect((await closed("/api/preview", { method: "POST", body: SAMPLE })).status).toBe(200);
   });
 });
 
