@@ -9,7 +9,7 @@ export async function tabOnce(page) {
   const before = (await page.locator("#focus-live").textContent()) ?? "";
   await page.keyboard.press("Tab");
   await page
-    .waitForFunction((previous) => document.getElementById("focus-live")?.textContent !== previous, before, { timeout: 2000 })
+    .waitForFunction((previous) => document.getElementById("focus-live")?.textContent !== previous, before, { timeout: 10000 })
     .catch(() => {}); // Only one control to focus: the announcement stays.
 }
 
@@ -20,7 +20,13 @@ export async function tabOnce(page) {
 export async function activate(page, label, key = "Enter", max = 80, matches = (focused) => focused === label || focused.startsWith(`${label},`)) {
   for (let i = 0; i < max; i++) {
     // The announcement is "NAME, role…": match the whole name, not a prefix of a longer one.
-    if (matches((await page.locator("#focus-live").textContent()) ?? "")) {
+    const focused = (await page.locator("#focus-live").textContent()) ?? "";
+    if (matches(focused)) {
+      // synth-ui hands a text widget's keys (typing, Mod+C) to a hidden textarea it focuses
+      // once the frame is drawn: keys sent before that go nowhere.
+      if (/(text field|selectable text)$/.test(focused)) {
+        await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA", null, { timeout: 10000 }).catch(() => {});
+      }
       await page.waitForTimeout(SETTLE_MS);
       await page.keyboard.press(key);
       await page.waitForTimeout(150);
@@ -54,4 +60,21 @@ export async function dialogsClosed(page, timeout = 15000) {
     null,
     { timeout },
   );
+}
+
+/**
+ * A browser context for the suites: the CRT effect off. It's a full-screen
+ * shader, and with software rendering (CI) it slows frames to seconds; no
+ * suite tests how it looks.
+ */
+export async function newContext(browser, options) {
+  const context = await browser.newContext(options);
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem("glyph-drop-stats:crt", "off");
+    } catch {
+      // Storage blocked: the CRT stays on, only slower.
+    }
+  });
+  return context;
 }

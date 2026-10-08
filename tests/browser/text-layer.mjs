@@ -1,4 +1,4 @@
-import { activate, checks, dialogsClosed } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed, newContext } from "./keyboard.mjs";
 
 /**
  * The transparent text layer over the canvas: selecting, copying and finding
@@ -7,7 +7,7 @@ import { activate, checks, dialogsClosed } from "./keyboard.mjs";
 export async function textLayerSuite({ browser, base: BASE, upload: UPLOAD }) {
   const { check, report } = checks();
   try {
-    const context = await browser.newContext({ locale: "en-US", viewport: { width: 1440, height: 900 } });
+    const context = await newContext(browser, { locale: "en-US", viewport: { width: 1440, height: 900 } });
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
     const page = await context.newPage();
     const errors = [];

@@ -1,4 +1,4 @@
-import { checks } from "./keyboard.mjs";
+import { checks, newContext } from "./keyboard.mjs";
 
 /**
  * Selecting canvas text in Firefox, whose word boundaries differ from
@@ -7,7 +7,7 @@ import { checks } from "./keyboard.mjs";
 export async function firefoxSuite({ browser, base: BASE }) {
   const { check, report } = checks();
   try {
-    const context = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 800 } });
+    const context = await newContext(browser, { locale: "en-US", viewport: { width: 1280, height: 800 } });
     await context.addInitScript(() => localStorage.setItem("glyph-drop-stats:disclaimer-seen", "1"));
     const page = await context.newPage();
     const errors = [];

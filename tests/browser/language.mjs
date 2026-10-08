@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { LOCALES, messages } from "../../src/web/i18n/index.ts";
 import { SOURCE_URL } from "../../src/web/site.ts";
-import { activate, checks } from "./keyboard.mjs";
+import { activate, checks, newContext } from "./keyboard.mjs";
 
 /** Tab until the focus announcement is exactly `announced` (any language's punctuation), then press `key`. */
 const activateExactly = (page, announced, key = "Enter", max = 80) =>
@@ -17,7 +17,7 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
   try {
     const ja = messages("ja");
     const ko = messages("ko");
-    const context = await browser.newContext({ locale: "ja-JP", viewport: { width: 1024, height: 720 } });
+    const context = await newContext(browser, { locale: "ja-JP", viewport: { width: 1024, height: 720 } });
     // The first-visit note is covered by the canvas suite; here it would only take the keyboard.
     await context.addInitScript(() => localStorage.setItem("glyph-drop-stats:disclaimer-seen", "1"));
     const page = await context.newPage();

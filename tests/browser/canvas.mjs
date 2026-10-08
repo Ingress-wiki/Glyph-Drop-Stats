@@ -3,7 +3,7 @@
 // then Enter) and reads results from the accessible mirror.
 import { readFileSync } from "node:fs";
 import { webcrypto } from "node:crypto";
-import { activate, checks, dialogsClosed } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed, newContext } from "./keyboard.mjs";
 
 /**
  * The whole flow: statistics, filters, search and sorting, then checking a
@@ -41,9 +41,12 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR, scr
     const secretA = await submitByApi("a.csv");
     await submitByApi("b.csv");
 
-    const context = await browser.newContext({ locale: "en-US", acceptDownloads: true, viewport: { width: 1440, height: 900 } });
+    const context = await newContext(browser, { locale: "en-US", acceptDownloads: true, viewport: { width: 1440, height: 900 } });
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
     const clipboard = (p) => p.evaluate(() => navigator.clipboard.readText());
+    /** Whether the clipboard holds `text` within a few seconds: copying finishes after the key. */
+    const clipboardBecomes = (p, text) =>
+      p.waitForFunction((want) => navigator.clipboard.readText().then((got) => got === want), text, { timeout: 3000 }).then(() => true, () => false);
     const page = await context.newPage();
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -110,11 +113,11 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR, scr
     // Select the receipt (Tab selects it all) and copy it with the keyboard.
     await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
     await activate(page, "Your receipt", "ControlOrMeta+c");
-    check("receipt selected and copied with Cmd/Ctrl+C", (await clipboard(page)) === receipt, await clipboard(page));
+    check("receipt selected and copied with Cmd/Ctrl+C", await clipboardBecomes(page, receipt), await clipboard(page));
     await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
     await activate(page, "Copy");
     await page.locator("#live", { hasText: "Receipt copied" }).waitFor();
-    check("COPY button copies the exact receipt", (await clipboard(page)) === receipt);
+    check("COPY button copies the exact receipt", await clipboardBecomes(page, receipt));
     const [receiptDownload] = await Promise.all([page.waitForEvent("download"), activate(page, "Download")]);
     check("receipt download holds the secret", readFileSync(await receiptDownload.path(), "utf8").includes(`Receipt: ${receipt}`));
 
@@ -237,10 +240,10 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR, scr
       await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
       await activate(lan, "Copy");
       await lan.locator("#live", { hasText: /Receipt copied|Couldn't copy/ }).waitFor();
-      check("COPY works over plain HTTP", (await lan.locator("#live").textContent()) === "Receipt copied" && (await clipboard(page)) === lanReceipt, await lan.locator("#live").textContent());
+      check("COPY works over plain HTTP", (await lan.locator("#live").textContent()) === "Receipt copied" && (await clipboardBecomes(page, lanReceipt)), await lan.locator("#live").textContent());
       await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
       await activate(lan, "Your receipt", "ControlOrMeta+c");
-      check("Cmd/Ctrl+C on the receipt works over plain HTTP", (await clipboard(page)) === lanReceipt);
+      check("Cmd/Ctrl+C on the receipt works over plain HTTP", await clipboardBecomes(page, lanReceipt), await clipboard(page));
       await lan.close();
     }
 

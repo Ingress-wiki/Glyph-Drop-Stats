@@ -69,7 +69,8 @@ try {
   // Playwright's own Firefox (`npx playwright-core install firefox`); CI always has it.
   // Without a GPU, Firefox only offers WebGL when told to (software rendering).
   const firefoxUserPrefs = process.env.CI ? { "webgl.force-enabled": true, "webgl.disable-fail-if-major-performance-caveat": true } : {};
-  const gecko = await firefox.launch({ headless: true, firefoxUserPrefs }).catch(() => null);
+  // Headless Firefox on Linux has no WebGL without a GPU: CI runs it windowed, under xvfb-run.
+  const gecko = await firefox.launch({ headless: !process.env.CI, firefoxUserPrefs }).catch(() => null);
   if (gecko) {
     try {
       passed = (await firefoxSuite({ browser: gecko, base })) && passed;
