@@ -26,6 +26,26 @@ This must be finished, and reviewed, before real submissions are accepted.
   It doesn't identify a player. It is stable, though, so a player's uploads
   that overlap can be linked by their shared ids.
 
+## In the visitor's browser
+
+No cookies, analytics or tracking. The page keeps five preferences in
+`localStorage`, each written only when the visitor chooses it, and never
+sent to the server:
+
+| Key | Holds |
+| --- | --- |
+| `glyph-drop-stats:locale` | The language picked in the language switch |
+| `glyph-drop-stats:crt` | The CRT switch |
+| `glyph-drop-stats:smooth-text` | The font switch |
+| `glyph-drop-stats:text-view` | Whether the text view is shown |
+| `glyph-drop-stats:disclaimer-seen` | That the first-visit note was dismissed |
+
+These are interface settings the visitor asked for, so they need no
+consent banner (they are "strictly necessary" under the ePrivacy rules).
+Receipts are never stored by the page: the visitor downloads or copies
+them. Adding cookies, analytics or anything that identifies a visitor
+would change this and needs its own review.
+
 ## Withdrawal
 
 **What it does now:**
