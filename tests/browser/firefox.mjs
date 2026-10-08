@@ -15,7 +15,8 @@ export async function firefoxSuite({ browser, base: BASE }) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.locator("[data-testid=headline]").waitFor();
     await page.waitForTimeout(1500);
-    check("the canvas started (no fallback)", !(await page.evaluate(() => document.body.classList.contains("fallback"))));
+    const fallback = await page.evaluate(() => document.body.classList.contains("fallback") && (document.getElementById("fallback-reason")?.textContent ?? ""));
+    check("the canvas started (no fallback)", fallback === false, fallback || "");
     const run = (re) => page.locator("#canvas-text .canvas-text-run").filter({ hasText: re }).first();
     const selected = () => page.evaluate(() => getSelection().toString());
 

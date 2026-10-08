@@ -10,7 +10,7 @@ import { activate, checks, dialogsClosed } from "./keyboard.mjs";
  * file, the receipt, a lost answer and retry, lookups, withdrawal, the text
  * view and copying over plain HTTP (when `lan` is given).
  */
-export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
+export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR, screens: SCREENS }) {
   const { check, report } = checks();
   const secret = () =>
     "gds1_" + Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString("base64url");
@@ -68,6 +68,7 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("portal panel"));
+    check("panel picker back by keyboard", true);
 
     await page.keyboard.press("F3");
     await typeInto(page, "Portal level from", "6");
@@ -257,7 +258,11 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
 
     check("no page errors", pageErrors.length === 0, pageErrors.join("; "));
   } catch (error) {
-    check("smoke test ran to the end", false, String(error).slice(0, 500));
+    // Where it stopped: the focused control, and a picture for the CI artifact.
+    const page = browser.contexts().at(-1)?.pages().at(-1);
+    const focused = page ? await page.locator("#focus-live").textContent().catch(() => "?") : "?";
+    if (page && SCREENS) await page.screenshot({ path: `${SCREENS}/canvas-failure.png` }).catch(() => {});
+    check("smoke test ran to the end", false, `${String(error).slice(0, 400)}; focus: ${focused}`);
   }
   return report("canvas");
 }

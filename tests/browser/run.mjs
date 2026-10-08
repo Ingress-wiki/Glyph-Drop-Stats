@@ -59,7 +59,7 @@ try {
   const args = process.env.CI ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [];
   const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true, args });
   try {
-    const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir });
+    const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir, screens: screenshots });
     const textLayer = await textLayerSuite({ browser, base, upload: join(dir, "b.csv") });
     const languages = await languageSuite({ browser, base, dir: screenshots });
     passed = canvas && textLayer && languages;
