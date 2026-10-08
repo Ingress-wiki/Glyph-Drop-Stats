@@ -53,7 +53,9 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   const lan = lanAddress();
-  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true });
+  // CI runners have no GPU: WebGL2 there comes from SwiftShader, which Chrome only allows when asked.
+  const args = process.env.CI ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [];
+  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true, args });
   try {
     const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir });
     const textLayer = await textLayerSuite({ browser, base, upload: join(dir, "b.csv") });

@@ -16,7 +16,7 @@ The code is public. Individual submissions and private receipts are not.
 | 2. Submission lifecycle: D1, confirm, receipts, deduplication | Done |
 | 3. Withdrawal | Done |
 | 4. Basic statistics | Done |
-| 5. Pilot deployment | Next |
+| 5. Pilot deployment | Live at [stats.ingress.wiki](https://stats.ingress.wiki), submissions closed until retention and data terms ship |
 
 Today a player can check an export, see which records are usable and which
 are already known, and submit it with a private receipt. With the receipt

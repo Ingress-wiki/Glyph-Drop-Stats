@@ -45,10 +45,49 @@ Before the pilot, repeat the measurements in the deployed environment:
 
 ## Deployment
 
-Not configured yet. `wrangler.jsonc` binds D1 as `DB` without a
-`database_id`, which local development doesn't need. Milestone 5 adds:
+Production is the Worker `glyph-drop-stats` at **https://stats.ingress.wiki**
+(a Cloudflare custom domain; the `workers.dev` address is off, so receipts
+always name one site), with its own D1 database. Both are the `production`
+environment in `wrangler.jsonc`; the top level is for local development.
 
-- separate development and production environments, each with its own D1
-  database;
-- migrations applied with `wrangler d1 migrations apply`;
-- an explicitly triggered production deploy.
+### Submissions are closed
+
+`SUBMISSIONS_OPEN` is `"false"` in production. Checking a file, statistics,
+lookups and withdrawal work; `POST /api/submissions` is refused
+(`submissions_closed`), and `GET /api/config` tells the page, which then
+shows why instead of offering a receipt. Open them by setting the variable
+to `"true"` once bounded retention and the data terms are published.
+Locally it is `"true"`.
+
+### Plan limits
+
+The account is on Workers Free. Its 10 ms CPU limit per request is about
+what checking a typical export takes, so larger files can fail with error
+1102 until the account moves to Workers Paid (see [Plan](#plan)).
+
+### CI/CD
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+
+- **check:** typecheck, lint, unit and D1 tests, build;
+- **browser:** `npm run test:browser` in the runner's Chrome (WebGL2 through
+  SwiftShader), with each language's screenshot uploaded as an artifact;
+- **deploy:** on `main` only, after both pass (or by running the workflow
+  by hand): applies new D1 migrations to production, deploys, and checks
+  the live site. It runs in the GitHub `production` environment; add
+  required reviewers there to approve each deploy.
+
+The deploy job needs, in the `production` environment:
+
+- the secret `CLOUDFLARE_API_TOKEN`: an API token with *Workers Scripts:
+  Edit*, *D1: Edit* (account) and *Workers Routes: Edit* plus *Zone: Read*
+  for `ingress.wiki` (the "Edit Cloudflare Workers" template, plus D1);
+- the variable `CLOUDFLARE_ACCOUNT_ID`.
+
+### By hand
+
+```sh
+npx wrangler login
+npm run db:migrate:production   # apply new migrations to the production D1
+npm run deploy                  # build for production and deploy
+```
