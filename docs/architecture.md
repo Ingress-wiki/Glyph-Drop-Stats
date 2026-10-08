@@ -22,7 +22,7 @@ effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
 | --- | --- |
 | `src/web/app/store.ts` | All page state and actions, with no drawing. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
 | `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
-| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying, and shows it in the system font when the font switch says so. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0: check the text layer (`npm run test:browser`) before upgrading it. |
+| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying, and shows it in the system font when the font switch says so. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0, with its source in the `vendor/synth-ui` submodule: check the text layer (`npm run test:browser`) before upgrading it (see [deployment](deployment.md#synth-ui)). |
 | `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
 | `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
 

@@ -8,6 +8,8 @@
 ## Local development
 
 ```sh
+git clone --recurse-submodules https://github.com/Ingress-wiki/Glyph-Drop-Stats.git
+# (or, in an existing clone: git submodule update --init)
 npm install
 npm run db:migrate:local   # create the local D1 tables (once, and after new migrations)
 npm run dev        # Vite with the Worker in the local Workers runtime
@@ -26,6 +28,28 @@ npx wrangler dev -c dist/glyph_drop_stats/wrangler.json
 ```
 
 Stop either server with Ctrl-C.
+
+## synth-ui
+
+The app installs synth-ui's prebuilt packages from npm, pinned exactly
+(`@synth-ui/core`, `widgets`, `backend` at 0.1.0): its renderer is Rust
+compiled to WebAssembly, so building it here would need a Rust toolchain
+everywhere. `vendor/synth-ui` is a git submodule pinned to the commit
+that release was published from, to read and diff, never built.
+`npm run check:synth-ui` (also in CI) fails if the two drift: different
+versions, a loose pin, or any source file that differs.
+
+To update, after reading what changed (`git -C vendor/synth-ui log` and
+`diff` between the old and new commit):
+
+```sh
+git -C vendor/synth-ui fetch
+git -C vendor/synth-ui checkout <commit the new release was published from>
+npm install -E @synth-ui/core@X.Y.Z @synth-ui/widgets@X.Y.Z @synth-ui/backend@X.Y.Z
+npm run check:synth-ui
+npm run test:browser   # the text layer reads synth-ui internals
+git add vendor/synth-ui package.json package-lock.json
+```
 
 ## Plan
 
