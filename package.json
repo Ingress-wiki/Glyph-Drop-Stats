@@ -16,16 +16,9 @@
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply glyph-drop-stats --local"
   },
-  "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
-  },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.62.5",
     "@types/node": "^24.19.1",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
@@ -35,5 +28,10 @@
   "allowScripts": {
     "workerd@1.20261001.1": true,
     "esbuild@0.28.1": true
+  },
+  "dependencies": {
+    "@synth-ui/backend": "^0.1.0",
+    "@synth-ui/core": "^0.1.0",
+    "@synth-ui/widgets": "^0.1.0"
   }
 }

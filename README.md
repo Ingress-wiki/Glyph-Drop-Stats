@@ -23,6 +23,10 @@ are already known, and submit it with a private receipt. With the receipt
 they can later look the submission up or withdraw it. The statistics view
 shows counts and item averages with their denominators and exclusions.
 
+The interface is a pixel-art canvas drawn with synth-ui, with a text
+version for screen readers and browsers without WebGPU or WebGL2. Press F1
+for statistics, F2 to submit; Tab and Enter reach every control.
+
 ## Quick start
 
 ```sh
@@ -47,18 +51,12 @@ Code: [MIT](LICENSE). Terms for submitted data will be published separately.
 
 ### Third-party notices
 
-The site self-hosts these fonts, unmodified apart from the Latin subset, each
-under the [SIL Open Font License 1.1](https://openfontlicense.org). The
-licence is next to each font in `public/fonts/`.
+The full texts are served with the site under `/licenses/` (`public/licenses/`).
 
-| Font | Copyright | Source |
+| Component | Licence | Notes |
 | --- | --- | --- |
-| Departure Mono | Helena Zhang | github.com/rektdeckard/departure-mono |
-| IBM Plex Mono | IBM Corp. | Fontsource (`@fontsource/ibm-plex-mono`) |
-| Inter | The Inter Project Authors | Fontsource (`@fontsource/inter`) |
-
-The visual style is inspired by PlasticList (plasticlist.org). No PlasticList
-code, styles or content is used.
+| [synth-ui](https://github.com/unixzii/synth-ui) (`@synth-ui/core`, `widgets`, `backend`) | MIT, © 2026 Cyandev | Draws the whole interface; its bitmap faces are part of it. |
+| X.org misc-fixed 5×7 | Public domain | Converted by `scripts/bdf-to-face.mjs` into the mixed-case face used for receipts and prose. |
 
 Glyph Drop Stats is not affiliated with Niantic. Ingress and its item names
 are Niantic's.

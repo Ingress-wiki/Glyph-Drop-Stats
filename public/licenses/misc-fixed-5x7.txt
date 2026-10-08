@@ -1,0 +1,7 @@
+The mixed-case text face (src/web/canvas/mixedFont.ts) is converted from the
+X.org misc-fixed 5x7 font:
+https://gitlab.freedesktop.org/xorg/font/misc-misc/-/raw/master/5x7.bdf
+
+Its copyright notice reads, in full:
+
+"Public domain font.  Share and enjoy."

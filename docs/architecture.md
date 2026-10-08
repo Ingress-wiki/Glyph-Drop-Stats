@@ -6,11 +6,54 @@
 | --- | --- |
 | `src/domain/` | CSV reading, validation, normalization, version comparison and receipts. Uses only web-standard APIs, with no Cloudflare APIs, so it runs and is tested in Node. |
 | `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `index.ts` (entry). |
-| `src/web/` | The React site, served as Workers Static Assets. |
+| `src/web/` | The site, served as Workers Static Assets. See [The web page](#the-web-page). |
 | `migrations/` | D1 schema migrations. |
 
 The server decides whether data is accepted. The browser only displays what
 the server returns.
+
+## The web page
+
+The interface is drawn into one `<canvas>` by [synth-ui](https://github.com/unixzii/synth-ui):
+immediate-mode, at two CSS pixels per virtual pixel, with an optional CRT
+effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
+
+| Path | Role |
+| --- | --- |
+| `src/web/app/store.ts` | All page state and actions, with no drawing. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
+| `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
+| `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
+| `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
+
+A canvas has no text for assistive technology or the browser's find, and
+no native controls. So:
+
+- **The accessible mirror** renders everything the canvas shows as
+  semantic HTML, with a live region announcing results and the focused
+  control. If the canvas can't start (no WebGPU or WebGL2), the mirror is
+  shown in its place.
+- **Keyboard:**
+  - Tab moves between controls, and Enter or Space activates the focused
+    one. synth-ui's own buttons don't take focus, so the site draws its own.
+  - F1 shows statistics, F2 submitting, F3 the filters, F4 the guide, F8
+    the CRT effect, F9 the text view.
+- **Selecting and copying:** canvas text is pixels, so it can't be
+  selected or found with the browser's search.
+  - **Receipts** are drawn in a read-only selectable widget: drag,
+    double-click, Tab or Mod+A selects, and Mod+C copies through synth-ui's
+    copy-event path, which works over plain HTTP.
+  - **The COPY button** uses the clipboard API where the browser allows it
+    (HTTPS, localhost), and a selected off-screen text area elsewhere.
+  - **The text view** (TEXT VIEW, or F9) shows the accessible mirror on
+    screen instead of the canvas, where any text can be selected, copied
+    and searched. The choice is remembered per browser.
+- **Files:** CHOOSE FILE opens a hidden native `<input type="file">`. A
+  file can also be dropped anywhere on the page.
+- **Receipts:** synth-ui's faces are capitals only, and receipts are case
+  sensitive. Receipts and prose therefore use a mixed-case face converted
+  from the public-domain X.org misc-fixed 5×7 font
+  (`scripts/bdf-to-face.mjs`), and COPY puts the exact text on the
+  clipboard.
 
 ## Submission lifecycle
 

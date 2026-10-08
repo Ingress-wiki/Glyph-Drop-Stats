@@ -1,6 +1,7 @@
 import type { Issue } from "../domain/importer.ts";
 import { COVERAGES, ITEM_EXCLUSIONS, UNPLACED_REASONS, type ItemTotal, type Statistics } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
+import type { Preview } from "../domain/preview.ts";
 import { OUTCOMES } from "../domain/versions.ts";
 
 /**
@@ -205,5 +206,42 @@ export async function fetchStatistics(query: string, signal?: AbortSignal): Prom
   if (response.status === 400 && isObject(body) && body.ok === false && isIssues(body.issues)) {
     return { kind: "refused", issues: body.issues };
   }
+  return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
+}
+
+export type PreviewOutcome = { kind: "ok"; preview: Preview } | { kind: "failed"; message: string };
+
+function isPreview(value: unknown): value is Preview {
+  if (!isObject(value)) return false;
+  if (value.ok === false) return isIssues(value.issues);
+  const { records, outcomes, exporter } = value;
+  return (
+    value.ok === true &&
+    isCount(value.rowCount) &&
+    isCount(value.formatVersion) &&
+    isObject(exporter) &&
+    isObject(records) &&
+    isCount(records.valid) &&
+    isCount(records.rejected) &&
+    isCount(records.partlyRead) &&
+    isCounts(records.byKind, ["hack", "drop"]) &&
+    isCounts(records.byReadStatus, ["read", "notRead", "unavailable", "unsupported"]) &&
+    isCounts(outcomes, OUTCOMES) &&
+    Array.isArray(value.warnings) &&
+    Array.isArray(value.rejected)
+  );
+}
+
+/** Checks a file without storing it. A refusal of the file itself is a valid preview with `ok: false`. */
+export async function previewFile(file: File, signal?: AbortSignal): Promise<PreviewOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/preview", { method: "POST", headers: { "content-type": "text/csv" }, body: file, signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return { kind: "failed", message: describe(error) };
+  }
+  const body = await readJson(response);
+  if (isPreview(body)) return { kind: "ok", preview: body };
   return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
 }

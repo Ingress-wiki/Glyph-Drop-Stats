@@ -4,12 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preload" href="/fonts/departure-mono/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/inter/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <meta name="theme-color" content="#141210" />
     <title>Glyph Drop Stats</title>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/web/main.tsx"></script>
+    <canvas id="screen" tabindex="0"></canvas>
+    <input id="file" class="file-input" type="file" accept=".csv,text/csv" tabindex="-1" aria-hidden="true" />
+    <div class="fallback-note" role="alert">
+      <p>
+        This browser can't draw the interface: it needs WebGPU or WebGL2. Everything it would show is below as text.
+        Use a current browser to submit an export.
+      </p>
+      <p id="fallback-reason"></p>
+    </div>
+    <div class="text-view-bar">
+      <button id="canvas-view" type="button">Back to the canvas view (F9)</button>
+      <span>Text view: select, copy or search anything below.</span>
+    </div>
+    <main id="mirror" class="mirror"></main>
+    <div id="live" class="sr-only" aria-live="polite"></div>
+    <div id="focus-live" class="sr-only" aria-live="polite"></div>
+    <noscript><p>Glyph Drop Stats needs JavaScript.</p></noscript>
+    <script type="module" src="/src/web/main.ts"></script>
   </body>
 </html>
