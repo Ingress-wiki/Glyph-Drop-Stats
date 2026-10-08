@@ -26,11 +26,15 @@ import {
   type ColumnName,
 } from "./format.ts";
 
-/** A cell that can't hold what its column allows. */
+import type { IssueKey, IssueParams } from "./issueMessages.ts";
+
+/** A cell that can't hold what its column allows: a `cell.*` message, given the column. */
 export class Invalid {
-  readonly message: string;
-  constructor(message: string) {
-    this.message = message;
+  readonly key: IssueKey;
+  readonly params: IssueParams;
+  constructor(key: IssueKey, params: IssueParams = {}) {
+    this.key = key;
+    this.params = params;
   }
 }
 
@@ -48,25 +52,25 @@ const PANEL_EFFECT_SET: ReadonlySet<string> = new Set(PANEL_EFFECTS);
 
 function integer(min: number, max: number): Decoder<number> {
   return (raw) => {
-    if (!INTEGER.test(raw)) return new Invalid("is not an integer");
+    if (!INTEGER.test(raw)) return new Invalid("cell.notInteger");
     const value = Number(raw);
-    if (value < min || value > max) return new Invalid(`is outside ${min}–${max}`);
+    if (value < min || value > max) return new Invalid("cell.outOfRange", { min, max });
     return value;
   };
 }
 
 const boolean: Decoder<boolean> = (raw) =>
-  raw === "true" ? true : raw === "false" ? false : new Invalid('is not "true" or "false"');
+  raw === "true" ? true : raw === "false" ? false : new Invalid("cell.notBoolean");
 
 function oneOf<const T extends readonly string[]>(values: T): Decoder<T[number]> {
   const allowed: ReadonlySet<string> = new Set(values);
-  return (raw) => (allowed.has(raw) ? (raw as T[number]) : new Invalid("is not an allowed value"));
+  return (raw) => (allowed.has(raw) ? (raw as T[number]) : new Invalid("cell.notAllowed"));
 }
 
 /** Unix seconds of a `YYYY-MM-DDTHH:MM:SSZ` timestamp. */
 const timestamp: Decoder<number> = (raw) => {
   const match = TIMESTAMP.exec(raw);
-  if (!match) return new Invalid("is not a YYYY-MM-DDTHH:MM:SSZ timestamp");
+  if (!match) return new Invalid("cell.notTimestamp");
   const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
   const ms = Date.UTC(year, month - 1, day, hour, minute, second);
   const check = new Date(ms);
@@ -78,40 +82,40 @@ const timestamp: Decoder<number> = (raw) => {
     minute > 59 ||
     second > 59
   ) {
-    return new Invalid("is not a real time");
+    return new Invalid("cell.notRealTime");
   }
   return ms / 1000;
 };
 
 const date: Decoder<string> = (raw) => {
   const match = DATE.exec(raw);
-  if (!match) return new Invalid("is not a YYYY-MM-DD date");
+  if (!match) return new Invalid("cell.notDate");
   const [year, month, day] = match.slice(1).map(Number);
   const check = new Date(Date.UTC(year, month - 1, day));
   if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) {
-    return new Invalid("is not a real date");
+    return new Invalid("cell.notRealDate");
   }
   return raw;
 };
 
 const recordId: Decoder<string> = (raw) =>
-  RECORD_ID.test(raw) ? raw : new Invalid("is not h or d followed by 32 lowercase hex digits");
+  RECORD_ID.test(raw) ? raw : new Invalid("cell.notRecordId");
 
 export const isListedItem = (name: string): boolean => ITEM_NAME_SET.has(name);
 
 const itemName: Decoder<string> = (raw) =>
-  isListedItem(raw) || ITEM_NAME_PATTERN.test(raw) ? raw : new Invalid("is not an item name");
+  isListedItem(raw) || ITEM_NAME_PATTERN.test(raw) ? raw : new Invalid("cell.notItemName");
 
 /** `;`-joined; empty elements are kept by the exporter but never valid effects. */
 const panelEffects: Decoder<string[]> = (raw) => {
   const elements = raw.split(";");
   return elements.every((element) => PANEL_EFFECT_SET.has(element))
     ? elements
-    : new Invalid("lists an unknown panel effect");
+    : new Invalid("cell.unknownEffect");
 };
 
 const appVersion: Decoder<string> = (raw) =>
-  raw.length <= BOUNDS.textLength && APP_VERSION.test(raw) ? raw : new Invalid("is not a version or build string");
+  raw.length <= BOUNDS.textLength && APP_VERSION.test(raw) ? raw : new Invalid("cell.notVersion");
 
 const DECODERS = {
   format_version: integer(0, 1_000),
@@ -172,7 +176,8 @@ export type DecodedRow = { [K in ColumnName]: Decoded<(typeof DECODERS)[K]> | nu
 
 export interface CellIssue {
   column: ColumnName;
-  message: string;
+  key: IssueKey;
+  params: IssueParams;
 }
 
 /**
@@ -204,7 +209,7 @@ export function decodeRow(
     const decoder: Decoder<unknown> = DECODERS[column];
     const value = decoder(raw);
     if (value instanceof Invalid) {
-      issues.push({ column, message: value.message });
+      issues.push({ column, key: value.key, params: value.params });
       row[column] = null;
     } else {
       row[column] = value;

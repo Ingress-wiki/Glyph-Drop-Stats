@@ -66,6 +66,37 @@ no native controls. So:
   (`scripts/bdf-to-face.mjs`), and COPY puts the exact text on the
   clipboard.
 
+### Languages
+
+The page speaks the five languages DynamicGlyph reads the game in:
+English, Simplified Chinese, Traditional Chinese, Japanese and Korean.
+
+- **Catalogues:** `src/web/i18n/en.ts` holds every message the page shows;
+  its type is `Messages`, so a translation (`zh-Hans.ts`, `zh-Hant.ts`,
+  `ja.ts`, `ko.ts`) that misses a message, or takes different parameters,
+  doesn't compile. `tests/i18n.test.ts` also checks that each translation
+  shows every value the English does. Item names stay in English, as the
+  game prints them. The translations were drafted from the English and
+  await review by native speakers.
+- **Choosing:** the first visit follows the browser's languages (Chinese
+  by script, or by region: Taiwan, Hong Kong and Macau use Traditional).
+  The language switch in the top bar overrides it, and the choice is
+  remembered per browser. The accessible mirror, the page's `lang` and the
+  text outside the canvas follow it.
+- **Server messages:** every issue the API returns carries a stable `key`
+  and its `params` beside the English `message`
+  (`src/domain/issueMessages.ts`). The page translates by key and falls
+  back to the English for a key it doesn't know, so an older page still
+  says something useful after the server adds a rule.
+- **Faces:** synth-ui's faces and misc-fixed only cover Latin text. Each
+  other language is drawn in one face cut from Fusion Pixel Font 8px
+  (proportional, SIL OFL 1.1) by `scripts/cjk-faces.mjs`, holding ASCII
+  plus exactly the characters that language's catalogue uses: Han
+  characters take different forms in Simplified, Traditional and
+  Japanese, so each has its own. The script must be re-run after changing
+  a translation; a test fails until it is. Line heights differ between
+  faces, so layout sizes come from the face's metrics, not constants.
+
 ## Submission lifecycle
 
 ```

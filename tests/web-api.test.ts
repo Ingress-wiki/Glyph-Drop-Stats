@@ -70,9 +70,9 @@ describe("confirmUpload", () => {
 
   it("treats a failed request and server errors as uncertain", async () => {
     answer(new TypeError("Failed to fetch"));
-    expect(await confirmUpload(FILE, SECRET)).toEqual({ kind: "uncertain", message: "Failed to fetch" });
+    expect(await confirmUpload(FILE, SECRET)).toEqual({ kind: "uncertain", problem: { kind: "network", detail: "Failed to fetch" } });
     answer(json(500, { ok: false, issues: [{ code: "x", message: "y" }] }));
-    expect(await confirmUpload(FILE, SECRET)).toMatchObject({ kind: "uncertain" });
+    expect(await confirmUpload(FILE, SECRET)).toEqual({ kind: "uncertain", problem: { kind: "unclear", status: 500 } });
     answer(new Response("<html>Bad gateway</html>", { status: 502 }));
     expect(await confirmUpload(FILE, SECRET)).toMatchObject({ kind: "uncertain" });
   });

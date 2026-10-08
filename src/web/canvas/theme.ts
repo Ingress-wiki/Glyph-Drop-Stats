@@ -1,5 +1,10 @@
-import { Palette, type FontSet } from "@synth-ui/core";
-import { THEME_COLORS, THEME_FONTS } from "@synth-ui/widgets";
+import { Palette, type Context, type FontSet } from "@synth-ui/core";
+import { THEME, THEME_COLORS, THEME_FONTS, themeFor } from "@synth-ui/widgets";
+import type { Locale } from "../i18n/index.ts";
+import { CJK_JA } from "./fonts/cjkJa.ts";
+import { CJK_KO } from "./fonts/cjkKo.ts";
+import { CJK_ZH_HANS } from "./fonts/cjkZhHans.ts";
+import { CJK_ZH_HANT } from "./fonts/cjkZhHant.ts";
 import { MIXED_5X7 } from "./mixedFont.ts";
 
 /**
@@ -19,11 +24,53 @@ export const PALETTE = new Palette([
 
 export const COLORS = PALETTE.index;
 
-/** The widgets' faces, plus a mixed-case face for text whose case matters. */
-export const FONTS: FontSet = { ...THEME_FONTS, mixed: MIXED_5X7 };
+/**
+ * Every face the host draws with: synth-ui's capitals and labels, a
+ * mixed-case 5×7, and one pixel face per CJK language (Han characters take
+ * different forms in Simplified, Traditional and Japanese).
+ */
+export const FONTS: FontSet = {
+  ...THEME_FONTS,
+  mixed: MIXED_5X7,
+  "cjk-zh-hans": CJK_ZH_HANS,
+  "cjk-zh-hant": CJK_ZH_HANT,
+  "cjk-ja": CJK_JA,
+  "cjk-ko": CJK_KO,
+};
 
-/** Font names: `text` 5×7 capitals, `small` labels, `mixed` mixed case. */
-export const FONT = { caps: "text", small: "small", mixed: "mixed" } as const;
+/** Which face draws which kind of text: headings and buttons, small labels, everything else. */
+export interface FontRoles {
+  caps: string;
+  small: string;
+  mixed: string;
+}
+
+const CJK_FACE: Record<Exclude<Locale, "en">, string> = {
+  "zh-Hans": "cjk-zh-hans",
+  "zh-Hant": "cjk-zh-hant",
+  ja: "cjk-ja",
+  ko: "cjk-ko",
+};
+
+/** English uses the capitals and 5×7 faces; the other languages use their one pixel face throughout. */
+export function fontRoles(locale: Locale): FontRoles {
+  if (locale === "en") return { caps: "text", small: "small", mixed: "mixed" };
+  const face = CJK_FACE[locale];
+  return { caps: face, small: face, mixed: face };
+}
+
+/** The current frame's faces. `useLocale` sets them as each frame begins. */
+export const FONT: FontRoles = fontRoles("en");
+
+/**
+ * Draw this frame in `locale`'s faces: this site's widgets read `FONT`, and
+ * synth-ui's (menus, sheets, text fields, the status line) read the theme.
+ */
+export function useLocale(ctx: Context, locale: Locale): void {
+  Object.assign(FONT, fontRoles(locale));
+  const theme = themeFor(ctx.palette);
+  ctx.provide(THEME, { ...theme, fonts: { text: FONT.caps, small: FONT.small } });
+}
 
 const SHADES = [0, COLORS.shade1, COLORS.shade2, COLORS.shade3, COLORS.shade4, COLORS.shade5] as const;
 

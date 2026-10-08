@@ -4,22 +4,28 @@ import type { Preview } from "../../domain/preview.ts";
 import { isReceiptSecret } from "../../domain/receipt.ts";
 import type { SubmissionSummary } from "../../domain/submission.ts";
 import type { Outcome } from "../../domain/versions.ts";
-import { HELD, OUTCOME_LABELS, SUBMIT_NOTES } from "../copy.ts";
 import type { Store } from "../app/store.ts";
+import type { Messages } from "../i18n/en.ts";
+import { issuesText, issueText, problemText, type Locale } from "../i18n/index.ts";
 import { confirmationMessage } from "../messages.ts";
 import { COLORS, FONT } from "./theme.ts";
 import {
   actionButton,
-  BUTTON_H,
+  announceField,
+  buttonHeight,
+  buttonWidth,
   bullets,
   errorLine,
-  focus,
   heading,
   keyValue,
+  lineHeight,
   paragraph,
   selectableText,
   toggle,
 } from "./ui.ts";
+
+/** Outcomes held back from the statistics until someone reviews them. */
+export const HELD: ReadonlySet<Outcome> = new Set(["update_candidate", "conflict"]);
 
 export interface SubmitEnv {
   /** Opens the browser's file picker; the chosen file arrives through `store.chooseFile`. */
@@ -30,101 +36,110 @@ export interface SubmitEnv {
 const COLUMN_W = 380;
 
 export function drawSubmit(ctx: Context, store: Store, env: SubmitEnv): void {
+  const s = store.strings;
   const pad = Math.floor((ctx.bounds.w - Math.min(ctx.bounds.w, COLUMN_W)) / 2);
   ctx.inset(pad, 0, pad, 0);
   ctx.column({ gap: 4 }, (col) => {
-    paragraph(col, "Check a DynamicGlyph gear export (DynamicGlyph-gear-v1-….csv), then submit it if you want to. Checking stores nothing.", { color: COLORS.ash });
+    paragraph(col, s.submit.lede, { color: COLORS.ash });
     col.place({ w: 0, h: 6 });
-    checkSection(col, store, env);
+    checkSection(col, store, s, env);
     const { check } = store.state;
-    if (check.phase === "failed") errorLine(col, `Couldn't check the file: ${check.message}`);
+    if (check.phase === "failed") errorLine(col, s.submit.checkFailed(problemText(s, check.problem)));
     if (check.phase === "done") {
-      previewSection(col, check.preview);
-      if (check.preview.ok && check.preview.records.valid > 0) submitSection(col, store, check.preview.records.valid);
+      previewSection(col, s, check.preview);
+      if (check.preview.ok && check.preview.records.valid > 0) submitSection(col, store, s, check.preview.records.valid);
     }
-    statusSection(col, store);
+    statusSection(col, store, s);
   });
 }
 
-function checkSection(ctx: Context, store: Store, env: SubmitEnv): void {
+function checkSection(ctx: Context, store: Store, s: Messages, env: SubmitEnv): void {
   const { colors: c } = useTheme(ctx);
-  heading(ctx, "CHECK A FILE");
+  heading(ctx, s.submit.checkHeading);
   const { file, check } = store.state;
-  ctx.row({ gap: 4, h: BUTTON_H }, (row) => {
-    if (actionButton(row, { key: "choose", label: "CHOOSE FILE", hint: "Pick a DynamicGlyph export, or drop it on the page" })) env.openFilePicker();
+  ctx.row({ gap: 4, h: buttonHeight(ctx) }, (row) => {
+    if (actionButton(row, { key: "choose", label: s.submit.chooseFile, hint: s.submit.chooseFileHint })) env.openFilePicker();
     const checking = check.phase === "checking";
-    if (actionButton(row, { key: "check", label: checking ? "CHECKING..." : "CHECK FILE", disabled: !file || checking, on: Boolean(file) && check.phase === "idle" })) {
+    const label = checking ? s.submit.checking : s.submit.checkFile;
+    if (actionButton(row, { key: "check", label, disabled: !file || checking, on: Boolean(file) && check.phase === "idle" })) {
       void store.checkFile();
     }
   });
-  paragraph(ctx, file ? file.name : "No file chosen. You can also drop one on the page.", { color: file ? c.paper : c.muted });
+  paragraph(ctx, file ? file.name : s.submit.noFile, { color: file ? c.paper : c.muted });
   ctx.place({ w: 0, h: 4 });
 }
 
-function outcomeRows(ctx: Context, outcomes: Record<Outcome, number>): void {
+function outcomeRows(ctx: Context, s: Messages, outcomes: Record<Outcome, number>): void {
   const { colors: c } = useTheme(ctx);
-  for (const outcome of Object.keys(OUTCOME_LABELS) as Outcome[]) {
+  const mixedH = lineHeight(ctx, FONT.mixed);
+  const smallH = lineHeight(ctx, FONT.small);
+  for (const outcome of Object.keys(s.outcomes) as Outcome[]) {
     const n = outcomes[outcome];
     if (n === 0) continue;
-    const r = ctx.place({ w: ctx.bounds.w, h: 9 });
+    const r = ctx.place({ w: ctx.bounds.w, h: mixedH + 2 });
     const count = String(n);
     ctx.text(count, r.x + 24 - ctx.measureText(count, { font: FONT.mixed }), r.y, { color: c.paper, font: FONT.mixed });
-    const end = ctx.text(OUTCOME_LABELS[outcome], r.x + 30, r.y, { color: c.text, font: FONT.mixed });
+    const end = ctx.text(s.outcomes[outcome], r.x + 30, r.y, { color: c.text, font: FONT.mixed });
     if (HELD.has(outcome)) {
-      const tag = "HELD FOR REVIEW";
+      const tag = s.heldForReview;
       const tw = ctx.measureText(tag, { font: FONT.small });
-      ctx.strokeRect({ x: end + 4, y: r.y - 1, w: tw + 5, h: 9 }, c.accent);
-      ctx.text(tag, end + 7, r.y + 1, { color: c.accent, font: FONT.small });
+      const ty = r.y + Math.floor((mixedH - smallH) / 2);
+      ctx.strokeRect({ x: end + 4, y: ty - 2, w: tw + 5, h: smallH + 3 }, c.accent);
+      ctx.text(tag, end + 7, ty, { color: c.accent, font: FONT.small });
     }
   }
 }
 
-function previewSection(ctx: Context, preview: Preview): void {
+function previewSection(ctx: Context, s: Messages, preview: Preview): void {
   if (!preview.ok) {
-    heading(ctx, "THIS FILE CAN'T BE USED");
-    for (const issue of preview.issues) errorLine(ctx, issue.line === undefined ? issue.message : `${issue.message} (line ${issue.line})`);
+    heading(ctx, s.submit.cantUse);
+    for (const issue of preview.issues) errorLine(ctx, issueText(s, issue));
     ctx.place({ w: 0, h: 4 });
     return;
   }
   const { records } = preview;
-  heading(ctx, "SUMMARY");
-  keyValue(ctx, "Rows", String(preview.rowCount));
-  keyValue(ctx, "Valid records", `${records.valid} (${records.byKind.hack} hacks, ${records.byKind.drop} drop groups)`);
+  heading(ctx, s.submit.summary);
+  keyValue(ctx, s.submit.rows, String(preview.rowCount));
+  keyValue(ctx, s.submit.validRecords, s.submit.validValue(records.valid, records.byKind.hack, records.byKind.drop));
   keyValue(
     ctx,
-    "Gear read",
-    `${records.byReadStatus.read} read (${records.partlyRead} partly), ${records.byReadStatus.notRead} not read, ${records.byReadStatus.unavailable} unavailable`,
+    s.submit.gearRead,
+    s.submit.gearReadValue(records.byReadStatus.read, records.partlyRead, records.byReadStatus.notRead, records.byReadStatus.unavailable),
   );
-  keyValue(ctx, "Unusable records", String(records.rejected));
-  keyValue(ctx, "Exported by", `DynamicGlyph ${preview.exporter.appVersion ?? "?"} (${preview.exporter.appBuild ?? "?"}), format v${preview.formatVersion}`);
-  ctx.text("COMPARED WITH ACCEPTED DATA", ctx.bounds.x, ctx.place({ w: ctx.bounds.w, h: 8 }).y + 1, { color: COLORS.muted, font: FONT.small });
-  outcomeRows(ctx, preview.outcomes);
-  for (const warning of preview.warnings) paragraph(ctx, warning.message, { color: COLORS.flame });
+  keyValue(ctx, s.submit.unusable, String(records.rejected));
+  keyValue(
+    ctx,
+    s.submit.exportedBy,
+    s.submit.exportedByValue(preview.exporter.appVersion ?? "?", preview.exporter.appBuild ?? "?", preview.formatVersion),
+  );
+  const label = ctx.place({ w: ctx.bounds.w, h: lineHeight(ctx, FONT.small) + 2 });
+  ctx.text(s.submit.compared, label.x, label.y + 1, { color: COLORS.muted, font: FONT.small });
+  outcomeRows(ctx, s, preview.outcomes);
+  for (const warning of preview.warnings) paragraph(ctx, issueText(s, warning), { color: COLORS.flame });
   if (preview.rejected.length > 0) {
     ctx.place({ w: 0, h: 4 });
-    heading(ctx, "UNUSABLE RECORDS", String(preview.rejected.length));
+    heading(ctx, s.submit.unusableHeading, String(preview.rejected.length));
     const shown = preview.rejected.slice(0, 40);
     for (const rejected of shown) {
-      paragraph(ctx, `${rejected.recordId ?? "unknown record"} · line ${rejected.lines.join(", ")}`, { color: COLORS.paper });
-      for (const issue of rejected.issues) paragraph(ctx, issue.message, { color: COLORS.ash, indent: 8 });
+      paragraph(ctx, s.submit.rejectedRecord(rejected.recordId, rejected.lines.join(", ")), { color: COLORS.paper });
+      for (const issue of rejected.issues) paragraph(ctx, issueText(s, { ...issue, line: undefined }), { color: COLORS.ash, indent: 8 });
     }
-    if (preview.rejected.length > shown.length) {
-      paragraph(ctx, `…and ${preview.rejected.length - shown.length} more.`, { color: COLORS.muted });
-    }
+    if (preview.rejected.length > shown.length) paragraph(ctx, s.submit.more(preview.rejected.length - shown.length), { color: COLORS.muted });
   }
   ctx.place({ w: 0, h: 6 });
 }
 
-function receiptBox(ctx: Context, store: Store, secret: string): void {
+function receiptBox(ctx: Context, store: Store, s: Messages, secret: string): void {
   const { colors: c } = useTheme(ctx);
   const top = ctx.cursor.y;
   ctx.column({ gap: 4 }, (box) => {
     box.inset(5, 5, 5, 5);
-    paragraph(box, "YOUR RECEIPT. KEEP IT PRIVATE.", { font: FONT.caps, color: c.paper });
-    selectableText(box, { key: "receipt:text", label: "Your receipt", text: secret, color: c.flame });
-    box.row({ gap: 4, h: BUTTON_H }, (row) => {
-      if (actionButton(row, { key: "receipt:download", label: "DOWNLOAD", hint: "Save the receipt as a text file" })) store.downloadReceipt();
-      if (actionButton(row, { key: "receipt:copy", label: "COPY", hint: "Copy the receipt exactly, case and all" })) void store.copyReceipt();
+    paragraph(box, s.submit.receiptHeading, { font: FONT.caps, color: c.paper });
+    // Receipts are case-sensitive ASCII; every language's text face draws ASCII in exact case.
+    selectableText(box, { key: "receipt:text", label: s.submit.yourReceipt, text: secret, color: c.flame });
+    box.row({ gap: 4, h: buttonHeight(box) }, (row) => {
+      if (actionButton(row, { key: "receipt:download", label: s.submit.download, hint: s.submit.downloadHint })) store.downloadReceipt();
+      if (actionButton(row, { key: "receipt:copy", label: s.submit.copy, hint: s.submit.copyHint })) void store.copyReceipt();
     });
     box.place({ w: 0, h: 1 });
   });
@@ -133,84 +148,86 @@ function receiptBox(ctx: Context, store: Store, secret: string): void {
   ctx.place({ w: 0, h: 4 });
 }
 
-function submitSection(ctx: Context, store: Store, valid: number): void {
+function submitSection(ctx: Context, store: Store, s: Messages, valid: number): void {
   const { submit } = store.state;
   if (submit.step === "done") {
-    const message = confirmationMessage(submit.summary, submit.replayed);
-    heading(ctx, message.heading.toUpperCase());
+    const message = confirmationMessage(s, submit.summary, submit.replayed);
+    heading(ctx, message.heading);
     paragraph(ctx, message.text);
-    outcomeRows(ctx, submit.summary.outcomes);
+    outcomeRows(ctx, s, submit.summary.outcomes);
     ctx.place({ w: 0, h: 4 });
-    receiptBox(ctx, store, submit.secret);
+    receiptBox(ctx, store, s, submit.secret);
     return;
   }
-  heading(ctx, "SUBMIT");
-  bullets(ctx, SUBMIT_NOTES);
+  heading(ctx, s.submit.heading);
+  bullets(ctx, s.submit.notes);
   ctx.place({ w: 0, h: 4 });
   if (submit.step === "explain") {
-    if (actionButton(ctx, { key: "receipt:create", label: "CREATE MY RECEIPT", on: true })) store.createReceipt();
+    if (actionButton(ctx, { key: "receipt:create", label: s.submit.createReceipt, on: true })) store.createReceipt();
     return;
   }
   if (submit.step === "refused") {
-    errorLine(ctx, `Not submitted: ${submit.message}`);
+    errorLine(ctx, s.submit.refused(issuesText(s, submit.issues)));
     return;
   }
-  receiptBox(ctx, store, submit.secret);
+  receiptBox(ctx, store, s, submit.secret);
   if (submit.step === "receipt") {
-    if (toggle(ctx, { key: "receipt:saved", label: "I've saved my receipt", checked: submit.saved })) store.setSaved(!submit.saved);
+    if (toggle(ctx, { key: "receipt:saved", label: s.submit.saved, checked: submit.saved })) store.setSaved(!submit.saved);
     ctx.place({ w: 0, h: 2 });
-    if (actionButton(ctx, { key: "submit:send", label: `SUBMIT ${valid} RECORDS`, disabled: !submit.saved, on: submit.saved })) void store.send();
+    if (actionButton(ctx, { key: "submit:send", label: s.submit.send(valid), disabled: !submit.saved, on: submit.saved })) void store.send();
   }
-  if (submit.step === "sending") paragraph(ctx, "Submitting…", { color: COLORS.ash });
+  if (submit.step === "sending") paragraph(ctx, s.submit.sending, { color: COLORS.ash });
   if (submit.step === "retry") {
-    errorLine(ctx, `Couldn't confirm the submission (${submit.message}). It may have gone through.`);
-    if (actionButton(ctx, { key: "submit:retry", label: "TRY AGAIN WITH THE SAME RECEIPT", on: true })) void store.send();
+    errorLine(ctx, s.submit.sendFailed(problemText(s, submit.problem)));
+    if (actionButton(ctx, { key: "submit:retry", label: s.submit.retry, on: true })) void store.send();
   }
   ctx.place({ w: 0, h: 6 });
 }
 
-function summaryLine(summary: SubmissionSummary): string {
-  const when = (seconds: number) => new Date(seconds * 1000).toLocaleString();
-  const state = summary.withdrawnAt === null ? "Active" : `Withdrawn ${when(summary.withdrawnAt)}`;
-  return `${state}, submitted ${when(summary.createdAt)}. ${summary.rowCount} rows; ${summary.rejected} unusable records weren't stored.`;
+function summaryLine(s: Messages, locale: Locale, summary: SubmissionSummary): string {
+  const when = (seconds: number) => new Date(seconds * 1000).toLocaleString(locale);
+  const state = summary.withdrawnAt === null ? s.status.active : s.status.withdrawnAt(when(summary.withdrawnAt));
+  return s.status.line(state, when(summary.createdAt), summary.rowCount, summary.rejected);
 }
 
-function statusSection(ctx: Context, store: Store): void {
+function statusSection(ctx: Context, store: Store, s: Messages): void {
   const { status } = store.state;
-  heading(ctx, "CHECK OR WITHDRAW A SUBMISSION");
+  heading(ctx, s.status.heading);
   const busy = status.withdrawal.step === "sending";
-  ctx.row({ gap: 4, h: 11 }, (row) => {
+  const fieldH = lineHeight(ctx, FONT.mixed) + 4;
+  ctx.row({ gap: 4, h: Math.max(fieldH, buttonHeight(ctx)) }, (row) => {
     // The receipt is stored on every keystroke, so a pending lookup is cancelled as soon as it
     // changes; the field then never sees a "new" text to commit, so Enter is taken here.
     const seen = row.state(() => ({ focused: false }), { key: "status:receipt:focus" });
     const enter = seen.focused && row.takeKey("Enter");
+    const checkW = buttonWidth(row, s.status.check);
     const field = textField(
       row,
-      { key: "status:receipt", value: status.input, placeholder: "PASTE YOUR RECEIPT", font: FONT.mixed, w: Math.max(row.bounds.w - 50, 60), hint: "Your receipt, as gds1_…" },
+      { key: "status:receipt", value: status.input, placeholder: s.status.placeholder, font: FONT.mixed, w: Math.max(row.bounds.w - checkW - 4, 60), hint: s.status.hint },
     );
     seen.focused = field.it.focused;
-    if (field.it.focused) focus.next = "Receipt, text field";
+    if (field.it.focused) announceField(s.a11y.receiptField);
     if (!busy && field.changed) store.setStatusInput(field.text);
     if (!busy && enter && isReceiptSecret(field.text.trim())) void store.lookup();
-    if (actionButton(row, { key: "status:check", label: "CHECK", disabled: busy || status.checking || !isReceiptSecret(status.input.trim()) })) {
+    if (actionButton(row, { key: "status:check", label: s.status.check, disabled: busy || status.checking || !isReceiptSecret(status.input.trim()) })) {
       void store.lookup();
     }
   });
   ctx.place({ w: 0, h: 2 });
-  if (status.checking) paragraph(ctx, "Checking…", { color: COLORS.ash });
+  if (status.checking) paragraph(ctx, s.status.checking, { color: COLORS.ash });
   const outcome = status.looked?.outcome;
   if (outcome?.kind === "found") {
-    paragraph(ctx, summaryLine(outcome.submission));
-    outcomeRows(ctx, outcome.submission.outcomes);
+    paragraph(ctx, summaryLine(s, store.state.locale, outcome.submission));
+    outcomeRows(ctx, s, outcome.submission.outcomes);
     ctx.place({ w: 0, h: 4 });
     if (outcome.submission.status === "completed") {
       const { withdrawal } = status;
-      if (withdrawal.step === "idle" && actionButton(ctx, { key: "withdraw:start", label: "WITHDRAW THIS SUBMISSION" })) store.startWithdraw();
-      if (withdrawal.step === "sending") paragraph(ctx, "Withdrawing…", { color: COLORS.ash });
-      if (withdrawal.step === "refused") errorLine(ctx, `Not withdrawn: ${withdrawal.message}`);
+      if (withdrawal.step === "idle" && actionButton(ctx, { key: "withdraw:start", label: s.status.withdraw })) store.startWithdraw();
+      if (withdrawal.step === "sending") paragraph(ctx, s.status.withdrawing, { color: COLORS.ash });
+      if (withdrawal.step === "refused") errorLine(ctx, s.status.notWithdrawn(issuesText(s, withdrawal.issues)));
     }
   }
-  if (outcome?.kind === "refused") errorLine(ctx, outcome.issues.map((issue) => issue.message).join(" "));
-  if (outcome?.kind === "failed") errorLine(ctx, `Couldn't check: ${outcome.message}`);
+  if (outcome?.kind === "refused") errorLine(ctx, issuesText(s, outcome.issues));
+  if (outcome?.kind === "failed") errorLine(ctx, s.status.failed(problemText(s, outcome.problem)));
   ctx.place({ w: 0, h: 8 });
 }

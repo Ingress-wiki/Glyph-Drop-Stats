@@ -1,5 +1,7 @@
 /** The groups in DynamicGlyph's item list (`Docs/GEAR_DROP_ITEMS.md`), shown as row tags. */
-const CATEGORIES: Record<string, string> = {
+export type Category = "levelled" | "mod" | "other";
+
+const CATEGORIES: Readonly<Record<string, Category>> = {
   Resonator: "levelled",
   "XMP Burster": "levelled",
   "Ultra Strike": "levelled",
@@ -23,13 +25,20 @@ const CATEGORIES: Record<string, string> = {
   Media: "other",
 };
 
-export function itemCategory(name: string): string | null {
+export function itemCategory(name: string): Category | null {
   return CATEGORIES[name] ?? null;
 }
 
-/** Whether a row matches the search box: by name, or exactly by tag. */
-export function matchesSearch(name: string, search: string): boolean {
+/**
+ * Whether a row matches the search box: by name, or exactly by a category,
+ * written in English or in the page's language (`labels`).
+ */
+export function matchesSearch(name: string, search: string, labels: Readonly<Record<Category, string>>): boolean {
   const query = search.trim().toLowerCase();
   if (query === "") return true;
-  return name.toLowerCase().includes(query) || itemCategory(name) === query;
+  const category = itemCategory(name);
+  return (
+    name.toLowerCase().includes(query) ||
+    (category !== null && (category === query || labels[category].toLowerCase() === query))
+  );
 }

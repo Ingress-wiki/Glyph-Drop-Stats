@@ -1,4 +1,5 @@
-import type { Issue } from "./importer.ts";
+import { makeIssue, type Issue } from "./importer.ts";
+import type { IssueKey, IssueParams } from "./issueMessages.ts";
 import { NO_FILTER, type PanelSelection, type Range, type StatsFilter } from "./statistics.ts";
 
 /**
@@ -44,37 +45,38 @@ function integer(min: number, max: number): (value: string) => number | null {
 
 export function parseStatsQuery(params: URLSearchParams): { ok: true; filter: StatsFilter } | { ok: false; issues: Issue[] } {
   const issues: Issue[] = [];
-  const bad = (name: string, message: string) => issues.push({ code: "invalid_filter", message: `${name} ${message}` });
+  const bad = (key: IssueKey, params?: IssueParams) => issues.push(makeIssue("invalid_filter", key, params));
 
   for (const name of new Set(params.keys())) {
-    if (!KNOWN.has(name)) bad(name, "is not a known filter.");
-    else if (params.getAll(name).length > 1) bad(name, "is given more than once.");
+    if (!KNOWN.has(name)) bad("filter.unknown", { name });
+    else if (params.getAll(name).length > 1) bad("filter.repeated", { name });
   }
 
-  const pair = <T>(names: readonly [string, string], read: (value: string) => T | null, describe: string) => {
+  /** `invalid` says what a malformed value should have been. */
+  const pair = <T>(names: readonly [string, string], read: (value: string) => T | null, invalid: (name: string) => void) => {
     const [a, b] = names.map((name) => params.get(name));
     if (a === null && b === null) return null;
     if (a === null || b === null) {
-      bad(`${names[0]} and ${names[1]}`, "must be given together.");
+      bad("filter.pair", { first: names[0], second: names[1] });
       return null;
     }
     const from = read(a);
     const to = read(b);
-    if (from === null) bad(names[0], `must be ${describe}.`);
-    if (to === null) bad(names[1], `must be ${describe}.`);
+    if (from === null) invalid(names[0]);
+    if (to === null) invalid(names[1]);
     return from === null || to === null ? null : { from, to };
   };
 
-  const utc = pair(PAIRS.utc, seconds, "a YYYY-MM-DDTHH:MM:SSZ time");
-  if (utc && utc.from >= utc.to) bad("utcFrom", "must be before utcTo.");
-  const localDate = pair(PAIRS.localDate, date, "a YYYY-MM-DD date");
-  if (localDate && localDate.from > localDate.to) bad("localDateFrom", "must not be after localDateTo.");
-  const localHour = pair(PAIRS.localHour, integer(0, 23), "an hour from 0 to 23");
-  if (localHour && localHour.from > localHour.to) bad("localHourFrom", "must not be after localHourTo.");
+  const utc = pair(PAIRS.utc, seconds, (name) => bad("filter.timestamp", { name }));
+  if (utc && utc.from >= utc.to) bad("filter.utcOrder");
+  const localDate = pair(PAIRS.localDate, date, (name) => bad("filter.date", { name }));
+  if (localDate && localDate.from > localDate.to) bad("filter.localDateOrder");
+  const localHour = pair(PAIRS.localHour, integer(0, 23), (name) => bad("filter.hour", { name }));
+  if (localHour && localHour.from > localHour.to) bad("filter.localHourOrder");
 
   const range = (names: readonly [string, string], min: number, max: number): Range | null => {
-    const value = pair(names, integer(min, max), `an integer from ${min} to ${max}`);
-    if (value && value.from > value.to) bad(names[0], `must not be above ${names[1]}.`);
+    const value = pair(names, integer(min, max), (name) => bad("filter.integer", { name, min, max }));
+    if (value && value.from > value.to) bad("filter.rangeOrder", { first: names[0], second: names[1] });
     return value && { min: value.from, max: value.to };
   };
   const portalLevel = range(PAIRS.portalLevel, 1, 8);
@@ -82,9 +84,9 @@ export function parseStatsQuery(params: URLSearchParams): { ok: true; filter: St
   const speedBonus = range(PAIRS.speedBonus, 0, 1000);
 
   const kind = params.get("kind");
-  if (kind !== null && kind !== "hack" && kind !== "drop") bad("kind", "must be hack or drop.");
+  if (kind !== null && kind !== "hack" && kind !== "drop") bad("filter.kind");
   const panels = params.get("panels") ?? NO_FILTER.panels;
-  if (panels !== "portal" && panels !== "bonus" && panels !== "both") bad("panels", "must be portal, bonus or both.");
+  if (panels !== "portal" && panels !== "bonus" && panels !== "both") bad("filter.panels");
 
   if (issues.length > 0) return { ok: false, issues };
   return {

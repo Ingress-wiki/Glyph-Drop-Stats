@@ -171,6 +171,9 @@ describe("filters through the API", () => {
   it("refuse an invalid filter", async () => {
     const response = await call("/api/statistics?portalLevelMin=6");
     expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ ok: false, issues: [{ code: "invalid_filter" }] });
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      issues: [{ code: "invalid_filter", key: "filter.pair", params: { first: "portalLevelMin", second: "portalLevelMax" } }],
+    });
   });
 });

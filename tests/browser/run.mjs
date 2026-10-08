@@ -9,12 +9,15 @@ import { chromium } from "playwright-core";
 import { datasetRecords } from "../helpers/dataset.ts";
 import { csv } from "../helpers/export.ts";
 import { canvasSuite } from "./canvas.mjs";
+import { languageSuite } from "./language.mjs";
 import { textLayerSuite } from "./text-layer.mjs";
 
 const PORT = Number(process.env.BROWSER_TEST_PORT ?? 8799);
 const CONFIG = "dist/glyph_drop_stats/wrangler.json";
 const dir = mkdtempSync(join(tmpdir(), "gds-browser-"));
 const state = join(dir, "state");
+/** Screenshots outlive the run, for a look at each language; SCREENSHOT_DIR picks where. */
+const screenshots = process.env.SCREENSHOT_DIR ?? mkdtempSync(join(tmpdir(), "gds-screens-"));
 
 /** The overlapping synthetic uploads the suites expect: h1–h6, and h4 onwards. */
 const records = datasetRecords();
@@ -54,11 +57,13 @@ try {
   try {
     const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir });
     const textLayer = await textLayerSuite({ browser, base, upload: join(dir, "b.csv") });
-    passed = canvas && textLayer;
+    const languages = await languageSuite({ browser, base, dir: screenshots });
+    passed = canvas && textLayer && languages;
   } finally {
     await browser.close();
   }
   if (!lan) console.log("NOTE  no LAN address: the plain-HTTP copy checks were skipped");
+  console.log(`NOTE  language screenshots in ${screenshots}`);
 } finally {
   stopServer();
   rmSync(dir, { recursive: true, force: true });

@@ -41,7 +41,7 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     const secretA = await submitByApi("a.csv");
     await submitByApi("b.csv");
 
-    const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1440, height: 900 } });
+    const context = await browser.newContext({ locale: "en-US", acceptDownloads: true, viewport: { width: 1440, height: 900 } });
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
     const clipboard = (p) => p.evaluate(() => navigator.clipboard.readText());
     const page = await context.newPage();
@@ -52,40 +52,40 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.locator("[data-testid=headline]").waitFor();
     check("the canvas started (no fallback)", !(await page.evaluate(() => document.body.classList.contains("fallback"))));
-    await activate(page, "GOT IT");
+    await activate(page, "Got it");
     check("headline numbers", (await headline(page)) === "Records10Eligible observations5 of 10Items10Per observation2.00", await headline(page));
     const resonator = (await itemRows(page)).find((row) => row.startsWith("Resonator"));
     check("Resonator row matches hand calculation", resonator === "Resonator71.400000340023", resonator);
 
     // Pickers, filters, search and sorting, all by keyboard.
-    await activate(page, "ITEMS: PORTAL");
+    await activate(page, "Items: portal");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("bonus panel"));
     check("panel picker by keyboard", true);
-    await activate(page, "ITEMS: BONUS");
+    await activate(page, "Items: bonus");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("portal panel"));
 
     await page.keyboard.press("F3");
-    await typeInto(page, "portal level from", "6");
-    await typeInto(page, "portal level to", "6");
-    await activate(page, "APPLY");
+    await typeInto(page, "Portal level from", "6");
+    await typeInto(page, "Portal level to", "6");
+    await activate(page, "Apply");
     await page.waitForFunction(() => document.querySelector("[data-testid=headline] dd")?.textContent === "6");
     check("portal level filter", true);
-    await typeInto(page, "portal level to", "");
-    await activate(page, "APPLY");
+    await typeInto(page, "Portal level to", "");
+    await activate(page, "Apply");
     await page.locator("#mirror").getByText("portalLevelMin and portalLevelMax must be given together.").waitFor();
     check("half-given filter explained, not ignored", true);
-    await activate(page, "CLEAR");
+    await activate(page, "Clear");
     await page.waitForFunction(() => document.querySelector("[data-testid=headline] dd")?.textContent === "10");
 
     await typeInto(page, "Search items", "res");
     await page.waitForTimeout(200);
     check("search narrows the rows", JSON.stringify((await itemRows(page)).map((r) => r.split(/\d/)[0])) === '["Resonator"]');
     await typeInto(page, "Search items", "");
-    await activate(page, "Sort by ITEM");
+    await activate(page, "Sort by Item");
     await page.waitForTimeout(200);
     const order = (await itemRows(page)).map((r) => r.split(/\d/)[0]).join(",");
     check("sorting by item", order === "Power Cube,Resonator,XMP Burster", order);
@@ -99,10 +99,10 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     // Submit: check, receipt, a lost answer, then a retry with the same receipt.
     await page.keyboard.press("F2");
     await page.setInputFiles("#file", `${DIR}/a.csv`);
-    await activate(page, "CHECK FILE");
+    await activate(page, "Check file");
     await page.locator("[data-testid=preview]").waitFor();
     check("preview of the chosen file", (await mirrorText(page, "preview")).startsWith("8 rows; 6 valid records"), await mirrorText(page, "preview"));
-    await activate(page, "CREATE MY RECEIPT");
+    await activate(page, "Create my receipt");
     const receipt = (await mirrorText(page, "receipt")).replace("Your receipt: ", "");
     check("receipt shown in exact case", /^gds1_[A-Za-z0-9_-]{43}$/.test(receipt) && /[a-z]/.test(receipt.slice(5)) && /[A-Z]/.test(receipt.slice(5)));
     // Select the receipt (Tab selects it all) and copy it with the keyboard.
@@ -110,10 +110,10 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await activate(page, "Your receipt", "ControlOrMeta+c");
     check("receipt selected and copied with Cmd/Ctrl+C", (await clipboard(page)) === receipt, await clipboard(page));
     await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
-    await activate(page, "COPY");
+    await activate(page, "Copy");
     await page.locator("#live", { hasText: "Receipt copied" }).waitFor();
     check("COPY button copies the exact receipt", (await clipboard(page)) === receipt);
-    const [receiptDownload] = await Promise.all([page.waitForEvent("download"), activate(page, "DOWNLOAD")]);
+    const [receiptDownload] = await Promise.all([page.waitForEvent("download"), activate(page, "Download")]);
     check("receipt download holds the secret", readFileSync(await receiptDownload.path(), "utf8").includes(`Receipt: ${receipt}`));
 
     await page.route("**/api/submissions", async (route) => {
@@ -122,11 +122,11 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
       await route.fulfill({ status: 201, contentType: "application/json", body: '{"ok":true,"repl' });
     });
     await activate(page, "I've saved my receipt");
-    await activate(page, "SUBMIT 6 RECORDS");
+    await activate(page, "Submit 6 records");
     await page.locator("#mirror").getByText(/^Couldn't confirm the submission/).waitFor();
     check("lost answer offers a retry", true);
     await page.unroute("**/api/submissions");
-    await activate(page, "TRY AGAIN WITH THE SAME RECEIPT");
+    await activate(page, "Try again with the same receipt");
     await page.locator("[data-testid=submitted]").waitFor();
     check("retry reports the earlier confirmation", (await mirrorText(page, "submitted")).includes("already been confirmed"));
 
@@ -153,16 +153,16 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await page.keyboard.press("Enter");
     await page.locator("[data-testid=status]").waitFor();
     check("lookup shows the submission active", (await mirrorText(page, "status")).startsWith("Active"));
-    await activate(page, "WITHDRAW THIS SUBMISSION");
+    await activate(page, "Withdraw this submission");
     await page.route("**/api/submission/withdraw", async (route) => {
       await route.fetch();
       await route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"alr' });
     });
-    await activate(page, "WITHDRAW");
+    await activate(page, "Withdraw");
     await page.locator("#mirror").getByText(/^Couldn't confirm the withdrawal/).waitFor();
     check("lost withdrawal answer offers a retry", true);
     await page.unroute("**/api/submission/withdraw");
-    await activate(page, "TRY AGAIN");
+    await activate(page, "Try again");
     await page.waitForFunction(() => document.querySelector("[data-testid=status]")?.textContent?.startsWith("Withdrawn"));
     check("retry shows it withdrawn", true);
     await page.screenshot({ path: `${DIR}/smoke-submit.png` });
@@ -229,12 +229,12 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
       check("LAN address isn't a secure context", !(await lan.evaluate(() => window.isSecureContext)));
       await lan.waitForTimeout(1500);
       await lan.setInputFiles("#file", `${DIR}/a.csv`);
-      await activate(lan, "CHECK FILE");
+      await activate(lan, "Check file");
       await lan.locator("[data-testid=preview]").waitFor();
-      await activate(lan, "CREATE MY RECEIPT");
+      await activate(lan, "Create my receipt");
       const lanReceipt = (await lan.locator("[data-testid=receipt]").textContent()).replace("Your receipt: ", "");
       await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
-      await activate(lan, "COPY");
+      await activate(lan, "Copy");
       await lan.locator("#live", { hasText: /Receipt copied|Couldn't copy/ }).waitFor();
       check("COPY works over plain HTTP", (await lan.locator("#live").textContent()) === "Receipt copied" && (await clipboard(page)) === lanReceipt, await lan.locator("#live").textContent());
       await page.evaluate(() => navigator.clipboard.writeText("nothing yet"));
@@ -248,7 +248,7 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR }) {
     await page.locator("[data-testid=headline]").waitFor();
     await page.keyboard.press("Tab");
     await page.waitForTimeout(200);
-    check("first-visit note shows only once", !((await page.locator("#focus-live").textContent()) ?? "").startsWith("GOT IT"));
+    check("first-visit note shows only once", !((await page.locator("#focus-live").textContent()) ?? "").startsWith("Got it"));
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(500);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

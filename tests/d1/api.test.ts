@@ -81,7 +81,10 @@ describe("preview", () => {
   it("rejects a file that isn't an export", async () => {
     const response = await preview("hello\r\n");
     expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({ ok: false, issues: [{ code: "not_gear_export" }] });
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      issues: [{ code: "not_gear_export", key: "file.notGearExport", message: "This is not a DynamicGlyph gear export." }],
+    });
   });
 
   it("stops reading a streamed body without Content-Length once it passes the limit", async () => {
@@ -148,7 +151,7 @@ describe("submission and receipts", () => {
     const other = csv(fullHackRows({ record_id: hackId(7) }));
     const response = await submit(other, secret);
     expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ issues: [{ code: "receipt_in_use" }] });
+    expect(await response.json()).toMatchObject({ issues: [{ code: "receipt_in_use", key: "api.receiptInUse" }] });
   });
 
   it("refuses a file without valid records and stores nothing", async () => {

@@ -25,7 +25,10 @@ shows counts and item averages with their denominators and exclusions.
 
 The interface is a pixel-art canvas drawn with synth-ui, with a text
 version for screen readers and browsers without WebGPU or WebGL2. Press F1
-for statistics, F2 to submit; Tab and Enter reach every control.
+for statistics, F2 to submit; Tab and Enter reach every control. The page
+speaks English, Simplified and Traditional Chinese, Japanese and Korean (the
+languages DynamicGlyph reads the game in); the translations await review by
+native speakers.
 
 ## Quick start
 
@@ -57,6 +60,7 @@ The full texts are served with the site under `/licenses/` (`public/licenses/`).
 | --- | --- | --- |
 | [synth-ui](https://github.com/unixzii/synth-ui) (`@synth-ui/core`, `widgets`, `backend`) | MIT, © 2026 Cyandev | Draws the whole interface; its bitmap faces are part of it. |
 | X.org misc-fixed 5×7 | Public domain | Converted by `scripts/bdf-to-face.mjs` into the mixed-case face used for receipts and prose. |
+| [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) 8px proportional | SIL OFL 1.1, © 2022 TakWolf, with its source fonts' licences (Galmuri and Miseki Bitmap: OFL 1.1; Misaki and BoutiqueBitmap7x7: free to use, modify and redistribute) | Subset by `scripts/cjk-faces.mjs` into the Chinese, Japanese and Korean faces. Those generated files (`src/web/canvas/fonts/cjk*.ts`) are a modified version of the font and remain under the OFL, not the MIT licence. Texts in `public/licenses/fusion-pixel/`. |
 
 Glyph Drop Stats is not affiliated with Niantic. Ingress and its item names
 are Niantic's.

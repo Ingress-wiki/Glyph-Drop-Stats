@@ -1,4 +1,5 @@
-import { DEFAULT_LIMITS, parseExport } from "../domain/importer.ts";
+import { DEFAULT_LIMITS, makeIssue, parseExport } from "../domain/importer.ts";
+import type { IssueKey, IssueParams } from "../domain/issueMessages.ts";
 import { previewOf } from "../domain/preview.ts";
 import { hashReceiptSecret, isReceiptSecret } from "../domain/receipt.ts";
 import { parseStatsQuery } from "../domain/statsQuery.ts";
@@ -17,11 +18,11 @@ function json(status: number, body: unknown): Response {
   return Response.json(body, { status, headers: NO_STORE });
 }
 
-function error(status: number, code: string, message: string): Response {
-  return json(status, { ok: false, issues: [{ code, message }] });
+function error(status: number, code: string, key: IssueKey, params?: IssueParams): Response {
+  return json(status, { ok: false, issues: [makeIssue(code, key, params)] });
 }
 
-const tooLarge = () => error(413, "file_too_large", `The file is larger than ${DEFAULT_LIMITS.maxBytes} bytes.`);
+const tooLarge = () => error(413, "file_too_large", "file.tooLarge", { limit: DEFAULT_LIMITS.maxBytes });
 
 /**
  * Reads the body into memory, giving up as soon as it passes `maxBytes`, so
@@ -78,13 +79,13 @@ async function preview(request: Request, env: ApiEnv): Promise<Response> {
 /** Confirms an upload. The file is validated again here; the preview decided nothing. */
 async function submit(request: Request, env: ApiEnv): Promise<Response> {
   const secret = receiptSecret(request);
-  if (!secret) return error(400, "invalid_receipt", "Send the receipt as `Authorization: Receipt <receipt>`.");
+  if (!secret) return error(400, "invalid_receipt", "api.invalidReceipt");
   const body = await readBodyLimited(request, DEFAULT_LIMITS.maxBytes);
   if (body === null) return tooLarge();
   const parsed = parseExport(body);
   if (!parsed.ok) return json(422, { ok: false, issues: parsed.issues });
   if (parsed.records.length === 0) {
-    return error(422, "no_valid_records", "The file has no valid records to submit.");
+    return error(422, "no_valid_records", "api.noValidRecords");
   }
   const result = await confirmSubmission(env.DB, {
     secret,
@@ -98,24 +99,24 @@ async function submit(request: Request, env: ApiEnv): Promise<Response> {
     case "replayed":
       return json(200, { ok: true, replayed: true, submission: result.summary });
     case "receipt_in_use":
-      return error(409, "receipt_in_use", "This receipt was already used for a different file. Make a new one.");
+      return error(409, "receipt_in_use", "api.receiptInUse");
   }
 }
 
 async function status(request: Request, env: ApiEnv): Promise<Response> {
   const secret = receiptSecret(request);
-  if (!secret) return error(400, "invalid_receipt", "Send the receipt as `Authorization: Receipt <receipt>`.");
+  if (!secret) return error(400, "invalid_receipt", "api.invalidReceipt");
   const found = await findSubmission(env.DB, await hashReceiptSecret(secret));
-  if (!found) return error(404, "not_found", "No submission has this receipt.");
+  if (!found) return error(404, "not_found", "api.notFound");
   return json(200, { ok: true, submission: found.summary });
 }
 
 /** Idempotent: withdrawing again reports the earlier withdrawal and changes nothing. */
 async function withdraw(request: Request, env: ApiEnv): Promise<Response> {
   const secret = receiptSecret(request);
-  if (!secret) return error(400, "invalid_receipt", "Send the receipt as `Authorization: Receipt <receipt>`.");
+  if (!secret) return error(400, "invalid_receipt", "api.invalidReceipt");
   const result = await withdrawSubmission(env.DB, await hashReceiptSecret(secret), Math.floor(Date.now() / 1000));
-  if (result.kind === "not_found") return error(404, "not_found", "No submission has this receipt.");
+  if (result.kind === "not_found") return error(404, "not_found", "api.notFound");
   return json(200, { ok: true, alreadyWithdrawn: result.kind === "already_withdrawn", submission: result.summary });
 }
 
@@ -137,8 +138,8 @@ const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiE
 export async function handleApi(request: Request, env: ApiEnv): Promise<Response> {
   const { pathname } = new URL(request.url);
   const route = ROUTES[pathname];
-  if (!route) return error(404, "not_found", "No such endpoint.");
+  if (!route) return error(404, "not_found", "api.noEndpoint");
   const handler = route[request.method];
-  if (!handler) return error(405, "method_not_allowed", `Use ${Object.keys(route).join(" or ")}.`);
+  if (!handler) return error(405, "method_not_allowed", "api.methodNotAllowed", { methods: Object.keys(route).join(", ") });
   return handler(request, env);
 }

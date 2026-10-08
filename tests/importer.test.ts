@@ -223,7 +223,16 @@ describe("record-level checks", () => {
       {
         recordId: DROP_ID,
         lines: [5],
-        issues: [{ code: "invalid_value", message: "association is not an allowed value.", line: 5, column: "association" }],
+        issues: [
+          {
+            code: "invalid_value",
+            key: "cell.notAllowed",
+            params: { column: "association" },
+            message: "association is not an allowed value.",
+            line: 5,
+            column: "association",
+          },
+        ],
       },
     ]);
   });
@@ -257,8 +266,10 @@ describe("record-level checks", () => {
     expect(result.warnings).toEqual([
       {
         code: "unlisted_items",
+        key: "warning.unlistedItems",
+        params: { items: '"Event Beacon" (74)' },
         message:
-          'Item names not on this site\'s list yet: "Event Beacon" (captured by build 74). They are kept as unverified text, never shown publicly, and their records are left out of item statistics until the names are reviewed.',
+          'Item names not on this site\'s list yet, with the app build that captured them: "Event Beacon" (74). They are kept as unverified text, never shown publicly, and their records are left out of item statistics until the names are reviewed.',
       },
     ]);
   });
@@ -268,12 +279,12 @@ describe("record-level checks", () => {
     rows[0].item = "Event Beacon";
     rows[0].level = "";
     rows[0].level_state = "notApplicable";
-    expect(parseRows(rows).warnings[0].message).toContain('"Event Beacon" (captured by build 70)');
+    expect(parseRows(rows).warnings[0].params).toEqual({ items: '"Event Beacon" (70)' });
     const old = fullHackRows({ source_app_version: "", source_app_build: "" });
     old[0].item = "Event Beacon";
     old[0].level = "";
     old[0].level_state = "notApplicable";
-    expect(parseRows(old).warnings[0].message).toContain("(captured by build unknown)");
+    expect(parseRows(old).warnings[0].params).toEqual({ items: '"Event Beacon" (?)' });
   });
 
   it("rejects an item name that doesn't look like one", () => {

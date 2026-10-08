@@ -12,7 +12,7 @@
     <div id="canvas-text" aria-hidden="true"></div>
     <input id="file" class="file-input" type="file" accept=".csv,text/csv" tabindex="-1" aria-hidden="true" />
     <div class="fallback-note" role="alert">
-      <p>
+      <p id="fallback-text">
         This browser can't draw the interface: it needs WebGPU or WebGL2. Everything it would show is below as text.
         Use a current browser to submit an export.
       </p>
@@ -20,7 +20,7 @@
     </div>
     <div class="text-view-bar">
       <button id="canvas-view" type="button">Back to the canvas view (F9)</button>
-      <span>Text view: select, copy or search anything below.</span>
+      <span id="text-view-note">Text view: select, copy or search anything below.</span>
     </div>
     <main id="mirror" class="mirror"></main>
     <div id="live" class="sr-only" aria-live="polite"></div>

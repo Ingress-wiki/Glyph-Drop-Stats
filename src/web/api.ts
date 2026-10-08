@@ -1,4 +1,3 @@
-import type { Issue } from "../domain/importer.ts";
 import { COVERAGES, ITEM_EXCLUSIONS, UNPLACED_REASONS, type ItemTotal, type Statistics } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import type { Preview } from "../domain/preview.ts";
@@ -15,18 +14,18 @@ import { OUTCOMES } from "../domain/versions.ts";
  */
 export type ConfirmOutcome =
   | { kind: "submitted"; replayed: boolean; submission: SubmissionSummary }
-  | { kind: "refused"; issues: Issue[] }
-  | { kind: "uncertain"; message: string };
+  | { kind: "refused"; issues: ApiIssue[] }
+  | { kind: "uncertain"; problem: Problem };
 
 export type WithdrawOutcome =
   | { kind: "withdrawn"; alreadyWithdrawn: boolean; submission: SubmissionSummary }
-  | { kind: "refused"; issues: Issue[] }
-  | { kind: "uncertain"; message: string };
+  | { kind: "refused"; issues: ApiIssue[] }
+  | { kind: "uncertain"; problem: Problem };
 
 export type StatusOutcome =
   | { kind: "found"; submission: SubmissionSummary }
-  | { kind: "refused"; issues: Issue[] }
-  | { kind: "failed"; message: string };
+  | { kind: "refused"; issues: ApiIssue[] }
+  | { kind: "failed"; problem: Problem };
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 const isCount = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
@@ -45,12 +44,36 @@ export function isSubmissionSummary(value: unknown): value is SubmissionSummary 
   );
 }
 
-function isIssues(value: unknown): value is Issue[] {
+/**
+ * An issue as the server sends it. `key` and `params` let the page translate it; without a key
+ * it knows (an older or newer server), the English `message` is shown.
+ */
+export interface ApiIssue {
+  code: string;
+  key?: string;
+  params?: Readonly<Record<string, string | number>>;
+  message: string;
+  line?: number;
+  column?: string;
+}
+
+function isParams(value: unknown): boolean {
+  return isObject(value) && Object.values(value).every((v) => typeof v === "string" || typeof v === "number");
+}
+
+function isIssue(issue: unknown): issue is ApiIssue {
   return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every((issue) => isObject(issue) && typeof issue.code === "string" && typeof issue.message === "string")
+    isObject(issue) &&
+    typeof issue.code === "string" &&
+    typeof issue.message === "string" &&
+    (issue.key === undefined || typeof issue.key === "string") &&
+    (issue.params === undefined || isParams(issue.params)) &&
+    (issue.line === undefined || isCount(issue.line))
   );
+}
+
+function isIssues(value: unknown): value is ApiIssue[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isIssue);
 }
 
 /** Reads a JSON body, or null if it can't be read or parsed (a dropped connection, a truncated body). */
@@ -62,7 +85,15 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/**
+ * Why an answer couldn't be used. The page words it in its language; `detail` is the
+ * browser's own text for a failed request, shown as it is.
+ */
+export type Problem = { kind: "network"; detail: string } | { kind: "unreadable" | "unclear"; status: number };
+
+export function networkProblem(error: unknown): Problem {
+  return { kind: "network", detail: error instanceof Error ? error.message : String(error) };
+}
 
 /**
  * Sends a request that changes something and is safe to repeat. Never
@@ -75,22 +106,22 @@ async function idempotentRequest<T>(
   path: string,
   init: RequestInit,
   success: (body: Record<string, unknown>) => T | null,
-): Promise<T | { kind: "refused"; issues: Issue[] } | { kind: "uncertain"; message: string }> {
+): Promise<T | { kind: "refused"; issues: ApiIssue[] } | { kind: "uncertain"; problem: Problem }> {
   let response: Response;
   try {
     response = await fetch(path, init);
   } catch (error) {
-    return { kind: "uncertain", message: describe(error) };
+    return { kind: "uncertain", problem: networkProblem(error) };
   }
   const body = await readJson(response);
   if (response.status === 200 || response.status === 201) {
     const result = isObject(body) && body.ok === true ? success(body) : null;
-    return result ?? { kind: "uncertain", message: `The answer couldn't be read (${response.status}).` };
+    return result ?? { kind: "uncertain", problem: { kind: "unreadable", status: response.status } };
   }
   if (response.status >= 400 && response.status < 500 && isObject(body) && body.ok === false && isIssues(body.issues)) {
     return { kind: "refused", issues: body.issues };
   }
-  return { kind: "uncertain", message: `The server didn't answer clearly (${response.status}).` };
+  return { kind: "uncertain", problem: { kind: "unclear", status: response.status } };
 }
 
 /**
@@ -129,7 +160,7 @@ export async function submissionStatus(secret: string, signal?: AbortSignal): Pr
     response = await fetch("/api/submission", { headers: { authorization: `Receipt ${secret}` }, signal });
   } catch (error) {
     if (signal?.aborted) throw error;
-    return { kind: "failed", message: describe(error) };
+    return { kind: "failed", problem: networkProblem(error) };
   }
   const body = await readJson(response);
   if (response.status === 200 && isObject(body) && body.ok === true && isSubmissionSummary(body.submission)) {
@@ -138,13 +169,13 @@ export async function submissionStatus(secret: string, signal?: AbortSignal): Pr
   if (response.status >= 400 && response.status < 500 && isObject(body) && body.ok === false && isIssues(body.issues)) {
     return { kind: "refused", issues: body.issues };
   }
-  return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
+  return { kind: "failed", problem: { kind: "unclear", status: response.status } };
 }
 
 export type StatisticsOutcome =
   | { kind: "ok"; statistics: Statistics }
-  | { kind: "refused"; issues: Issue[] }
-  | { kind: "failed"; message: string };
+  | { kind: "refused"; issues: ApiIssue[] }
+  | { kind: "failed"; problem: Problem };
 
 const isAverage = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
 
@@ -197,7 +228,7 @@ export async function fetchStatistics(query: string, signal?: AbortSignal): Prom
     response = await fetch(`/api/statistics${query ? `?${query}` : ""}`, { signal });
   } catch (error) {
     if (signal?.aborted) throw error;
-    return { kind: "failed", message: describe(error) };
+    return { kind: "failed", problem: networkProblem(error) };
   }
   const body = await readJson(response);
   if (response.status === 200 && isObject(body) && body.ok === true && isStatistics(body.statistics)) {
@@ -206,10 +237,10 @@ export async function fetchStatistics(query: string, signal?: AbortSignal): Prom
   if (response.status === 400 && isObject(body) && body.ok === false && isIssues(body.issues)) {
     return { kind: "refused", issues: body.issues };
   }
-  return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
+  return { kind: "failed", problem: { kind: "unclear", status: response.status } };
 }
 
-export type PreviewOutcome = { kind: "ok"; preview: Preview } | { kind: "failed"; message: string };
+export type PreviewOutcome = { kind: "ok"; preview: Preview } | { kind: "failed"; problem: Problem };
 
 function isPreview(value: unknown): value is Preview {
   if (!isObject(value)) return false;
@@ -239,9 +270,9 @@ export async function previewFile(file: File, signal?: AbortSignal): Promise<Pre
     response = await fetch("/api/preview", { method: "POST", headers: { "content-type": "text/csv" }, body: file, signal });
   } catch (error) {
     if (signal?.aborted) throw error;
-    return { kind: "failed", message: describe(error) };
+    return { kind: "failed", problem: networkProblem(error) };
   }
   const body = await readJson(response);
   if (isPreview(body)) return { kind: "ok", preview: body };
-  return { kind: "failed", message: `The server didn't answer clearly (${response.status}).` };
+  return { kind: "failed", problem: { kind: "unclear", status: response.status } };
 }

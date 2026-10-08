@@ -1,13 +1,18 @@
 import type { Preview } from "../../domain/preview.ts";
 import { receiptText } from "../../domain/receipt.ts";
 import type { SubmissionSummary } from "../../domain/submission.ts";
-import type {
-  ConfirmOutcome,
-  PreviewOutcome,
-  StatisticsOutcome,
-  StatusOutcome,
-  WithdrawOutcome,
+import {
+  networkProblem,
+  type ApiIssue,
+  type ConfirmOutcome,
+  type PreviewOutcome,
+  type Problem,
+  type StatisticsOutcome,
+  type StatusOutcome,
+  type WithdrawOutcome,
 } from "../api.ts";
+import type { Messages } from "../i18n/en.ts";
+import { LOCALE_KEY, messages, type Locale } from "../i18n/index.ts";
 import { DEFAULT_SORT, itemsTsv, type Sort, type SortKey } from "../itemTable.ts";
 import { LatestOnly, STALE } from "../latest.ts";
 import { EMPTY_FORM, formQuery, type StatsForm } from "../statsForm.ts";
@@ -39,22 +44,22 @@ export type CheckState =
   | { phase: "checking" }
   /** `file` is the exact file this preview describes; only it may be submitted. */
   | { phase: "done"; file: File; preview: Preview; checkId: number }
-  | { phase: "failed"; message: string };
+  | { phase: "failed"; problem: Problem };
 
 export type SubmitPhase =
   | { step: "explain" }
   | { step: "receipt"; secret: string; saved: boolean }
   | { step: "sending"; secret: string }
-  | { step: "retry"; secret: string; message: string }
-  | { step: "refused"; message: string }
+  | { step: "retry"; secret: string; problem: Problem }
+  | { step: "refused"; issues: ApiIssue[] }
   | { step: "done"; secret: string; summary: SubmissionSummary; replayed: boolean };
 
 export type Withdrawal =
   | { step: "idle" }
   | { step: "confirming" }
   | { step: "sending" }
-  | { step: "uncertain"; message: string }
-  | { step: "refused"; message: string };
+  | { step: "uncertain"; problem: Problem }
+  | { step: "refused"; issues: ApiIssue[] };
 
 export interface StatusState {
   input: string;
@@ -74,8 +79,12 @@ export interface AppState {
   crt: boolean;
   /** The page shown as plain HTML instead of the canvas: text can be selected, copied and found. */
   textView: boolean;
-  /** A short message for the status line: "Receipt copied". A new object each time. */
-  notice: { text: string } | null;
+  /** The page's language. */
+  locale: Locale;
+  /** The language picker is open. */
+  languageOpen: boolean;
+  /** A short message for the status line, by id. A new object each time. */
+  notice: { id: keyof Messages["notice"] } | null;
 }
 
 export interface StoreDeps {
@@ -99,7 +108,7 @@ export const DISCLAIMER_KEY = "glyph-drop-stats:disclaimer-seen";
 export const CRT_KEY = "glyph-drop-stats:crt";
 export const TEXT_VIEW_KEY = "glyph-drop-stats:text-view";
 
-const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
 
 export class Store {
   state: AppState;
@@ -111,7 +120,7 @@ export class Store {
 
   private readonly deps: StoreDeps;
 
-  constructor(deps: StoreDeps, view: View) {
+  constructor(deps: StoreDeps, view: View, locale: Locale) {
     this.deps = deps;
     this.state = {
       view,
@@ -130,6 +139,8 @@ export class Store {
         disclaimerOpen: deps.storage.get(DISCLAIMER_KEY) !== "1",
       },
       crt: deps.storage.get(CRT_KEY) !== "off",
+      locale,
+      languageOpen: false,
       textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
       notice: null,
     };
@@ -153,8 +164,22 @@ export class Store {
     this.update({ status: { ...this.state.status, ...patch } });
   }
 
-  private notify(text: string): void {
-    this.update({ notice: { text } });
+  private notify(id: keyof Messages["notice"]): void {
+    this.update({ notice: { id } });
+  }
+
+  /** The current language's messages. */
+  get strings(): Messages {
+    return messages(this.state.locale);
+  }
+
+  setLocale(locale: Locale): void {
+    this.deps.storage.set(LOCALE_KEY, locale);
+    this.update({ locale, languageOpen: false });
+  }
+
+  setLanguageOpen(languageOpen: boolean): void {
+    this.update({ languageOpen });
   }
 
   // Views
@@ -173,11 +198,13 @@ export class Store {
   }
 
   /**
-   * A dialog the canvas shows over the page: the first-visit note, the guide
-   * or the withdrawal confirmation. Page shortcuts wait until it closes.
+   * A dialog the canvas shows over the page: the language picker, the
+   * first-visit note, the guide or the withdrawal confirmation. Page
+   * shortcuts wait until it closes.
    */
   dialogOpen(): boolean {
-    const { view, statistics, status } = this.state;
+    const { view, statistics, status, languageOpen } = this.state;
+    if (languageOpen) return true;
     if (view === "statistics") return statistics.disclaimerOpen || statistics.guideOpen;
     return status.withdrawal.step === "confirming" || status.withdrawal.step === "uncertain" || status.withdrawal.step === "sending";
   }
@@ -197,7 +224,7 @@ export class Store {
       if (result === STALE) return;
       outcome = result;
     } catch (error) {
-      outcome = { kind: "failed", message: describe(error) };
+      outcome = { kind: "failed", problem: networkProblem(error) };
     }
     this.updateStatistics({ outcome, loading: false });
   }
@@ -271,12 +298,12 @@ export class Store {
       const result = await this.checks.run((signal) => this.deps.previewFile(file, signal));
       if (result === STALE) return;
       if (result.kind === "failed") {
-        this.update({ check: { phase: "failed", message: result.message } });
+        this.update({ check: { phase: "failed", problem: result.problem } });
         return;
       }
       this.update({ check: { phase: "done", file, preview: result.preview, checkId: ++this.checkCount } });
     } catch (error) {
-      this.update({ check: { phase: "failed", message: describe(error) } });
+      this.update({ check: { phase: "failed", problem: networkProblem(error) } });
     }
   }
 
@@ -300,7 +327,7 @@ export class Store {
     if (!secret) return;
     this.deps.download(
       "glyph-drop-stats-receipt.txt",
-      receiptText(secret, this.deps.origin, this.deps.now()),
+      receiptText(secret, this.deps.origin, this.deps.now(), this.strings.receiptFile),
       "text/plain",
     );
   }
@@ -310,9 +337,9 @@ export class Store {
     if (!secret) return;
     try {
       await this.deps.copy(secret);
-      this.notify("Receipt copied");
+      this.notify("receiptCopied");
     } catch {
-      this.notify("Couldn't copy: download the receipt instead");
+      this.notify("copyFailed");
     }
   }
 
@@ -332,10 +359,10 @@ export class Store {
         this.update({ submit: { step: "done", secret, summary: outcome.submission, replayed: outcome.replayed } });
         return;
       case "refused":
-        this.update({ submit: { step: "refused", message: outcome.issues.map((issue) => issue.message).join(" ") } });
+        this.update({ submit: { step: "refused", issues: outcome.issues } });
         return;
       case "uncertain":
-        this.update({ submit: { step: "retry", secret, message: outcome.message } });
+        this.update({ submit: { step: "retry", secret, problem: outcome.problem } });
         return;
     }
   }
@@ -356,7 +383,7 @@ export class Store {
       if (result === STALE) return;
       outcome = result;
     } catch (error) {
-      outcome = { kind: "failed", message: describe(error) };
+      outcome = { kind: "failed", problem: networkProblem(error) };
     }
     this.updateStatus({ checking: false, looked: { secret, outcome } });
   }
@@ -385,11 +412,11 @@ export class Store {
         return;
       case "refused":
         this.updateStatus({
-          withdrawal: { step: "refused", message: outcome.issues.map((issue) => issue.message).join(" ") },
+          withdrawal: { step: "refused", issues: outcome.issues },
         });
         return;
       case "uncertain":
-        this.updateStatus({ withdrawal: { step: "uncertain", message: outcome.message } });
+        this.updateStatus({ withdrawal: { step: "uncertain", problem: outcome.problem } });
         return;
     }
   }

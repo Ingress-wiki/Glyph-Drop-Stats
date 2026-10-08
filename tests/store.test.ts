@@ -10,6 +10,7 @@ import type {
   WithdrawOutcome,
 } from "../src/web/api.ts";
 import { CRT_KEY, DISCLAIMER_KEY, Store, TEXT_VIEW_KEY, type StoreDeps } from "../src/web/app/store.ts";
+import { LOCALE_KEY, type Locale } from "../src/web/i18n/index.ts";
 
 /** A promise the test settles by hand. */
 function deferred<T>() {
@@ -31,7 +32,7 @@ const PREVIEW = { ok: true, rowCount: 7 } as unknown as Preview;
 const fileA = new File(["a"], "a.csv");
 const fileB = new File(["b"], "b.csv");
 
-function setup(overrides: Partial<StoreDeps> = {}) {
+function setup(overrides: Partial<StoreDeps> = {}, locale: Locale = "en") {
   const saved = new Map<string, string>();
   const deps: StoreDeps = {
     previewFile: vi.fn(async (): Promise<PreviewOutcome> => ({ kind: "ok", preview: PREVIEW })),
@@ -54,7 +55,7 @@ function setup(overrides: Partial<StoreDeps> = {}) {
     now: () => new Date(Date.UTC(2026, 9, 6)),
     ...overrides,
   };
-  return { store: new Store(deps, "submit"), deps, saved };
+  return { store: new Store(deps, "submit", locale), deps, saved };
 }
 
 async function checkedStore(overrides: Partial<StoreDeps> = {}) {
@@ -85,8 +86,8 @@ describe("checking a file", () => {
   });
 
   it("reports a failed check", async () => {
-    const { store } = await checkedStore({ previewFile: async () => ({ kind: "failed", message: "offline" }) });
-    expect(store.state.check).toEqual({ phase: "failed", message: "offline" });
+    const { store } = await checkedStore({ previewFile: async () => ({ kind: "failed", problem: { kind: "network", detail: "offline" } }) });
+    expect(store.state.check).toEqual({ phase: "failed", problem: { kind: "network", detail: "offline" } });
   });
 
   it("discards the receipt and preview when another file is chosen", async () => {
@@ -112,14 +113,14 @@ describe("submitting", () => {
 
   it("keeps the receipt and retries with it after an uncertain answer", async () => {
     const answers: ConfirmOutcome[] = [
-      { kind: "uncertain", message: "connection lost" },
+      { kind: "uncertain", problem: { kind: "network", detail: "connection lost" } },
       { kind: "submitted", replayed: true, submission: SUMMARY },
     ];
     const { store, deps } = await checkedStore({ confirmUpload: vi.fn(async () => answers.shift()!) });
     store.createReceipt();
     store.setSaved(true);
     await store.send();
-    expect(store.state.submit).toEqual({ step: "retry", secret: `gds1_${"a".repeat(43)}`, message: "connection lost" });
+    expect(store.state.submit).toEqual({ step: "retry", secret: `gds1_${"a".repeat(43)}`, problem: { kind: "network", detail: "connection lost" } });
     await store.send();
     expect(store.state.submit).toMatchObject({ step: "done", replayed: true });
     expect(vi.mocked(deps.confirmUpload).mock.calls.map((call) => call[1])).toEqual([
@@ -135,7 +136,7 @@ describe("submitting", () => {
     store.createReceipt();
     store.setSaved(true);
     await store.send();
-    expect(store.state.submit).toEqual({ step: "refused", message: "Used." });
+    expect(store.state.submit).toEqual({ step: "refused", issues: [{ code: "receipt_in_use", message: "Used." }] });
   });
 
   it("ignores an answer that arrives after another file was chosen", async () => {
@@ -159,14 +160,14 @@ describe("submitting", () => {
     expect(text).toContain(`Receipt: gds1_${"a".repeat(43)}`);
     await store.copyReceipt();
     expect(deps.copy).toHaveBeenCalledWith(`gds1_${"a".repeat(43)}`);
-    expect(store.state.notice).toEqual({ text: "Receipt copied" });
+    expect(store.state.notice).toEqual({ id: "receiptCopied" });
   });
 
   it("says so when copying fails", async () => {
     const { store } = await checkedStore({ copy: async () => Promise.reject(new Error("denied")) });
     store.createReceipt();
     await store.copyReceipt();
-    expect(store.state.notice?.text).toMatch(/download the receipt/);
+    expect(store.state.notice).toEqual({ id: "copyFailed" });
   });
 });
 
@@ -199,11 +200,11 @@ describe("looking up and withdrawing", () => {
   });
 
   it("offers a retry after an uncertain withdrawal", async () => {
-    const { store } = setup({ withdrawUpload: async () => ({ kind: "uncertain", message: "lost" }) });
+    const { store } = setup({ withdrawUpload: async () => ({ kind: "uncertain", problem: { kind: "network", detail: "lost" } }) });
     store.setStatusInput("A");
     await store.lookup();
     await store.confirmWithdraw();
-    expect(store.state.status.withdrawal).toEqual({ step: "uncertain", message: "lost" });
+    expect(store.state.status.withdrawal).toEqual({ step: "uncertain", problem: { kind: "network", detail: "lost" } });
   });
 });
 
@@ -239,7 +240,7 @@ describe("statistics", () => {
     const first = store.loadStatistics("kind=hack");
     const second = store.loadStatistics("kind=drop");
     answers[1].resolve({ kind: "refused", issues: [{ code: "x", message: "newer" }] });
-    answers[0].resolve({ kind: "failed", message: "older" });
+    answers[0].resolve({ kind: "failed", problem: { kind: "network", detail: "older" } });
     await Promise.all([first, second]);
     expect(store.state.statistics.outcome).toMatchObject({ kind: "refused" });
   });
@@ -304,5 +305,29 @@ describe("per-viewer preferences", () => {
     store.toggleCrt();
     expect(saved.get(CRT_KEY)).toBe("off");
     expect(store.state.crt).toBe(false);
+  });
+});
+
+describe("language", () => {
+  it("starts in the given language, switches, and remembers the choice", () => {
+    const { store, saved } = setup({}, "ja");
+    expect(store.state.locale).toBe("ja");
+    store.setLanguageOpen(true);
+    expect(store.dialogOpen()).toBe(true);
+    store.setLocale("ko");
+    expect(store.state).toMatchObject({ locale: "ko", languageOpen: false });
+    expect(store.strings.language.name).toBe("한국어");
+    expect(saved.get(LOCALE_KEY)).toBe("ko");
+    expect(store.dialogOpen()).toBe(false);
+  });
+
+  it("writes the receipt file in the page's language", async () => {
+    const { store, deps } = await checkedStore();
+    store.setLocale("zh-Hans");
+    store.createReceipt();
+    store.downloadReceipt();
+    const [, text] = vi.mocked(deps.download).mock.calls[0];
+    expect(text).toContain(store.strings.receiptFile.title);
+    expect(text).toContain(`gds1_${"a".repeat(43)}`);
   });
 });

@@ -7,14 +7,14 @@ import { activate, checks } from "./keyboard.mjs";
 export async function textLayerSuite({ browser, base: BASE, upload: UPLOAD }) {
   const { check, report } = checks();
   try {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const context = await browser.newContext({ locale: "en-US", viewport: { width: 1440, height: 900 } });
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.locator("[data-testid=headline]").waitFor();
-    const run = (text) => page.locator("#canvas-text .canvas-text-run").filter({ hasText: new RegExp(`^${text}\\s*$`) }).first();
+    const run = (text) => page.locator("#canvas-text .canvas-text-run").filter({ hasText: new RegExp(`^${text}\\s*$`, "i") }).first();
     const clip = () => page.evaluate(() => navigator.clipboard.readText());
     const guideShown = async () => (await run("ABOUT THESE NUMBERS").count()) > 0;
 
@@ -77,7 +77,7 @@ export async function textLayerSuite({ browser, base: BASE, upload: UPLOAD }) {
     await page.keyboard.press("F2");
     await page.waitForTimeout(400);
     await page.setInputFiles("#file", UPLOAD);
-    await activate(page, "CHECK FILE");
+    await activate(page, "Check file");
     await page.locator("[data-testid=preview]").waitFor();
     await page.waitForTimeout(500);
     const lede = run("Check a DynamicGlyph gear export.*");

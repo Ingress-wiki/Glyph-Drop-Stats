@@ -1,15 +1,6 @@
 import type { Statistics } from "../../domain/statistics.ts";
-import {
-  COVERAGE_LABELS,
-  DISCLAIMER,
-  EXCLUSION_LABELS,
-  GUIDE,
-  NOTICES,
-  OUTCOME_LABELS,
-  PANEL_LABELS,
-  SUBMIT_NOTES,
-  UNPLACED_LABELS,
-} from "../copy.ts";
+import type { Messages } from "../i18n/en.ts";
+import { issuesText, issueText, messages, problemText } from "../i18n/index.ts";
 import { matchesSearch } from "../items.ts";
 import { sortItems } from "../itemTable.ts";
 import { confirmationMessage } from "../messages.ts";
@@ -36,52 +27,55 @@ function el(tag: string, attrs: Record<string, string> = {}, ...children: Child[
 
 const list = (items: readonly string[]) => el("ul", {}, ...items.map((item) => el("li", {}, item)));
 
-function counts(labels: Record<string, string>, values: Record<string, number>): HTMLElement {
+function counts(s: Messages, labels: Record<string, string>, values: Record<string, number>): HTMLElement {
   const shown = Object.keys(labels).filter((key) => values[key] > 0);
-  return shown.length === 0 ? el("p", {}, "None.") : list(shown.map((key) => `${values[key]} ${labels[key]}`));
+  return shown.length === 0 ? el("p", {}, s.stats.noneMirror) : list(shown.map((key) => `${values[key]} ${labels[key]}`));
 }
 
-function statisticsSection(state: AppState): HTMLElement {
+function statisticsSection(s: Messages, state: AppState): HTMLElement {
   const { outcome, search, sort } = state.statistics;
-  const section = el("section", { "aria-label": "Statistics" }, el("h2", {}, "Statistics"));
-  if (outcome === null) section.append(el("p", {}, "Loading."));
-  else if (outcome.kind === "refused") section.append(el("p", { role: "alert" }, outcome.issues.map((issue) => issue.message).join(" ")));
-  else if (outcome.kind === "failed") section.append(el("p", { role: "alert" }, `Couldn't load statistics: ${outcome.message}`));
-  else section.append(...statisticsBody(outcome.statistics, search, sort));
-  section.append(el("h3", {}, "An important note"), el("p", {}, DISCLAIMER), el("h3", {}, "About these numbers"), list(GUIDE));
+  const section = el("section", { "aria-label": s.app.statistics }, el("h2", {}, s.app.statistics));
+  if (outcome === null) section.append(el("p", {}, s.stats.loading));
+  else if (outcome.kind === "refused") section.append(el("p", { role: "alert" }, issuesText(s, outcome.issues)));
+  else if (outcome.kind === "failed") section.append(el("p", { role: "alert" }, s.stats.loadFailed(problemText(s, outcome.problem))));
+  else section.append(...statisticsBody(s, outcome.statistics, search, sort));
+  section.append(el("h3", {}, s.disclaimer.title), el("p", {}, s.disclaimer.text), el("h3", {}, s.guide.title), list(s.guide.points));
   return section;
 }
 
-function statisticsBody(statistics: Statistics, search: string, sort: AppState["statistics"]["sort"]): Node[] {
+function statisticsBody(s: Messages, statistics: Statistics, search: string, sort: AppState["statistics"]["sort"]): Node[] {
   const { selection, records, items } = statistics;
-  const average = items.averagePerObservation === null ? "none" : items.averagePerObservation.toFixed(2);
+  const headline = s.stats.mirrorHeadline;
+  const average = items.averagePerObservation === null ? s.stats.averageNone : items.averagePerObservation.toFixed(2);
   const summary = el(
     "dl",
     { "data-testid": "headline" },
-    el("dt", {}, "Records"),
+    el("dt", {}, headline.records),
     el("dd", {}, String(records.total)),
-    el("dt", {}, "Eligible observations"),
-    el("dd", {}, `${items.eligible} of ${records.total}`),
-    el("dt", {}, "Items"),
+    el("dt", {}, headline.eligible),
+    el("dd", {}, s.stats.headline.eligibleValue(items.eligible, records.total)),
+    el("dt", {}, headline.items),
     el("dd", {}, String(items.totalQuantity)),
-    el("dt", {}, "Per observation"),
+    el("dt", {}, headline.perObservation),
     el("dd", {}, average),
   );
   const rows = sortItems(
-    items.byItem.filter((row) => matchesSearch(row.item, search)),
+    items.byItem.filter((row) => matchesSearch(row.item, search, s.stats.categories)),
     sort,
   );
+  const columns = s.stats.mirrorColumns;
+  const levels = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"];
   const table = el(
     "table",
     { "data-testid": "items" },
-    el("caption", {}, `Items from the ${PANEL_LABELS[items.panels]}, over ${items.eligible} eligible observations`),
+    el("caption", {}, s.stats.mirrorCaption(s.panels[items.panels], items.eligible)),
     el(
       "thead",
       {},
       el(
         "tr",
         {},
-        ...["Item", "Quantity", "Per observation", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "Multiplied", "Colour unread"].map((h) =>
+        ...[columns.item, columns.quantity, columns.perObservation, ...levels, columns.multiplied, columns.colourUnread].map((h) =>
           el("th", { scope: "col" }, h),
         ),
       ),
@@ -96,7 +90,7 @@ function statisticsBody(statistics: Statistics, search: string, sort: AppState["
           el("th", { scope: "row" }, row.item),
           el("td", {}, String(row.quantity)),
           el("td", {}, row.averagePerObservation.toFixed(2)),
-          ...(row.levels ?? Array<number | null>(8).fill(null)).map((value) => el("td", {}, value === null ? "no levels" : String(value))),
+          ...(row.levels ?? Array<number | null>(8).fill(null)).map((value) => el("td", {}, value === null ? s.stats.noLevels : String(value))),
           el("td", {}, String(row.multiplied)),
           el("td", {}, String(row.multipliedUnknown)),
         ),
@@ -106,106 +100,102 @@ function statisticsBody(statistics: Statistics, search: string, sort: AppState["
   return [
     summary,
     table,
-    el("h3", {}, "Coverage"),
-    counts(COVERAGE_LABELS, records.byCoverage),
-    el("h3", {}, "Left out of item counts"),
-    counts(EXCLUSION_LABELS, items.excluded),
-    el("h3", {}, "Couldn't be placed"),
-    counts(UNPLACED_LABELS, selection.unplaced),
+    el("h3", {}, s.stats.breakdowns.coverage),
+    counts(s, s.coverage, records.byCoverage),
+    el("h3", {}, s.stats.breakdowns.leftOut),
+    counts(s, s.exclusions, items.excluded),
+    el("h3", {}, s.stats.breakdowns.unplaced),
+    counts(s, s.unplaced, selection.unplaced),
   ];
 }
 
-function outcomes(values: Record<string, number>): HTMLElement {
-  return counts(OUTCOME_LABELS, values);
-}
-
-function submitSection(state: AppState): HTMLElement {
-  const section = el("section", { "aria-label": "Submit" }, el("h2", {}, "Submit"));
-  section.append(el("p", { "data-testid": "file" }, state.file ? `File: ${state.file.name}` : "No file chosen."));
+function submitSection(s: Messages, state: AppState): HTMLElement {
+  const section = el("section", { "aria-label": s.app.submit }, el("h2", {}, s.app.submit));
+  section.append(el("p", { "data-testid": "file" }, state.file ? s.submit.fileName(state.file.name) : s.submit.noFileMirror));
   const { check, submit, status } = state;
-  if (check.phase === "checking") section.append(el("p", {}, "Checking the file."));
-  if (check.phase === "failed") section.append(el("p", { role: "alert" }, `Couldn't check the file: ${check.message}`));
+  if (check.phase === "checking") section.append(el("p", {}, s.submit.checking));
+  if (check.phase === "failed") section.append(el("p", { role: "alert" }, s.submit.checkFailed(problemText(s, check.problem))));
   if (check.phase === "done") {
     const { preview } = check;
     if (!preview.ok) {
-      section.append(el("h3", {}, "This file can't be used"), list(preview.issues.map((issue) => issue.message)));
+      section.append(el("h3", {}, s.submit.cantUse), list(preview.issues.map((issue) => issueText(s, issue))));
     } else {
       section.append(
-        el("h3", {}, "Summary"),
-        el("p", { "data-testid": "preview" }, `${preview.rowCount} rows; ${preview.records.valid} valid records; ${preview.records.rejected} unusable.`),
-        outcomes(preview.outcomes),
+        el("h3", {}, s.submit.summary),
+        el("p", { "data-testid": "preview" }, s.submit.previewMirror(preview.rowCount, preview.records.valid, preview.records.rejected)),
+        counts(s, s.outcomes, preview.outcomes),
       );
       if (preview.records.valid > 0) {
-        section.append(el("h3", {}, "Submitting"), list(SUBMIT_NOTES));
-        if ("secret" in submit) section.append(el("p", { "data-testid": "receipt" }, `Your receipt: ${submit.secret}`));
-        if (submit.step === "receipt") section.append(el("p", {}, submit.saved ? "Receipt marked as saved." : "Save your receipt, then confirm."));
-        if (submit.step === "sending") section.append(el("p", {}, "Submitting."));
-        if (submit.step === "retry") section.append(el("p", { role: "alert" }, `Couldn't confirm the submission (${submit.message}). It may have gone through; try again with the same receipt.`));
-        if (submit.step === "refused") section.append(el("p", { role: "alert" }, `Not submitted: ${submit.message}`));
+        section.append(el("h3", {}, s.submit.heading), list(s.submit.notes));
+        if ("secret" in submit) section.append(el("p", { "data-testid": "receipt" }, s.submit.receiptMirror(submit.secret)));
+        if (submit.step === "receipt") section.append(el("p", {}, s.submit.savedMirror(submit.saved)));
+        if (submit.step === "sending") section.append(el("p", {}, s.submit.sending));
+        if (submit.step === "retry") section.append(el("p", { role: "alert" }, s.submit.sendFailed(problemText(s, submit.problem))));
+        if (submit.step === "refused") section.append(el("p", { role: "alert" }, s.submit.refused(issuesText(s, submit.issues))));
         if (submit.step === "done") {
-          const message = confirmationMessage(submit.summary, submit.replayed);
-          section.append(el("p", { "data-testid": "submitted" }, `${message.heading}. ${message.text}`), outcomes(submit.summary.outcomes));
+          const message = confirmationMessage(s, submit.summary, submit.replayed);
+          section.append(el("p", { "data-testid": "submitted" }, `${message.heading}. ${message.text}`), counts(s, s.outcomes, submit.summary.outcomes));
         }
       }
     }
   }
-  section.append(el("h3", {}, "Check or withdraw a submission"));
+  section.append(el("h3", {}, s.status.heading));
   const looked = status.looked?.outcome;
-  if (status.checking) section.append(el("p", {}, "Checking the receipt."));
+  if (status.checking) section.append(el("p", {}, s.status.checking));
   if (looked?.kind === "found") {
-    const s = looked.submission;
+    const found = looked.submission;
     section.append(
-      el("p", { "data-testid": "status" }, `${s.status === "completed" ? "Active" : "Withdrawn"}; ${s.rowCount} rows; ${s.rejected} unusable records weren't stored.`),
-      outcomes(s.outcomes),
+      el("p", { "data-testid": "status" }, s.status.mirrorLine(found.status === "completed", found.rowCount, found.rejected)),
+      counts(s, s.outcomes, found.outcomes),
     );
   }
-  if (looked?.kind === "refused") section.append(el("p", { role: "alert" }, looked.issues.map((issue) => issue.message).join(" ")));
-  if (looked?.kind === "failed") section.append(el("p", { role: "alert" }, `Couldn't check: ${looked.message}`));
-  if (status.withdrawal.step === "uncertain") section.append(el("p", { role: "alert" }, `Couldn't confirm the withdrawal (${status.withdrawal.message}).`));
-  if (status.withdrawal.step === "refused") section.append(el("p", { role: "alert" }, `Not withdrawn: ${status.withdrawal.message}`));
+  if (looked?.kind === "refused") section.append(el("p", { role: "alert" }, issuesText(s, looked.issues)));
+  if (looked?.kind === "failed") section.append(el("p", { role: "alert" }, s.status.failed(problemText(s, looked.problem))));
+  const { withdrawal } = status;
+  if (withdrawal.step === "uncertain") section.append(el("p", { role: "alert" }, s.withdraw.failed(problemText(s, withdrawal.problem))));
+  if (withdrawal.step === "refused") section.append(el("p", { role: "alert" }, s.status.notWithdrawn(issuesText(s, withdrawal.issues))));
   return section;
 }
 
 /** Rebuilds the mirror's content for the current state. */
 export function renderMirror(state: AppState, root: HTMLElement): void {
+  const s = messages(state.locale);
   root.replaceChildren(
-    el("h1", {}, "Glyph Drop Stats"),
-    el(
-      "p",
-      { class: "keyboard-help" },
-      "Keyboard: Tab moves between controls and Enter or Space activates the focused one. F1 shows statistics, F2 submitting, F3 the filters, F4 how to read the numbers, F8 switches the CRT effect, F9 shows this text view.",
-    ),
-    state.view === "statistics" ? statisticsSection(state) : submitSection(state),
-    el("p", {}, NOTICES),
+    el("h1", {}, s.app.title),
+    el("p", { class: "keyboard-help" }, s.app.keyboardHelp),
+    state.view === "statistics" ? statisticsSection(s, state) : submitSection(s, state),
+    el("p", {}, s.notices),
   );
 }
 
 /** One line saying what just happened, for a live region; null when nothing new to say. */
 export function announcement(previous: AppState, next: AppState): string | null {
-  if (next.notice !== previous.notice && next.notice) return next.notice.text;
-  if (next.view !== previous.view) return next.view === "statistics" ? "Statistics" : "Submit";
+  const s = messages(next.locale);
+  if (next.locale !== previous.locale) return s.language.name;
+  if (next.notice !== previous.notice && next.notice) return s.notice[next.notice.id];
+  if (next.view !== previous.view) return next.view === "statistics" ? s.app.statistics : s.app.submit;
   if (next.check !== previous.check) {
     if (next.check.phase === "done") {
       const { preview } = next.check;
-      return preview.ok ? `Checked: ${preview.records.valid} valid records, ${preview.records.rejected} unusable.` : "This file can't be used.";
+      return preview.ok ? s.announce.checked(preview.records.valid, preview.records.rejected) : s.announce.cantUse;
     }
-    if (next.check.phase === "failed") return "Couldn't check the file.";
+    if (next.check.phase === "failed") return s.announce.checkFailed;
   }
   if (next.submit !== previous.submit) {
     const { submit } = next;
-    if (submit.step === "receipt" && previous.submit.step !== "receipt") return `Receipt created: ${submit.secret}`;
-    if (submit.step === "retry") return "Couldn't confirm the submission; try again with the same receipt.";
-    if (submit.step === "refused") return `Not submitted: ${submit.message}`;
-    if (submit.step === "done") return confirmationMessage(submit.summary, submit.replayed).heading;
+    if (submit.step === "receipt" && previous.submit.step !== "receipt") return s.announce.receiptCreated(submit.secret);
+    if (submit.step === "retry") return s.announce.retry;
+    if (submit.step === "refused") return s.submit.refused(issuesText(s, submit.issues));
+    if (submit.step === "done") return confirmationMessage(s, submit.summary, submit.replayed).heading;
   }
   const looked = next.status.looked;
   if (looked !== previous.status.looked && looked) {
-    if (looked.outcome.kind === "found") return looked.outcome.submission.status === "completed" ? "Submission found: active." : "Submission found: withdrawn.";
-    return "No submission found.";
+    if (looked.outcome.kind === "found") return s.announce.found(looked.outcome.submission.status === "completed");
+    return s.announce.notFound;
   }
   const outcome = next.statistics.outcome;
   if (outcome !== previous.statistics.outcome && outcome?.kind === "ok") {
-    return `Statistics: ${outcome.statistics.records.total} records, ${outcome.statistics.items.eligible} eligible.`;
+    return s.announce.statistics(outcome.statistics.records.total, outcome.statistics.items.eligible);
   }
   return null;
 }

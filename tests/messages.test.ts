@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SubmissionSummary } from "../src/domain/submission.ts";
+import { en } from "../src/web/i18n/en.ts";
 import { confirmationMessage } from "../src/web/messages.ts";
 
 const ACTIVE: SubmissionSummary = {
@@ -14,16 +15,16 @@ const WITHDRAWN: SubmissionSummary = { ...ACTIVE, status: "withdrawn", withdrawn
 
 describe("confirmationMessage", () => {
   it("thanks the player for a new submission", () => {
-    expect(confirmationMessage(ACTIVE, false)).toEqual({ heading: "Submitted", text: "Thank you." });
+    expect(confirmationMessage(en, ACTIVE, false)).toEqual({ heading: "Submitted", text: "Thank you." });
   });
 
   it("says a replay counted nothing twice", () => {
-    expect(confirmationMessage(ACTIVE, true).text).toContain("nothing was counted twice");
+    expect(confirmationMessage(en, ACTIVE, true).text).toContain("nothing was counted twice");
   });
 
   it("never calls a withdrawn submission submitted, even when replayed", () => {
     for (const replayed of [true, false]) {
-      expect(confirmationMessage(WITHDRAWN, replayed)).toEqual({
+      expect(confirmationMessage(en, WITHDRAWN, replayed)).toEqual({
         heading: "Already withdrawn",
         text: "This submission was already withdrawn. Retrying has not reactivated it.",
       });

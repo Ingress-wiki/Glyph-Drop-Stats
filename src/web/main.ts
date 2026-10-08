@@ -3,6 +3,7 @@ import { newReceiptSecret } from "../domain/receipt.ts";
 import { confirmUpload, fetchStatistics, previewFile, submissionStatus, withdrawUpload } from "./api.ts";
 import { announcement, renderMirror } from "./app/mirror.ts";
 import { Store, type View } from "./app/store.ts";
+import { detectLocale, isLocale, LOCALE_KEY, messages, type Locale } from "./i18n/index.ts";
 import { paint } from "./canvas/app.ts";
 import { TextLayer } from "./canvas/textLayer.ts";
 import { COLORS, FONTS, PALETTE } from "./canvas/theme.ts";
@@ -34,6 +35,23 @@ const storage = {
     }
   },
 };
+
+/** The language chosen here before, else the first of the browser's languages this site speaks. */
+function initialLocale(): Locale {
+  const saved = storage.get(LOCALE_KEY);
+  return isLocale(saved) ? saved : detectLocale(navigator.languages ?? [navigator.language]);
+}
+
+/** The page's own text outside the canvas and the mirror, in `locale`. */
+function localizePage(locale: Locale, canvas: HTMLCanvasElement): void {
+  const s = messages(locale);
+  document.documentElement.lang = locale;
+  document.title = s.app.title;
+  canvas.setAttribute("aria-label", s.app.canvasLabel);
+  element("fallback-text", HTMLElement).textContent = s.app.fallback;
+  element("canvas-view", HTMLButtonElement).textContent = s.app.backToCanvas;
+  element("text-view-note", HTMLElement).textContent = s.app.textViewNote;
+}
 
 function download(name: string, text: string, type: string): void {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -91,6 +109,7 @@ async function main(): Promise<void> {
       now: () => new Date(),
     },
     viewFromHash(),
+    initialLocale(),
   );
 
   // The canvas can't hold a native file picker, so a hidden input does; the canvas's
@@ -164,14 +183,18 @@ async function main(): Promise<void> {
     const next = store.state;
     const said = announcement(previous, next);
     if (next.textView !== previous.textView) showTextView(next.textView);
+    if (next.locale !== previous.locale) localizePage(next.locale, canvas);
     previous = next;
     if (said) live.textContent = said;
     renderMirror(next, mirror);
     if (host) {
       host.fx.enabled = next.crt;
-      host.invalidate();
+      // A control the canvas draws can change the state mid-frame, and an invalidation
+      // then is lost when the frame ends: ask for the next frame once this one is done.
+      queueMicrotask(() => host?.invalidate());
     }
   });
+  localizePage(store.state.locale, canvas);
   renderMirror(store.state, mirror);
 
   const env = { openFilePicker: () => fileInput.click() };
@@ -192,9 +215,10 @@ async function main(): Promise<void> {
         background: COLORS.bg,
         fx: { ...DEFAULT_FX, enabled: store.state.crt },
         redraw: "auto",
-        label: "Glyph Drop Stats. A text version of everything shown here follows the canvas.",
+        label: store.strings.app.canvasLabel,
       },
     );
+    localizePage(store.state.locale, canvas);
     if (store.state.textView) showTextView(true);
     else canvas.focus();
   } catch (error) {

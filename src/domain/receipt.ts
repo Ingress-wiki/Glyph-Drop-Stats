@@ -33,17 +33,24 @@ export function hashReceiptSecret(secret: string): Promise<string> {
   return sha256Hex(secret);
 }
 
-/** The text a player saves. It never leaves their device except to authorize a request. */
-export function receiptText(secret: string, site: string, createdAt: Date): string {
+export interface ReceiptLabels {
+  title: string;
+  warning: readonly string[];
+  receipt: string;
+  site: string;
+  created: string;
+}
+
+/** The text a player saves, in the page's language. It never leaves their device except to authorize a request. */
+export function receiptText(secret: string, site: string, createdAt: Date, labels: ReceiptLabels): string {
   return [
-    "Glyph Drop Stats submission receipt",
+    labels.title,
     "",
-    "Keep this private. Anyone with it can view or withdraw your submission,",
-    "and it can't be recovered if you lose it.",
+    ...labels.warning,
     "",
-    `Receipt: ${secret}`,
-    `Site: ${site}`,
-    `Created: ${createdAt.toISOString()}`,
+    `${labels.receipt}: ${secret}`,
+    `${labels.site}: ${site}`,
+    `${labels.created}: ${createdAt.toISOString()}`,
     "",
   ].join("\n");
 }

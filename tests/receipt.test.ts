@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashReceiptSecret, isReceiptSecret, newReceiptSecret, receiptText } from "../src/domain/receipt.ts";
+import { en } from "../src/web/i18n/en.ts";
 
 describe("receipt secrets", () => {
   it("are 256-bit, prefixed and different every time", () => {
@@ -25,7 +26,7 @@ describe("receipt secrets", () => {
   });
 
   it("are written into a receipt with a warning", () => {
-    const text = receiptText("gds1_x", "https://stats.example", new Date(Date.UTC(2026, 9, 4)));
+    const text = receiptText("gds1_x", "https://stats.example", new Date(Date.UTC(2026, 9, 4)), en.receiptFile);
     expect(text).toContain("Receipt: gds1_x");
     expect(text).toContain("Keep this private");
     expect(text).toContain("2026-10-04T00:00:00.000Z");

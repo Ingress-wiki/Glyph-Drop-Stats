@@ -69,11 +69,20 @@ describe("itemsTsv", () => {
 });
 
 describe("item search", () => {
+  const english = { levelled: "levelled", mod: "mod", other: "other" };
+  const japanese = { levelled: "レベル付き", mod: "MOD", other: "その他" };
+
   it("matches names in any case, and categories exactly", () => {
-    expect(matchesSearch("Resonator", "RES")).toBe(true);
-    expect(matchesSearch("Portal Shield", "mod")).toBe(true);
-    expect(matchesSearch("Portal Key", "mod")).toBe(false);
-    expect(matchesSearch("Anything", "  ")).toBe(true);
+    expect(matchesSearch("Resonator", "RES", english)).toBe(true);
+    expect(matchesSearch("Portal Shield", "mod", english)).toBe(true);
+    expect(matchesSearch("Portal Key", "mod", english)).toBe(false);
+    expect(matchesSearch("Anything", "  ", english)).toBe(true);
     expect(itemCategory("Event Beacon")).toBeNull();
+  });
+
+  it("matches a category written in the page's language, or in English", () => {
+    expect(matchesSearch("Hypercube", "その他", japanese)).toBe(true);
+    expect(matchesSearch("Resonator", "その他", japanese)).toBe(false);
+    expect(matchesSearch("Hypercube", "other", japanese)).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
 import type { Context, Interaction, Rect } from "@synth-ui/core";
 import { useTheme } from "@synth-ui/widgets";
+import { en, type Messages } from "../i18n/en.ts";
 import { COLORS, FONT } from "./theme.ts";
 
 /**
@@ -11,8 +12,12 @@ import { COLORS, FONT } from "./theme.ts";
 /** What has keyboard focus, refreshed every frame. */
 export const focus = { label: "", next: "" };
 
-export function beginFrame(): void {
+/** The current frame's messages, for what these widgets announce. */
+let strings: Messages = en;
+
+export function beginFrame(s: Messages): void {
   focus.next = "";
+  strings = s;
 }
 
 /** After a frame: the focused control's name, if it changed since the last frame. */
@@ -22,8 +27,17 @@ export function endFrame(): string | null {
   return focus.label;
 }
 
-export const BUTTON_H = 13;
 const PAD = 5;
+
+/** A face's line height: every size below follows from it, so taller CJK faces get room. */
+export function lineHeight(ctx: Context, font: string): number {
+  return ctx.fontMetrics(font).height;
+}
+
+/** A button's height: its label and three pixels above and below. */
+export function buttonHeight(ctx: Context): number {
+  return lineHeight(ctx, FONT.caps) + 6;
+}
 
 export interface Pressable {
   it: Interaction;
@@ -38,15 +52,16 @@ export interface Pressable {
 export function pressable(
   ctx: Context,
   rect: Rect,
-  opts: { key: string; label: string; hint?: string; disabled?: boolean },
+  opts: { key: string; label: string; hint?: string; disabled?: boolean; takeFocus?: boolean },
 ): Pressable {
   if (opts.disabled) {
     const it = ctx.interaction(rect, { key: opts.key, click: false, hover: false });
     return { it, activated: false };
   }
   const it = ctx.interaction(rect, { key: opts.key, focusable: true, cursor: "pointer", hint: opts.hint ?? opts.label });
+  if (opts.takeFocus) ctx.focus(it);
   const keyed = it.focused && (ctx.takeKey("Enter") || ctx.takeKey("Space"));
-  if (it.focused) focus.next = `${opts.label}, button`;
+  if (it.focused) focus.next = strings.a11y.button(opts.label);
   return { it, activated: it.clicked || keyed };
 }
 
@@ -64,12 +79,16 @@ export interface ButtonOptions {
   /** A small triangle after the label: it opens a menu or panel. */
   caret?: "down" | "up";
   w?: number;
+  /** A face other than the current caps face: a language's name in its own script. */
+  font?: string;
+  /** Move the keyboard focus here, as a dialog opens or closes. */
+  takeFocus?: boolean;
 }
 
 const CARET_W = 8;
 
-export function buttonWidth(ctx: Context, label: string, caret = false): number {
-  return ctx.measureText(label, { font: FONT.caps }) + PAD * 2 + (caret ? CARET_W : 0);
+export function buttonWidth(ctx: Context, label: string, caret = false, font: string = FONT.caps): number {
+  return ctx.measureText(label, { font }) + PAD * 2 + (caret ? CARET_W : 0);
 }
 
 /** A 5×3 triangle, pointing down or up, its top left at (x, y). */
@@ -80,10 +99,11 @@ function drawCaret(ctx: Context, x: number, y: number, direction: "down" | "up",
   }
 }
 
-/** An outlined button in the 5×7 face. Returns true when activated. */
+/** An outlined button in the caps face. Returns true when activated. */
 export function actionButton(ctx: Context, opts: ButtonOptions, rect?: Rect): boolean {
   const { colors: c } = useTheme(ctx);
-  const r = rect ?? ctx.place({ w: opts.w ?? buttonWidth(ctx, opts.label, Boolean(opts.caret)), h: BUTTON_H });
+  const font = opts.font ?? FONT.caps;
+  const r = rect ?? ctx.place({ w: opts.w ?? buttonWidth(ctx, opts.label, Boolean(opts.caret), font), h: buttonHeight(ctx) });
   const { it, activated } = pressable(ctx, r, opts);
   const sink = it.held ? 1 : 0;
   const box = { x: r.x, y: r.y + sink, w: r.w, h: r.h };
@@ -91,10 +111,11 @@ export function actionButton(ctx: Context, opts: ButtonOptions, rect?: Rect): bo
   ctx.fillRect(box, lit ? c.accent : it.hovered || it.focused ? c.raised : c.control);
   ctx.strokeRect(box, opts.disabled ? c.line : lit ? c.flame : c.border);
   const ink = opts.disabled ? c.dim : lit ? c.void : it.held ? c.accent : it.hovered ? c.paper : c.text;
-  const tw = ctx.measureText(opts.label, { font: FONT.caps }) + (opts.caret ? CARET_W : 0);
+  const tw = ctx.measureText(opts.label, { font }) + (opts.caret ? CARET_W : 0);
   const tx = box.x + Math.floor((box.w - tw) / 2);
-  ctx.text(opts.label, tx, box.y + 3, { color: ink, font: FONT.caps });
-  if (opts.caret) drawCaret(ctx, tx + tw - 5, box.y + 5, opts.caret, ink);
+  const ty = box.y + Math.floor((box.h - lineHeight(ctx, font)) / 2);
+  ctx.text(opts.label, tx, ty, { color: ink, font });
+  if (opts.caret) drawCaret(ctx, tx + tw - 5, box.y + Math.floor(box.h / 2) - 1, opts.caret, ink);
   if (it.focused) drawFocusRing(ctx, r);
   return activated;
 }
@@ -103,13 +124,14 @@ export function actionButton(ctx: Context, opts: ButtonOptions, rect?: Rect): bo
 export function toggle(ctx: Context, opts: { key: string; label: string; checked: boolean }, rect?: Rect): boolean {
   const { colors: c } = useTheme(ctx);
   const w = 9 + 4 + ctx.measureText(opts.label, { font: FONT.mixed });
-  const r = rect ?? ctx.place({ w, h: 9 });
-  const { it, activated } = pressable(ctx, r, { key: opts.key, label: `${opts.label}, ${opts.checked ? "checked" : "not checked"}` });
-  const box = { x: r.x, y: r.y, w: 9, h: 9 };
+  const h = Math.max(9, lineHeight(ctx, FONT.mixed) + 2);
+  const r = rect ?? ctx.place({ w, h });
+  const { it, activated } = pressable(ctx, r, { key: opts.key, label: strings.a11y.checkbox(opts.label, opts.checked) });
+  const box = { x: r.x, y: r.y + Math.floor((h - 9) / 2), w: 9, h: 9 };
   ctx.fillRect(box, c.control);
   ctx.strokeRect(box, it.hovered || it.focused ? c.ash : c.border);
   if (opts.checked) ctx.fillRect({ x: box.x + 2, y: box.y + 2, w: 5, h: 5 }, c.accent);
-  ctx.text(opts.label, r.x + 13, r.y + 1, { color: it.hovered ? c.paper : c.text, font: FONT.mixed });
+  ctx.text(opts.label, r.x + 13, r.y + Math.floor((h - lineHeight(ctx, FONT.mixed)) / 2), { color: it.hovered ? c.paper : c.text, font: FONT.mixed });
   if (it.focused) drawFocusRing(ctx, r);
   return activated;
 }
@@ -138,22 +160,29 @@ export function paragraph(
 /** A bullet list of wrapped items. */
 export function bullets(ctx: Context, items: readonly string[], color?: number): void {
   const { colors: c } = useTheme(ctx);
+  const dotY = Math.floor(lineHeight(ctx, FONT.mixed) / 2) - 1;
   for (const item of items) {
     const r = paragraph(ctx, item, { indent: 8, color });
-    ctx.fillRect({ x: r.x + 2, y: r.y + 2, w: 2, h: 2 }, c.accent);
+    ctx.fillRect({ x: r.x + 2, y: r.y + dotY, w: 2, h: 2 }, c.accent);
   }
+}
+
+/** A text field's focus announcement, in the current language. */
+export function announceField(label: string): void {
+  focus.next = strings.a11y.textField(label);
 }
 
 /** A section heading in the caps face, with a rule under it. */
 export function heading(ctx: Context, text: string, right?: string): void {
   const { colors: c } = useTheme(ctx);
-  const r = ctx.place({ w: ctx.bounds.w, h: 11 });
+  const capsH = lineHeight(ctx, FONT.caps);
+  const r = ctx.place({ w: ctx.bounds.w, h: capsH + 4 });
   ctx.text(text, r.x, r.y, { color: c.paper, font: FONT.caps });
   if (right) {
     const w = ctx.measureText(right, { font: FONT.small });
-    ctx.text(right, r.x + r.w - w, r.y + 1, { color: c.muted, font: FONT.small });
+    ctx.text(right, r.x + r.w - w, r.y + capsH - lineHeight(ctx, FONT.small), { color: c.muted, font: FONT.small });
   }
-  ctx.hline(r.x, r.y + 9, r.w, c.border);
+  ctx.hline(r.x, r.y + capsH + 2, r.w, c.border);
 }
 
 /** A small muted label, then a value, on one line or (narrow) two. */
@@ -161,15 +190,16 @@ export function keyValue(ctx: Context, key: string, value: string, opts: { color
   const { colors: c } = useTheme(ctx);
   const keyW = 96;
   const narrow = ctx.bounds.w < 260;
-  const r = ctx.place({ w: ctx.bounds.w, h: narrow ? 18 : 9 });
-  ctx.text(key.toUpperCase(), r.x, r.y + 1, { color: c.muted, font: FONT.small });
+  const line = Math.max(lineHeight(ctx, FONT.mixed), lineHeight(ctx, FONT.small)) + 2;
+  const r = ctx.place({ w: ctx.bounds.w, h: narrow ? line * 2 : line });
+  ctx.text(key, r.x, r.y + line - 2 - lineHeight(ctx, FONT.small), { color: c.muted, font: FONT.small });
   const layout = ctx.layoutText(value, {
     font: FONT.mixed,
     color: opts.color ?? c.text,
     width: narrow ? r.w : r.w - keyW,
     overflow: "clip",
   });
-  ctx.drawText(layout, narrow ? r.x : r.x + keyW, narrow ? r.y + 9 : r.y);
+  ctx.drawText(layout, narrow ? r.x : r.x + keyW, narrow ? r.y + line : r.y);
 }
 
 /** Lay controls left to right, wrapping onto a new line when the next won't fit. */
@@ -213,7 +243,7 @@ export function selectableText(
   const layoutOptions = { font, color: opts.color, width, wrap: "char" as const, lineGap: 2 };
   const layout = ctx.layoutText(opts.text, layoutOptions);
   const r = ctx.place({ w: width, h: layout.bounds.h + 2 });
-  const it = ctx.interaction(r, { key: opts.key, focusable: true, text: true, cursor: "text", hint: `${opts.label}: select it, then copy` });
+  const it = ctx.interaction(r, { key: opts.key, focusable: true, text: true, cursor: "text", hint: opts.label });
   const sel = ctx.state(() => ({ anchor: 0, focus: 0, wasFocused: false, selectedAll: false }), { key: `${opts.key}:selection` });
   const at = (x: number, y: number) => layout.indexAt({ x: x - r.x, y: y - r.y - 1 });
   const all = () => {
@@ -238,7 +268,7 @@ export function selectableText(
   const start = Math.min(sel.anchor, sel.focus);
   const end = Math.max(sel.anchor, sel.focus);
   if (it.focused) {
-    focus.next = `${opts.label}, selectable text`;
+    focus.next = strings.a11y.selectable(opts.label);
     // Read-only: the typing, pasting and cutting it's handed are dropped.
     ctx.textInput(it, { caret: { x: r.x, y: r.y, w: 1, h: r.h }, selection: opts.text.slice(start, end) });
   }
