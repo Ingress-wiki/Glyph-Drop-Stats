@@ -3,7 +3,10 @@
 1. `npm install`, then make your change.
 2. Add or update tests. Every validation rule has a test in `tests/`.
 3. Run `npm run typecheck && npm run lint && npm test && npm run build`;
-   CI runs the same.
+   CI runs the same. For changes to `src/web/`, also run
+   `npm run test:browser`. It needs Google Chrome; it starts the built
+   site on a throwaway database and drives it through the keyboard, the
+   mouse and the clipboard.
 
 ## Rules
 

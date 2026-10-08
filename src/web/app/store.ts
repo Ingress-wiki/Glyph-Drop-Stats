@@ -172,6 +172,16 @@ export class Store {
     this.update({ crt });
   }
 
+  /**
+   * A dialog the canvas shows over the page: the first-visit note, the guide
+   * or the withdrawal confirmation. Page shortcuts wait until it closes.
+   */
+  dialogOpen(): boolean {
+    const { view, statistics, status } = this.state;
+    if (view === "statistics") return statistics.disclaimerOpen || statistics.guideOpen;
+    return status.withdrawal.step === "confirming" || status.withdrawal.step === "uncertain" || status.withdrawal.step === "sending";
+  }
+
   setTextView(textView: boolean): void {
     this.deps.storage.set(TEXT_VIEW_KEY, textView ? "on" : "off");
     this.update({ textView });

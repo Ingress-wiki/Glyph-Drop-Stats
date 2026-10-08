@@ -119,6 +119,15 @@ async function main(): Promise<void> {
   // available there and in the text view, without sending them twice to the host.
   document.addEventListener("keydown", (event) => {
     if (event.repeat) return;
+    const isShortcut = ["F1", "F2", "F3", "F4", "F8", "F9"].includes(event.key);
+    if (!isShortcut) return;
+    // While the canvas shows a dialog, it keeps the page: only the text view switch
+    // still works (the dialog's text is in the text view too).
+    if (event.key !== "F9" && store.dialogOpen() && !store.state.textView) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     switch (event.key) {
       case "F1": store.setView("statistics"); break;
       case "F2": store.setView("submit"); break;

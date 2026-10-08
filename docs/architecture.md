@@ -22,7 +22,7 @@ effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
 | --- | --- |
 | `src/web/app/store.ts` | All page state and actions, with no drawing. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
 | `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
-| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying. |
+| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0: check the text layer (`npm run test:browser`) before upgrading it. |
 | `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
 | `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
 
@@ -38,6 +38,11 @@ no native controls. So:
     one. synth-ui's own buttons don't take focus, so the site draws its own.
   - F1 shows statistics, F2 submitting, F3 the filters, F4 the guide, F8
     the CRT effect, F9 the text view.
+  - The shortcuts are handled by the page, not the canvas, so they still
+    work after page text is selected (which takes focus from the canvas).
+  - While a dialog is open (the first-visit note, the guide, the
+    withdrawal confirmation), only F9 works, as synth-ui dialogs keep the
+    keyboard.
 - **Selecting and copying:** a transparent HTML text layer follows the
   canvas's glyph positions and clipping. Drag or double-click to select
   visible text, then copy normally; Mod+A selects the visible text. The

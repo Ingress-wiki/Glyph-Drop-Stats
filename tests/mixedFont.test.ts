@@ -14,7 +14,7 @@ describe("the mixed-case face", () => {
   });
 
   it("has every symbol the site's text uses", () => {
-    for (const char of "·–—…÷×↑↓▲▼") expect(glyphs[char]).toBeDefined();
+    for (const char of "·–—…÷×©↑↓▲▼") expect(glyphs[char]).toBeDefined();
   });
 
   it("is a 5×7 grid of # and . in every glyph", () => {

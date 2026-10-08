@@ -15,6 +15,7 @@ npm test           # unit and API tests
 npm run typecheck
 npm run lint
 npm run build      # client assets and Worker bundle in dist/
+npm run test:browser   # build, then drive the real site in Chrome (needs Google Chrome)
 ```
 
 To run the production build in the local Workers runtime:

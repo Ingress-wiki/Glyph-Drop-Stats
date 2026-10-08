@@ -1,0 +1,66 @@
+// Browser tests: `npm run test:browser` (builds first). Starts the built Worker
+// on a throwaway local D1, runs every suite in the installed Chrome, and always
+// stops the server. CHROME_CHANNEL picks another Chromium channel.
+import { spawn, spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { networkInterfaces, tmpdir } from "node:os";
+import { join } from "node:path";
+import { chromium } from "playwright-core";
+import { datasetRecords } from "../helpers/dataset.ts";
+import { csv } from "../helpers/export.ts";
+import { canvasSuite } from "./canvas.mjs";
+import { textLayerSuite } from "./text-layer.mjs";
+
+const PORT = Number(process.env.BROWSER_TEST_PORT ?? 8799);
+const CONFIG = "dist/glyph_drop_stats/wrangler.json";
+const dir = mkdtempSync(join(tmpdir(), "gds-browser-"));
+const state = join(dir, "state");
+
+/** The overlapping synthetic uploads the suites expect: h1–h6, and h4 onwards. */
+const records = datasetRecords();
+writeFileSync(join(dir, "a.csv"), csv(records.slice(0, 6).flat()));
+writeFileSync(join(dir, "b.csv"), csv(records.slice(3).flat()));
+
+/** An address other devices could use: plain HTTP, so not a secure context. */
+function lanAddress() {
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) if (address.family === "IPv4" && !address.internal) return address.address;
+  }
+  return null;
+}
+
+const migrate = spawnSync("npx", ["wrangler", "d1", "migrations", "apply", "glyph-drop-stats", "--local", "--persist-to", state, "-c", CONFIG], { stdio: "ignore" });
+if (migrate.status !== 0) throw new Error("couldn't apply migrations; run `npm run build` first");
+
+const server = spawn("npx", ["wrangler", "dev", "-c", CONFIG, "--ip", "0.0.0.0", "--port", String(PORT), "--persist-to", state], { stdio: "ignore", detached: true });
+const stopServer = () => {
+  try {
+    process.kill(-server.pid, "SIGTERM");
+  } catch {
+    // Already gone.
+  }
+};
+
+let passed = false;
+try {
+  const base = `http://localhost:${PORT}`;
+  for (let i = 0; ; i++) {
+    if (await fetch(`${base}/api/health`).then((r) => r.ok, () => false)) break;
+    if (i > 120) throw new Error("the server didn't start");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  const lan = lanAddress();
+  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true });
+  try {
+    const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir });
+    const textLayer = await textLayerSuite({ browser, base, upload: join(dir, "b.csv") });
+    passed = canvas && textLayer;
+  } finally {
+    await browser.close();
+  }
+  if (!lan) console.log("NOTE  no LAN address: the plain-HTTP copy checks were skipped");
+} finally {
+  stopServer();
+  rmSync(dir, { recursive: true, force: true });
+}
+process.exit(passed ? 0 : 1);

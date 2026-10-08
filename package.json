@@ -14,12 +14,14 @@
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "db:migrate:local": "wrangler d1 migrations apply glyph-drop-stats --local"
+    "db:migrate:local": "wrangler d1 migrations apply glyph-drop-stats --local",
+    "test:browser": "npm run build && node tests/browser/run.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.62.5",
     "@types/node": "^24.19.1",
     "oxlint": "^1.81.0",
+    "playwright-core": "1.63.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.3",
@@ -30,8 +32,8 @@
     "esbuild@0.28.1": true
   },
   "dependencies": {
-    "@synth-ui/backend": "^0.1.0",
-    "@synth-ui/core": "^0.1.0",
-    "@synth-ui/widgets": "^0.1.0"
+    "@synth-ui/backend": "0.1.0",
+    "@synth-ui/core": "0.1.0",
+    "@synth-ui/widgets": "0.1.0"
   }
 }

@@ -260,6 +260,27 @@ describe("statistics", () => {
   });
 });
 
+describe("dialogs", () => {
+  it("reports the first-visit note, the guide and the withdrawal confirmation as open dialogs", async () => {
+    const { store } = setup();
+    store.setView("statistics");
+    expect(store.dialogOpen()).toBe(true); // the first-visit note
+    store.dismissDisclaimer();
+    expect(store.dialogOpen()).toBe(false);
+    store.setGuideOpen(true);
+    expect(store.dialogOpen()).toBe(true);
+    store.setGuideOpen(false);
+    store.setView("submit");
+    store.setStatusInput("A");
+    await store.lookup();
+    expect(store.dialogOpen()).toBe(false);
+    store.startWithdraw();
+    expect(store.dialogOpen()).toBe(true);
+    store.cancelWithdraw();
+    expect(store.dialogOpen()).toBe(false);
+  });
+});
+
 describe("per-viewer preferences", () => {
   it("shows the first-visit note until it is dismissed", () => {
     const first = setup();
