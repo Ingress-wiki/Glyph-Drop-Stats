@@ -39,10 +39,6 @@ body {
   cursor: text;
 }
 
-.canvas-text-run span {
-  display: inline-block;
-}
-
 .canvas-text-run span::selection {
   color: transparent;
   background: #e8591a80;
@@ -55,6 +51,11 @@ body {
 
 #canvas-text.smooth .canvas-text-run.caps {
   text-transform: uppercase;
+}
+
+#canvas-text.smooth .canvas-text-run::selection {
+  color: #fff;
+  background: #e8591a80;
 }
 
 #canvas-text.smooth .canvas-text-run span::selection {

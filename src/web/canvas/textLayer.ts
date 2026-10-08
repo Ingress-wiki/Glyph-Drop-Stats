@@ -11,7 +11,10 @@ import { visibleText, type TextRun } from "./textRuns.ts";
  * instead, in the system's font: each character keeps its bitmap glyph's
  * cell, so nothing moves or overlaps.
  */
-/** The smooth font, shared by the stylesheet's rule and the width measurement below. */
+/** The invisible layer's font: what its characters are measured in, to pad them to their glyphs' cells. */
+const LAYER_FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+/** The smooth font, set on the layer and used to measure what fits. */
 const SMOOTH_FONT =
   'system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "PingFang SC", "Microsoft YaHei", "Malgun Gothic", "Noto Sans CJK SC", sans-serif';
 
@@ -87,7 +90,7 @@ export class TextLayer {
     this.root.style.width = `${box.width}px`;
     this.root.style.height = `${box.height}px`;
     this.root.classList.toggle("smooth", this.smooth);
-    this.root.style.fontFamily = this.smooth ? SMOOTH_FONT : "";
+    this.root.style.fontFamily = this.smooth ? SMOOTH_FONT : LAYER_FONT;
     const visible = visibleText(ui, runs).sort((a, b) => a.run.layer - b.run.layer || a.rect.y - b.rect.y || a.rect.x - b.rect.x);
     visible.forEach(({ run, rect, clip, interactive }, index) => {
       let node = this.nodes[index];
@@ -108,11 +111,17 @@ export class TextLayer {
         node.classList.toggle("caps", caps);
         node.dataset.fit = String(this.fit(caps ? run.text.toUpperCase() : run.text, rect.w * sx, rect.h * sy));
       } else if (node.dataset.text !== signature) {
+        // Each character fills its bitmap glyph's cell, so selection lines up with the
+        // canvas. Inline spans padded by letter-spacing keep the run one flow of text:
+        // fixed-width inline blocks would end a word at every character in Firefox,
+        // so double-click would select one letter.
         const spacing = ui.fontMetrics(run.font).spacing * run.scale;
+        const size = rect.h * sy;
         node.replaceChildren(...Array.from(run.text, (char) => {
           const glyph = document.createElement("span");
           glyph.textContent = char;
-          glyph.style.width = `${(ui.measureText(char, { font: run.font, scale: run.scale }) + spacing) * sx}px`;
+          const cell = (ui.measureText(char, { font: run.font, scale: run.scale }) + spacing) * sx;
+          glyph.style.letterSpacing = `${cell - this.advance(char, size, LAYER_FONT)}px`;
           return glyph;
         }), document.createTextNode("\n"));
         node.dataset.text = signature;
@@ -139,10 +148,15 @@ export class TextLayer {
    * capitals) and be cut off.
    */
   private fit(text: string, width: number, height: number): number {
-    this.measure ??= document.createElement("canvas").getContext("2d");
-    if (!this.measure) return height;
-    this.measure.font = `${height}px ${SMOOTH_FONT}`;
-    const natural = this.measure.measureText(text).width;
+    const natural = this.advance(text, height, SMOOTH_FONT);
     return natural > width ? Math.max(height * 0.6, (height * width) / natural) : height;
+  }
+
+  /** How far `text` advances in `family` at `size` pixels, as the browser sets it. */
+  private advance(text: string, size: number, family: string): number {
+    this.measure ??= document.createElement("canvas").getContext("2d");
+    if (!this.measure) return 0;
+    this.measure.font = `${size}px ${family}`;
+    return this.measure.measureText(text).width;
   }
 }

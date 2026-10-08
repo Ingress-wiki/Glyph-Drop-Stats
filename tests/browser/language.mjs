@@ -1,21 +1,11 @@
 import { writeFileSync } from "node:fs";
 import { LOCALES, messages } from "../../src/web/i18n/index.ts";
 import { SOURCE_URL } from "../../src/web/site.ts";
-import { checks } from "./keyboard.mjs";
+import { activate, checks } from "./keyboard.mjs";
 
-/** Tab until the focus announcement is exactly `announced`, then press `key`. */
-async function activateExactly(page, announced, key = "Enter", max = 60) {
-  for (let i = 0; i < max; i++) {
-    if ((await page.locator("#focus-live").textContent()) === announced) {
-      await page.keyboard.press(key);
-      await page.waitForTimeout(250);
-      return;
-    }
-    await page.keyboard.press("Tab");
-    await page.waitForTimeout(60);
-  }
-  throw new Error(`never reached "${announced}" by Tab; last focus: ${await page.locator("#focus-live").textContent()}`);
-}
+/** Tab until the focus announcement is exactly `announced` (any language's punctuation), then press `key`. */
+const activateExactly = (page, announced, key = "Enter", max = 80) =>
+  activate(page, announced, key, max, (focused) => focused === announced).then(() => page.waitForTimeout(100));
 
 /**
  * The page's languages: the first visit follows the browser, the switch in
@@ -45,15 +35,15 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
 
     await page.waitForTimeout(800);
     await activateExactly(page, ja.a11y.button(ja.app.language));
-    await page.waitForTimeout(300);
+    const inPicker = ja.a11y.button(ja.language.name);
+    await page.waitForFunction((want) => document.getElementById("focus-live")?.textContent === want, inPicker, { timeout: 3000 }).catch(() => {});
     const focusedInPicker = await page.locator("#focus-live").textContent();
     check("opening the picker focuses the current language", focusedInPicker === ja.a11y.button(ja.language.name), focusedInPicker);
-    await page.keyboard.press("Tab");
-    await page.waitForTimeout(150);
-    await activateExactly(page, ja.a11y.button(ko.language.name), "Enter", 1);
+    await activateExactly(page, ja.a11y.button(ko.language.name), "Enter", 2);
     await page.waitForFunction(() => document.documentElement.lang === "ko");
     check("the switch changes the language", (await page.locator("#mirror h2").first().textContent()) === ko.app.statistics);
-    await page.waitForTimeout(600);
+    const onSwitch = ko.a11y.button(ko.app.language);
+    await page.waitForFunction((want) => document.getElementById("focus-live")?.textContent === want, onSwitch, { timeout: 3000 }).catch(() => {});
     const focusedAfter = await page.locator("#focus-live").textContent();
     check("closing the picker returns the focus to the switch", focusedAfter === ko.a11y.button(ko.app.language), focusedAfter);
     await page.reload({ waitUntil: "domcontentloaded" });

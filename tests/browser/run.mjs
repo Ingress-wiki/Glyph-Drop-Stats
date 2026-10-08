@@ -5,10 +5,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
-import { chromium } from "playwright-core";
+import { chromium, firefox } from "playwright-core";
 import { datasetRecords } from "../helpers/dataset.ts";
 import { csv } from "../helpers/export.ts";
 import { canvasSuite } from "./canvas.mjs";
+import { firefoxSuite } from "./firefox.mjs";
 import { languageSuite } from "./language.mjs";
 import { textLayerSuite } from "./text-layer.mjs";
 
@@ -63,6 +64,19 @@ try {
     passed = canvas && textLayer && languages;
   } finally {
     await browser.close();
+  }
+  // Playwright's own Firefox (`npx playwright-core install firefox`); CI always has it.
+  const gecko = await firefox.launch({ headless: true }).catch(() => null);
+  if (gecko) {
+    try {
+      passed = (await firefoxSuite({ browser: gecko, base })) && passed;
+    } finally {
+      await gecko.close();
+    }
+  } else if (process.env.CI) {
+    throw new Error("Firefox isn't installed: run `npx playwright-core install firefox`");
+  } else {
+    console.log("NOTE  no Playwright Firefox: the Firefox checks were skipped");
   }
   if (!lan) console.log("NOTE  no LAN address: the plain-HTTP copy checks were skipped");
   console.log(`NOTE  language screenshots in ${screenshots}`);

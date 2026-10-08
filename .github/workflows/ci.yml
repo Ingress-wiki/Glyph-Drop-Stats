@@ -35,6 +35,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Install Playwright's Firefox
+        run: npx playwright-core install --with-deps firefox
       # Builds, starts the Worker on a throwaway local D1 and drives it in the runner's Chrome.
       - run: npm run test:browser
         env:
