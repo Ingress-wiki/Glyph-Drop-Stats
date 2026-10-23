@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { LOCALES, messages } from "../../src/web/i18n/index.ts";
 import { SOURCE_URL } from "../../src/web/site.ts";
-import { activate, checks, newContext } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed, newContext } from "./keyboard.mjs";
 
 /** Tab until the focus announcement is exactly `announced` (any language's punctuation), then press `key`. */
 const activateExactly = (page, announced, key = "Enter", max = 80) =>
@@ -49,6 +49,23 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("[data-testid=headline]").waitFor();
     check("the choice is remembered over the browser's", (await page.evaluate(() => document.documentElement.lang)) === "ko");
+
+    // The CJK text size: 10px by default, 12px from the picker, and remembered.
+    const hangulHeight = () =>
+      page.evaluate(() => {
+        const run = [...document.querySelectorAll("#canvas-text .canvas-text-run")].find((node) => /[\uac00-\ud7a3]/.test(node.textContent ?? ""));
+        return run ? run.getBoundingClientRect().height : 0;
+      });
+    await page.waitForTimeout(500);
+    const at10 = await hangulHeight();
+    await activateExactly(page, ko.a11y.button(ko.app.language));
+    await activateExactly(page, ko.a11y.button("12px"));
+    await page.keyboard.press("Escape");
+    await dialogsClosed(page);
+    const at12 = await hangulHeight();
+    const stored = await page.evaluate(() => localStorage.getItem("glyph-drop-stats:cjk-size"));
+    check("12px draws Korean taller than the 10px default, and is remembered", at12 > at10 && stored === "12", `${at10}px -> ${at12}px, stored ${stored}`);
+    await page.evaluate(() => localStorage.removeItem("glyph-drop-stats:cjk-size"));
 
     // A server message, translated by its key.
     await page.waitForTimeout(1000);

@@ -28,7 +28,7 @@ This must be finished, and reviewed, before real submissions are accepted.
 
 ## In the visitor's browser
 
-No cookies, analytics or tracking. The page keeps five preferences in
+No cookies, analytics or tracking. The page keeps six preferences in
 `localStorage`, each written only when the visitor chooses it, and never
 sent to the server:
 
@@ -37,6 +37,7 @@ sent to the server:
 | `glyph-drop-stats:locale` | The language picked in the language switch |
 | `glyph-drop-stats:crt` | The CRT switch |
 | `glyph-drop-stats:smooth-text` | The font switch |
+| `glyph-drop-stats:cjk-size` | The pixel size chosen for Chinese, Japanese and Korean text |
 | `glyph-drop-stats:text-view` | Whether the text view is shown |
 | `glyph-drop-stats:disclaimer-seen` | That the first-visit note was dismissed |
 

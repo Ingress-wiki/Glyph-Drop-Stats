@@ -60,7 +60,7 @@ The full texts are served with the site under `/licenses/` (`public/licenses/`).
 | --- | --- | --- |
 | [synth-ui](https://github.com/unixzii/synth-ui) (`@synth-ui/core`, `widgets`, `backend`) | MIT, © 2026 Cyandev | Draws the whole interface; its bitmap faces are part of it. |
 | X.org misc-fixed 5×7 | Public domain | Converted by `scripts/bdf-to-face.mjs` into the mixed-case face used for receipts and prose. |
-| [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) 8px proportional | SIL OFL 1.1, © 2022 TakWolf, with its source fonts' licences (Galmuri and Miseki Bitmap: OFL 1.1; Misaki and BoutiqueBitmap7x7: free to use, modify and redistribute) | Subset by `scripts/cjk-faces.mjs` into the Chinese, Japanese and Korean faces. Those generated files (`src/web/canvas/fonts/cjk*.ts`) are a modified version of the font and remain under the OFL, not the MIT licence. Texts in `public/licenses/fusion-pixel/`. |
+| [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) 8, 10 and 12px proportional | SIL OFL 1.1, © 2022 TakWolf, with its source fonts' licences (Ark Pixel, Galmuri and Miseki Bitmap: OFL 1.1; Cubic 11, BoutiqueBitmap9x9, BoutiqueBitmap7x7 and Misaki: free to use, modify and redistribute, with M+ for the parts they borrow) | Subset by `scripts/cjk-faces.mjs` into the Chinese, Japanese and Korean faces at each size. Those generated files (`src/web/canvas/fonts/cjk*.ts`) are a modified version of the font and remain under the OFL, not the MIT licence. Texts in `public/licenses/fusion-pixel/`. |
 
 Glyph Drop Stats is not affiliated with Niantic. Ingress and its item names
 are Niantic's.

@@ -13,6 +13,7 @@ import {
 } from "../api.ts";
 import type { Messages } from "../i18n/en.ts";
 import { LOCALE_KEY, messages, type Locale } from "../i18n/index.ts";
+import { CJK_SIZE_KEY, DEFAULT_CJK_SIZE, isCjkSize, type CjkSize } from "../textSize.ts";
 import { DEFAULT_SORT, itemsTsv, type Sort, type SortKey } from "../itemTable.ts";
 import { LatestOnly, STALE } from "../latest.ts";
 import { EMPTY_FORM, formQuery, type StatsForm } from "../statsForm.ts";
@@ -83,6 +84,8 @@ export interface AppState {
   textView: boolean;
   /** The page's language. */
   locale: Locale;
+  /** The pixel size Chinese, Japanese and Korean text is drawn at. */
+  cjkSize: CjkSize;
   /** The language picker is open. */
   languageOpen: boolean;
   /**
@@ -119,6 +122,11 @@ export const SMOOTH_TEXT_KEY = "glyph-drop-stats:smooth-text";
 
 
 
+function storedCjkSize(value: string | null): CjkSize {
+  const size = Number(value);
+  return value !== null && isCjkSize(size) ? size : DEFAULT_CJK_SIZE;
+}
+
 export class Store {
   state: AppState;
   private readonly listeners = new Set<() => void>();
@@ -150,6 +158,7 @@ export class Store {
       crt: deps.storage.get(CRT_KEY) !== "off",
       smoothText: deps.storage.get(SMOOTH_TEXT_KEY) === "on",
       locale,
+      cjkSize: storedCjkSize(deps.storage.get(CJK_SIZE_KEY)),
       languageOpen: false,
       textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
       submissionsOpen: null,
@@ -192,6 +201,11 @@ export class Store {
   setLocale(locale: Locale): void {
     this.deps.storage.set(LOCALE_KEY, locale);
     this.update({ locale, languageOpen: false });
+  }
+
+  setCjkSize(cjkSize: CjkSize): void {
+    this.deps.storage.set(CJK_SIZE_KEY, String(cjkSize));
+    this.update({ cjkSize });
   }
 
   setLanguageOpen(languageOpen: boolean): void {

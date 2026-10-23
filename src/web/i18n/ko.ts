@@ -19,6 +19,8 @@ export const ko: Messages = {
     textViewHint: "모든 내용을 선택, 복사, 검색할 수 있는 텍스트로 표시 (F9)",
     language: "언어",
     languageHint: "페이지 언어 선택",
+    textSize: "글자 크기",
+    textSizeHint: "한중일 픽셀 글자의 크기",
     statusLine: "F1 통계 · F2 제출 · F8 CRT · F9 텍스트 보기",
     canvasLabel: "Glyph Drop Stats. 여기에 표시된 모든 내용의 텍스트 버전이 캔버스 뒤에 이어집니다.",
     keyboardHelp:

@@ -101,13 +101,17 @@ English, Simplified Chinese, Traditional Chinese, Japanese and Korean.
   back to the English for a key it doesn't know, so an older page still
   says something useful after the server adds a rule.
 - **Faces:** synth-ui's faces and misc-fixed only cover Latin text. Each
-  other language is drawn in one face cut from Fusion Pixel Font 8px
-  (proportional, SIL OFL 1.1) by `scripts/cjk-faces.mjs`, holding ASCII
-  plus exactly the characters that language's catalogue uses: Han
-  characters take different forms in Simplified, Traditional and
+  other language is drawn in faces cut from Fusion Pixel Font
+  (proportional, SIL OFL 1.1) at 8, 10 and 12px by `scripts/cjk-faces.mjs`,
+  holding ASCII plus exactly the characters that language's catalogue
+  uses: Han characters take different forms in Simplified, Traditional and
   Japanese, so each has its own. The script must be re-run after changing
-  a translation; a test fails until it is. Line heights differ between
+  a translation; a test checks every face. Line heights differ between
   faces, so layout sizes come from the face's metrics, not constants.
+- **Text size:** the language picker offers 8, 10 or 12px for Chinese,
+  Japanese and Korean, remembered per browser; 10px is the default, as
+  complex Han characters crowd at 8px. synth-ui takes its faces once, when
+  it starts, so all twelve are in the bundle.
 
 ## Submission lifecycle
 

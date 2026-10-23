@@ -2,6 +2,7 @@ import type { Context } from "@synth-ui/core";
 import { scrollView, sheet, statusLine, tooltip, useTheme, type StatusMessage } from "@synth-ui/widgets";
 import type { AppState, Store, View } from "../app/store.ts";
 import { LOCALES, messages, problemText } from "../i18n/index.ts";
+import { CJK_SIZES } from "../textSize.ts";
 import { drawStatistics } from "./statisticsView.ts";
 import { drawSubmit, type SubmitEnv } from "./submitView.ts";
 
@@ -34,7 +35,7 @@ const pickerFocus = { wasOpen: false, toPicker: false, toSwitch: false };
 
 export function paint(ctx: Context, store: Store, env: PageEnv): void {
   const s = store.strings;
-  useLocale(ctx, store.state.locale);
+  useLocale(ctx, store.state.locale, store.state.cjkSize);
   beginFrame(s);
   const { colors: c } = useTheme(ctx);
   const { view, statistics, status, languageOpen } = store.state;
@@ -123,21 +124,42 @@ export function paint(ctx: Context, store: Store, env: PageEnv): void {
   });
   if (confirm.dismissed && withdrawal.step !== "sending") store.cancelWithdraw();
 
-  // Each language is named in its own script, so it's drawn in its own face.
-  const buttonH = Math.max(...LOCALES.map((locale) => lineHeight(ctx, fontRoles(locale).caps))) + 6;
+  // Each language is named in its own script, so it's drawn in its own face. Chinese,
+  // Japanese and Korean also offer the pixel size their text is drawn at.
+  const { cjkSize } = store.state;
+  const buttonH = Math.max(...LOCALES.map((locale) => lineHeight(ctx, fontRoles(locale, cjkSize).caps))) + 6;
+  const cjk = store.state.locale !== "en";
+  const sizeRowsH = cjk ? lineHeight(ctx, FONT.small) + 4 + buttonHeight(ctx) + 8 : 0;
   const picker = sheet(
     ctx,
-    { key: "sheet:language", open: languageOpen, title: s.app.language, w: Math.min(200, ctx.screen.w - 16), h: sheetH(LOCALES.length * (buttonH + 4) + 30) },
+    {
+      key: "sheet:language",
+      open: languageOpen,
+      title: s.app.language,
+      w: Math.min(200, ctx.screen.w - 16),
+      h: sheetH(LOCALES.length * (buttonH + 4) + sizeRowsH + 30),
+    },
     (content) => {
       content.inset(6, 4, 6, 4);
       content.column({ gap: 4 }, (col) => {
         for (const locale of LOCALES) {
           const label = messages(locale).language.name;
-          const font = fontRoles(locale).caps;
+          const font = fontRoles(locale, cjkSize).caps;
           const current = locale === store.state.locale;
           const takeFocus = current && pickerFocus.toPicker;
           if (takeFocus) pickerFocus.toPicker = false;
           if (actionButton(col, { key: `language:${locale}`, label, font, on: current, w: col.bounds.w, takeFocus })) store.setLocale(locale);
+        }
+        if (cjk) {
+          col.place({ w: 0, h: 4 });
+          paragraph(col, s.app.textSize, { color: c.muted, font: FONT.small });
+          col.row({ gap: 4, h: buttonHeight(col) }, (row) => {
+            const w = Math.floor((row.bounds.w - 8) / CJK_SIZES.length);
+            for (const size of CJK_SIZES) {
+              const label = `${size}px`;
+              if (actionButton(row, { key: `cjk-size:${size}`, label, hint: s.app.textSizeHint, on: size === cjkSize, w })) store.setCjkSize(size);
+            }
+          });
         }
       });
     },

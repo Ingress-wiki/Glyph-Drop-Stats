@@ -19,6 +19,8 @@ export const ja: Messages = {
     textViewHint: "すべてを選択・コピー・検索できるテキストで表示（F9）",
     language: "言語",
     languageHint: "ページの言語を選択",
+    textSize: "文字サイズ",
+    textSizeHint: "中国語・日本語・韓国語のドット文字の大きさ",
     statusLine: "F1 統計 · F2 提出 · F8 CRT · F9 テキスト表示",
     canvasLabel: "Glyph Drop Stats。ここに表示される内容のテキスト版は、キャンバスの後にあります。",
     keyboardHelp:

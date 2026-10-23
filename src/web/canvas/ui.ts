@@ -1,6 +1,7 @@
 import type { Context, Interaction, Rect } from "@synth-ui/core";
 import { useTheme } from "@synth-ui/widgets";
 import { en, type Messages } from "../i18n/en.ts";
+import { breakLines } from "./lineBreak.ts";
 import { COLORS, FONT } from "./theme.ts";
 
 /**
@@ -136,6 +137,21 @@ export function toggle(ctx: Context, opts: { key: string; label: string; checked
   return activated;
 }
 
+/** Line breaks by text, face and width: prose is drawn every frame, but rarely changes. */
+const wrapped = new Map<string, string>();
+
+/** `text` with line breaks for `width` in `font`: CJK-aware, unlike synth-ui's word wrap. */
+export function wrapText(ctx: Context, text: string, width: number, font: string): string {
+  const key = `${font}\u0000${width}\u0000${text}`;
+  let lines = wrapped.get(key);
+  if (lines === undefined) {
+    if (wrapped.size > 2000) wrapped.clear();
+    lines = breakLines(text, width, (line) => ctx.measureText(line, { font })).join("\n");
+    wrapped.set(key, lines);
+  }
+  return lines;
+}
+
 /** Text wrapped to the region's width, placed by its flow. Returns the rect it used. */
 export function paragraph(
   ctx: Context,
@@ -144,11 +160,12 @@ export function paragraph(
 ): Rect {
   const { colors: c } = useTheme(ctx);
   const indent = opts.indent ?? 0;
-  const width = (opts.width ?? ctx.bounds.w - (ctx.cursor.x - ctx.bounds.x)) - indent;
-  const layout = ctx.layoutText(text, {
-    font: opts.font ?? FONT.mixed,
+  const width = Math.max((opts.width ?? ctx.bounds.w - (ctx.cursor.x - ctx.bounds.x)) - indent, 24);
+  const font = opts.font ?? FONT.mixed;
+  const layout = ctx.layoutText(wrapText(ctx, text, width, font), {
+    font,
     color: opts.color ?? c.text,
-    width: Math.max(width, 24),
+    width,
     wrap: "word",
     lineGap: 2,
   });

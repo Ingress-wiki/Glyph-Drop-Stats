@@ -4,7 +4,7 @@
 
 import type { BitmapFace } from "@synth-ui/core";
 
-export const CJK_KO: BitmapFace = {
+export const CJK_KO_8: BitmapFace = {
   kind: "bitmap",
   spacing: 0,
   fallback: "?",

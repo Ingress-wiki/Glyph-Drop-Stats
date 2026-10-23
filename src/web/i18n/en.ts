@@ -29,6 +29,8 @@ export const en = {
     textViewHint: "Show everything as text you can select, copy and search (F9)",
     language: "Language",
     languageHint: "Choose the page's language",
+    textSize: "Text size",
+    textSizeHint: "Size of Chinese, Japanese and Korean pixel text",
     statusLine: "F1 statistics · F2 submit · F8 CRT · F9 text view",
     canvasLabel: "Glyph Drop Stats. A text version of everything shown here follows the canvas.",
     keyboardHelp:

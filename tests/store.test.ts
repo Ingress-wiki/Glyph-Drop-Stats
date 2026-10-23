@@ -11,6 +11,7 @@ import type {
 } from "../src/web/api.ts";
 import { CRT_KEY, DISCLAIMER_KEY, SMOOTH_TEXT_KEY, Store, TEXT_VIEW_KEY, type StoreDeps } from "../src/web/app/store.ts";
 import { LOCALE_KEY, type Locale } from "../src/web/i18n/index.ts";
+import { CJK_SIZE_KEY } from "../src/web/textSize.ts";
 
 /** A promise the test settles by hand. */
 function deferred<T>() {
@@ -306,6 +307,16 @@ describe("per-viewer preferences", () => {
     store.toggleCrt();
     expect(saved.get(CRT_KEY)).toBe("off");
     expect(store.state.crt).toBe(false);
+  });
+
+  it("draws CJK text at 10px unless another size was chosen, and remembers the choice", () => {
+    const { store, saved } = setup();
+    expect(store.state.cjkSize).toBe(10);
+    store.setCjkSize(12);
+    expect(store.state.cjkSize).toBe(12);
+    expect(saved.get(CJK_SIZE_KEY)).toBe("12");
+    saved.set(CJK_SIZE_KEY, "7");
+    expect(setup({ storage: { get: (key) => saved.get(key) ?? null, set: () => {} } }).store.state.cjkSize).toBe(10);
   });
 
   it("remembers the font switch, starting with the pixel font", () => {

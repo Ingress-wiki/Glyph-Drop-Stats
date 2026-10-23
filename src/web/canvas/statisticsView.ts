@@ -20,6 +20,7 @@ import {
   paragraph,
   pressable,
   wrapRow,
+  wrapText,
 } from "./ui.ts";
 
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((total, n) => total + n, 0);
@@ -73,8 +74,10 @@ function toolbar(ctx: Context, store: Store, s: Messages): void {
     kind: s.stats.kind[form.kind],
     filters: s.stats.filters(activeRanges(form)),
   };
+  // Wide enough for its placeholder in this face, which is larger in CJK at 12px.
+  const searchW = Math.min(ctx.bounds.w, Math.max(140, ctx.measureText(s.stats.search, { font: FONT.mixed }) + 12));
   const widths = [
-    140,
+    searchW,
     buttonWidth(ctx, labels.panels, true),
     buttonWidth(ctx, labels.kind, true),
     buttonWidth(ctx, labels.filters, true),
@@ -201,17 +204,22 @@ function dashboard(ctx: Context, store: Store, s: Messages, statistics: Statisti
   ];
   const smallH = lineHeight(ctx, FONT.small);
   const valueH = lineHeight(ctx, FONT.mixed) * 2;
-  const cellH = 3 + smallH + 2 + valueH + 2 + smallH + 3;
   const perRow = Math.max(1, Math.min(5, Math.floor(ctx.bounds.w / 128)));
   const cellW = Math.floor(ctx.bounds.w / perRow);
   for (let i = 0; i < cells.length; i += perRow) {
+    // A caveat wraps rather than being cut off (larger CJK faces need it); a row is as tall as its longest.
+    const row = cells.slice(i, i + perRow).map(([label, value, note]) => ({
+      label,
+      value,
+      caveat: ctx.layoutText(wrapText(ctx, note, cellW - 8, FONT.small), { font: FONT.small, color: c.slate, width: cellW - 8, lineGap: 1 }),
+    }));
+    const cellH = 3 + smallH + 2 + valueH + 2 + Math.max(...row.map((cell) => cell.caveat.bounds.h)) + 3;
     const r = ctx.place({ w: ctx.bounds.w, h: cellH });
-    cells.slice(i, i + perRow).forEach(([label, value, note], j) => {
+    row.forEach(({ label, value, caveat }, j) => {
       const x = r.x + j * cellW;
       ctx.strokeRect({ x, y: r.y, w: cellW, h: r.h }, c.line);
       ctx.text(label, x + 4, r.y + 3, { color: c.muted, font: FONT.small });
       ctx.text(value, x + 4, r.y + 3 + smallH + 2, { color: c.paper, font: FONT.mixed, scale: 2 });
-      const caveat = ctx.layoutText(note, { font: FONT.small, color: c.slate, width: cellW - 8, overflow: "clip" });
       ctx.drawText(caveat, x + 4, r.y + 3 + smallH + 2 + valueH + 2);
     });
   }
@@ -235,7 +243,7 @@ function dashboard(ctx: Context, store: Store, s: Messages, statistics: Statisti
           const shown = Object.keys(labels).filter((key) => counts[key] > 0);
           if (shown.length === 0) paragraph(col, s.stats.none, { color: c.muted });
           for (const key of shown) {
-            const text = col.layoutText(labels[key], { font: FONT.mixed, color: c.text, width: listW - 30, wrap: "word", lineGap: 2 });
+            const text = col.layoutText(wrapText(col, labels[key], listW - 30, FONT.mixed), { font: FONT.mixed, color: c.text, width: listW - 30, lineGap: 2 });
             const r = col.place({ w: listW, h: text.bounds.h });
             const count = String(counts[key]);
             col.text(count, r.x + 24 - col.measureText(count, { font: FONT.mixed }), r.y, { color: c.paper, font: FONT.mixed });

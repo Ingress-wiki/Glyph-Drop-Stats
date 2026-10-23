@@ -19,6 +19,8 @@ export const zhHant: Messages = {
     textViewHint: "以可選取、複製和搜尋的文字顯示所有內容（F9）",
     language: "語言",
     languageHint: "選擇頁面語言",
+    textSize: "字級",
+    textSizeHint: "中日韓像素文字的大小",
     statusLine: "F1 統計 · F2 提交 · F8 CRT · F9 文字檢視",
     canvasLabel: "Glyph Drop Stats。畫布之後附有此處所有內容的文字版本。",
     keyboardHelp:
