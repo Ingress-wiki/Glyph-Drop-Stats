@@ -30,6 +30,7 @@ export function drawStatistics(ctx: Context, store: Store): void {
   const s = store.strings;
   const { statistics } = store.state;
   toolbar(ctx, store, s);
+  if (store.state.testPeriod) paragraph(ctx, s.app.testPeriod, { color: COLORS.flame });
   if (statistics.filtersOpen) filterPanel(ctx, store, s);
   const { outcome } = statistics;
   if (outcome === null) {

@@ -74,14 +74,36 @@ Production is the Worker `glyph-drop-stats` at **https://stats.ingress.wiki**
 always name one site), with its own D1 database. Both are the `production`
 environment in `wrangler.jsonc`; the top level is for local development.
 
-### Submissions are closed
+### Submissions: test period
 
-`SUBMISSIONS_OPEN` is `"false"` in production. Checking a file, statistics,
-lookups and withdrawal work; `POST /api/submissions` is refused
-(`submissions_closed`), and `GET /api/config` tells the page, which then
-shows why instead of offering a receipt. Open them by setting the variable
-to `"true"` once bounded retention and the data terms are published.
-Locally it is `"true"`.
+`SUBMISSIONS_OPEN` takes three values:
+
+- `"false"` (or anything unknown): closed. Checking a file, statistics,
+  lookups and withdrawal work; `POST /api/submissions` is refused
+  (`submissions_closed`), and `GET /api/config` tells the page, which then
+  shows why instead of offering a receipt.
+- `"test"`: open for testing. `GET /api/config` returns `testPeriod: true`
+  and the page says, above the statistics and before a receipt is made,
+  that everything submitted will be deleted before the site opens to the
+  public.
+- `"true"`: open. Only once bounded retention and the data terms are
+  published.
+
+Production is `"test"`; locally it is `"true"`.
+
+**Ending the test period** keeps that promise, in this order:
+
+1. Set production to `"false"` and `npm run deploy`, so nothing arrives
+   during the wipe.
+2. `npm run db:wipe:production` deletes every submission and everything it
+   supplied (`scripts/wipe-submissions.sql`; the tests reset their database
+   with the same file). The schema stays.
+3. Check that `/api/statistics` reports no records.
+4. D1 Time Travel still holds the deleted rows until its retention window
+   passes (7 days on Workers Free, 30 on Paid). Don't restore across the
+   wipe.
+
+Only then set `"true"`.
 
 ### Plan limits
 

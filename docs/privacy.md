@@ -2,6 +2,14 @@
 
 This must be finished, and reviewed, before real submissions are accepted.
 
+**Test period.** Production accepts submissions for testing only
+(`SUBMISSIONS_OPEN = "test"`). The page says, above the statistics and
+before any receipt is made, that everything submitted will be deleted
+before the site opens to the public, and may be wiped sooner. Ending the
+test period deletes it all (see [Deployment](deployment.md)), so the open
+questions below must be settled before submissions open for real, not
+before testing.
+
 ## What is stored
 
 - Only validated v1 fields of accepted records. Columns outside the 49 v1

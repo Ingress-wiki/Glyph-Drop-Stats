@@ -31,6 +31,8 @@ export const en = {
     languageHint: "Choose the page's language",
     textSize: "Text size",
     textSizeHint: "Size of Chinese, Japanese and Korean pixel text",
+    testPeriod:
+      "Test period: submissions are open for testing only. Everything submitted now, and the statistics built from it, will be deleted before the site opens to the public, and may be wiped sooner.",
     statusLine: "F1 statistics · F2 submit · F8 CRT · F9 text view",
     canvasLabel: "Glyph Drop Stats. A text version of everything shown here follows the canvas.",
     keyboardHelp:

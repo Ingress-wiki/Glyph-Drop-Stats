@@ -47,7 +47,7 @@ function setup(overrides: Partial<StoreDeps> = {}, locale: Locale = "en") {
       }),
     ),
     fetchStatistics: vi.fn(async (): Promise<StatisticsOutcome> => ({ kind: "ok", statistics: computeStatistics([], NO_FILTER) })),
-    fetchConfig: vi.fn(async () => ({ submissionsOpen: true })),
+    fetchConfig: vi.fn(async () => ({ submissionsOpen: true, testPeriod: false })),
     newSecret: vi.fn(() => `gds1_${"a".repeat(43)}`),
     download: vi.fn(),
     copy: vi.fn(async () => {}),
@@ -354,7 +354,7 @@ describe("language", () => {
 
 describe("a deployment with submissions closed", () => {
   it("still checks files but makes no receipt", async () => {
-    const { store } = await checkedStore({ fetchConfig: async () => ({ submissionsOpen: false }) });
+    const { store } = await checkedStore({ fetchConfig: async () => ({ submissionsOpen: false, testPeriod: false }) });
     await store.loadConfig();
     expect(store.state.submissionsOpen).toBe(false);
     expect(store.state.check.phase).toBe("done");
@@ -366,5 +366,17 @@ describe("a deployment with submissions closed", () => {
     const { store } = setup({ fetchConfig: async () => null });
     await store.loadConfig();
     expect(store.state.submissionsOpen).toBeNull();
+    expect(store.state.testPeriod).toBe(false);
+  });
+});
+
+describe("a deployment in a test period", () => {
+  it("makes receipts and says everything will be deleted", async () => {
+    const { store } = await checkedStore({ fetchConfig: async () => ({ submissionsOpen: true, testPeriod: true }) });
+    expect(store.state.testPeriod).toBe(false);
+    await store.loadConfig();
+    expect(store.state.testPeriod).toBe(true);
+    store.createReceipt();
+    expect(store.state.submit.step).toBe("receipt");
   });
 });

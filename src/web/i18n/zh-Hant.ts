@@ -21,6 +21,8 @@ export const zhHant: Messages = {
     languageHint: "選擇頁面語言",
     textSize: "字級",
     textSizeHint: "中日韓像素文字的大小",
+    testPeriod:
+      "測試期：提交僅供測試。現在提交的所有資料及由此得出的統計，都會在網站正式公開前刪除，也可能提前清除。",
     statusLine: "F1 統計 · F2 提交 · F8 CRT · F9 文字檢視",
     canvasLabel: "Glyph Drop Stats。畫布之後附有此處所有內容的文字版本。",
     keyboardHelp:

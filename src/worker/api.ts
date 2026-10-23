@@ -11,14 +11,17 @@ import { classify, confirmSubmission, countOutcomes, findSubmission, withdrawSub
 export interface ApiEnv {
   DB: Db;
   /**
-   * "true" to accept submissions. Anything else keeps them closed (checking a
-   * file, statistics, lookups and withdrawal still work): a deployment opens
-   * them deliberately, once retention and the data terms are in place.
+   * "true" to accept submissions. "test" accepts them for a test period: the
+   * page warns that everything submitted will be deleted before the site
+   * opens to the public. Anything else keeps them closed (checking a file,
+   * statistics, lookups and withdrawal still work): a deployment opens them
+   * deliberately, once retention and the data terms are in place.
    */
   SUBMISSIONS_OPEN?: string;
 }
 
-const submissionsOpen = (env: ApiEnv) => env.SUBMISSIONS_OPEN === "true";
+const testPeriod = (env: ApiEnv) => env.SUBMISSIONS_OPEN === "test";
+const submissionsOpen = (env: ApiEnv) => env.SUBMISSIONS_OPEN === "true" || testPeriod(env);
 
 const NO_STORE = { "cache-control": "no-store" };
 
@@ -137,7 +140,7 @@ async function stats(request: Request, env: ApiEnv): Promise<Response> {
 
 /** What this deployment allows, so the page can say so before anyone makes a receipt. */
 async function config(...[, env]: [Request, ApiEnv]): Promise<Response> {
-  return json(200, { ok: true, submissionsOpen: submissionsOpen(env) });
+  return json(200, { ok: true, submissionsOpen: submissionsOpen(env), testPeriod: testPeriod(env) });
 }
 
 const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiEnv) => Promise<Response>>>> = {

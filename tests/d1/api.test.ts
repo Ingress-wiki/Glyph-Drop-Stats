@@ -58,12 +58,37 @@ describe("while submissions are closed", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ ok: false, issues: [{ code: "submissions_closed", key: "api.submissionsClosed" }] });
     expect((await status(secret)).status).toBe(404);
-    expect(await (await closed("/api/config")).json()).toEqual({ ok: true, submissionsOpen: false });
-    expect(await (await call("/api/config")).json()).toEqual({ ok: true, submissionsOpen: true });
+    expect(await (await closed("/api/config")).json()).toEqual({ ok: true, submissionsOpen: false, testPeriod: false });
+    expect(await (await call("/api/config")).json()).toEqual({ ok: true, submissionsOpen: true, testPeriod: false });
   });
 
   it("still checks files", async () => {
     expect((await closed("/api/preview", { method: "POST", body: SAMPLE })).status).toBe(200);
+  });
+});
+
+describe("during a test period", () => {
+  const testing = (path: string, init: RequestInit = {}) =>
+    handleApi(new Request(`https://stats.test${path}`, init), { DB: env.DB, SUBMISSIONS_OPEN: "test" });
+
+  it("accepts submissions and says it is a test period", async () => {
+    const secret = newReceiptSecret();
+    const response = await testing("/api/submissions", { method: "POST", body: SAMPLE, headers: { authorization: `Receipt ${secret}` } });
+    expect(response.status).toBe(201);
+    expect(await (await testing("/api/config")).json()).toEqual({ ok: true, submissionsOpen: true, testPeriod: true });
+  });
+
+  it("ends with every submission deleted by the wipe, schema intact", async () => {
+    const secret = newReceiptSecret();
+    expect((await testing("/api/submissions", { method: "POST", body: SAMPLE, headers: { authorization: `Receipt ${secret}` } })).status).toBe(201);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM items").first<{ n: number }>()).not.toEqual({ n: 0 });
+    // `reset` runs scripts/wipe-submissions.sql, as `npm run db:wipe:production` does.
+    await reset();
+    for (const table of ["uploads", "record_versions", "panels", "items", "accepted_versions", "upload_records"]) {
+      expect(await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).toEqual({ n: 0 });
+    }
+    expect((await status(secret)).status).toBe(404);
+    expect((await submit(SAMPLE, newReceiptSecret())).status).toBe(201);
   });
 });
 

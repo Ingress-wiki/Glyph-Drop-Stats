@@ -3,8 +3,10 @@ import { getPlatformProxy } from "wrangler";
 import type { Db } from "../../src/worker/db.ts";
 
 const MIGRATIONS = new URL("../../migrations/", import.meta.url);
+/** What `npm run db:wipe:production` runs; `reset` runs it too. */
+const WIPE = new URL("../../scripts/wipe-submissions.sql", import.meta.url);
 
-/** The statements of a migration file. The schema has no `;` inside literals. */
+/** The statements of an SQL file. The schema has no `;` inside literals. */
 function statements(sql: string): string[] {
   return sql
     .split("\n")
@@ -26,12 +28,9 @@ export async function localD1(): Promise<{ db: Db; reset: () => Promise<void>; d
     const sql = readFileSync(new URL(file, MIGRATIONS), "utf8");
     await db.batch(statements(sql).map((statement) => db.prepare(statement)));
   }
+  const wipe = statements(readFileSync(WIPE, "utf8"));
   const reset = async () => {
-    await db.batch(
-      ["upload_records", "accepted_versions", "items", "panels", "record_versions", "uploads"].map((table) =>
-        db.prepare(`DELETE FROM ${table}`),
-      ),
-    );
+    await db.batch(wipe.map((statement) => db.prepare(statement)));
   };
   return { db, reset, dispose: () => proxy.dispose() };
 }

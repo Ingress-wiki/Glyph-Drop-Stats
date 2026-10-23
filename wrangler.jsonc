@@ -12,8 +12,9 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
-	// Local development and tests accept submissions; production opens them
-	// deliberately, once retention and the data terms are in place.
+	// Local development and tests accept submissions. Production runs a test
+	// period ("test"): open, with a notice that everything submitted will be
+	// deleted before the site opens to the public. See docs/deployment.md.
 	"vars": {
 		"SUBMISSIONS_OPEN": "true"
 	},
@@ -33,7 +34,7 @@
 			"workers_dev": false,
 			"preview_urls": false,
 			"vars": {
-				"SUBMISSIONS_OPEN": "false"
+				"SUBMISSIONS_OPEN": "test"
 			},
 			"d1_databases": [
 				{

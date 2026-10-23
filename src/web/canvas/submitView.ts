@@ -165,6 +165,7 @@ function submitSection(ctx: Context, store: Store, s: Messages, valid: number): 
     ctx.place({ w: 0, h: 6 });
     return;
   }
+  if (store.state.testPeriod) paragraph(ctx, s.app.testPeriod, { color: COLORS.flame });
   bullets(ctx, s.submit.notes);
   ctx.place({ w: 0, h: 4 });
   if (submit.step === "explain") {

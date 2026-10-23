@@ -21,6 +21,8 @@ export const ko: Messages = {
     languageHint: "페이지 언어 선택",
     textSize: "글자 크기",
     textSizeHint: "한중일 픽셀 글자의 크기",
+    testPeriod:
+      "테스트 기간: 제출은 테스트용으로만 받습니다. 지금 제출한 모든 데이터와 이를 바탕으로 한 통계는 사이트를 일반에 공개하기 전에 삭제되며, 그보다 일찍 지워질 수도 있습니다.",
     statusLine: "F1 통계 · F2 제출 · F8 CRT · F9 텍스트 보기",
     canvasLabel: "Glyph Drop Stats. 여기에 표시된 모든 내용의 텍스트 버전이 캔버스 뒤에 이어집니다.",
     keyboardHelp:

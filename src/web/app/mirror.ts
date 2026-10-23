@@ -36,6 +36,7 @@ function counts(s: Messages, labels: Record<string, string>, values: Record<stri
 function statisticsSection(s: Messages, state: AppState): HTMLElement {
   const { outcome, search, sort } = state.statistics;
   const section = el("section", { "aria-label": s.app.statistics }, el("h2", {}, s.app.statistics));
+  if (state.testPeriod) section.append(el("p", { "data-testid": "test-period" }, s.app.testPeriod));
   if (outcome === null) section.append(el("p", {}, s.stats.loading));
   else if (outcome.kind === "refused") section.append(el("p", { role: "alert" }, issuesText(s, outcome.issues)));
   else if (outcome.kind === "failed") section.append(el("p", { role: "alert" }, s.stats.loadFailed(problemText(s, outcome.problem))));
@@ -129,7 +130,10 @@ function submitSection(s: Messages, state: AppState): HTMLElement {
       if (preview.records.valid > 0) {
         section.append(el("h3", {}, s.submit.heading));
         if (state.submissionsOpen === false && submit.step === "explain") section.append(el("p", { "data-testid": "closed" }, s.submit.closed));
-        else section.append(list(s.submit.notes));
+        else {
+          if (state.testPeriod) section.append(el("p", {}, s.app.testPeriod));
+          section.append(list(s.submit.notes));
+        }
         if ("secret" in submit) section.append(el("p", { "data-testid": "receipt" }, s.submit.receiptMirror(submit.secret)));
         if (submit.step === "receipt") section.append(el("p", {}, s.submit.savedMirror(submit.saved)));
         if (submit.step === "sending") section.append(el("p", {}, s.submit.sending));

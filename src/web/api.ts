@@ -27,6 +27,13 @@ export type StatusOutcome =
   | { kind: "refused"; issues: ApiIssue[] }
   | { kind: "failed"; problem: Problem };
 
+/** What this deployment allows, from `GET /api/config`. */
+export interface SiteConfig {
+  submissionsOpen: boolean;
+  /** Submissions are open for testing; all of them will be deleted before the site opens to the public. */
+  testPeriod: boolean;
+}
+
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 const isCount = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
 
@@ -155,12 +162,16 @@ export function withdrawUpload(secret: string): Promise<WithdrawOutcome> {
 }
 
 /** What this deployment allows. Null when it couldn't be read: the server still enforces it. */
-export async function fetchConfig(): Promise<{ submissionsOpen: boolean } | null> {
+export async function fetchConfig(): Promise<SiteConfig | null> {
   try {
     const response = await fetch("/api/config");
     const body = await readJson(response);
-    return response.ok && isObject(body) && body.ok === true && typeof body.submissionsOpen === "boolean"
-      ? { submissionsOpen: body.submissionsOpen }
+    return response.ok &&
+      isObject(body) &&
+      body.ok === true &&
+      typeof body.submissionsOpen === "boolean" &&
+      typeof body.testPeriod === "boolean"
+      ? { submissionsOpen: body.submissionsOpen, testPeriod: body.testPeriod }
       : null;
   } catch {
     return null;

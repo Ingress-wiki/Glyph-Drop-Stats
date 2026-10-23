@@ -7,6 +7,7 @@ import {
   type ConfirmOutcome,
   type PreviewOutcome,
   type Problem,
+  type SiteConfig,
   type StatisticsOutcome,
   type StatusOutcome,
   type WithdrawOutcome,
@@ -93,6 +94,8 @@ export interface AppState {
    * couldn't be read, when the server's refusal still says so).
    */
   submissionsOpen: boolean | null;
+  /** Submissions are open for testing only and will be deleted before the site opens to the public. */
+  testPeriod: boolean;
   /** A short message for the status line, by id. A new object each time. */
   notice: { id: keyof Messages["notice"] } | null;
 }
@@ -103,7 +106,7 @@ export interface StoreDeps {
   submissionStatus(secret: string, signal: AbortSignal): Promise<StatusOutcome>;
   withdrawUpload(secret: string): Promise<WithdrawOutcome>;
   fetchStatistics(query: string, signal: AbortSignal): Promise<StatisticsOutcome>;
-  fetchConfig(): Promise<{ submissionsOpen: boolean } | null>;
+  fetchConfig(): Promise<SiteConfig | null>;
   newSecret(): string;
   download(name: string, text: string, type: string): void;
   copy(text: string): Promise<void>;
@@ -162,13 +165,14 @@ export class Store {
       languageOpen: false,
       textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
       submissionsOpen: null,
+      testPeriod: false,
       notice: null,
     };
   }
 
   async loadConfig(): Promise<void> {
     const config = await this.deps.fetchConfig();
-    if (config) this.update({ submissionsOpen: config.submissionsOpen });
+    if (config) this.update({ submissionsOpen: config.submissionsOpen, testPeriod: config.testPeriod });
   }
 
   subscribe(listener: () => void): () => void {
