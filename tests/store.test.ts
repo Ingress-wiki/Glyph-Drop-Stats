@@ -235,6 +235,26 @@ describe("statistics", () => {
     expect(store.state.statistics.form.portalLevelMin).toBe("");
   });
 
+  it("keeps the alignment and split through Clear, and starts a new split's grid from every record", () => {
+    const { store, deps } = setup();
+    store.choose({ alignment: "enemy", split: "glyphCount" });
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("alignment=enemy&split=glyphCount");
+    store.setGridGroup("4");
+    store.choose({ kind: "hack" });
+    expect(store.state.statistics.gridGroup).toBe("4");
+    store.choose({ split: "portalLevel" });
+    expect(store.state.statistics.gridGroup).toBeNull();
+    store.clearFilters();
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("kind=hack&alignment=enemy&split=portalLevel");
+  });
+
+  it("opens and closes the sample details", () => {
+    const { store } = setup();
+    expect(store.state.statistics.sampleOpen).toBe(false);
+    store.toggleSample();
+    expect(store.state.statistics.sampleOpen).toBe(true);
+  });
+
   it("drops a slow answer for an earlier filter", async () => {
     const answers = [deferred<StatisticsOutcome>(), deferred<StatisticsOutcome>()];
     let call = 0;

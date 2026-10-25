@@ -14,8 +14,12 @@ datasets (`tests/helpers/dataset.ts`). The endpoint is `GET /api/statistics`.
   hack.
 - **A drop is a group of panels, not a confirmed hack.** `association` says
   how it was matched; `ordered` is first-in-first-out, not proof.
-- **Not captured:** agent level, portal faction, mods, hack type. Drops
-  depend on them.
+- **Not captured:** agent level, mods, hack type. Drops depend on them.
+- **Portal alignment only from newer builds.** DynamicGlyph builds after
+  1.0.0 say whether a hack's portal was the player's own faction, the
+  enemy's or Machina's. It comes from the portal screen read just before
+  the hack, not a verified portal, and neutral portals aren't recognized
+  yet. Older records and drops have no alignment.
 - **OCR can misread, and files can be edited.** Nothing is signed.
 
 ## Population
@@ -40,7 +44,8 @@ dropped: each reason's total is reported.
 | UTC dates `[from, to)` | the whole interval is inside | the interval crosses `from` or `to` |
 | Local dates (inclusive) | its local date is inside | no UTC offset was recorded |
 | Local hours (inclusive) | its local hour is inside | no offset, or a whole-day interval |
-| Portal level (inclusive) | its whole estimated range is inside | no level (every drop), or the range crosses the filter |
+| Portal level (inclusive) | its whole estimated range is inside | no level (every drop), the level is unreliable, or the range crosses the filter |
+| Portal alignment | its alignment | no alignment (every drop, and hacks from older builds) |
 | Hacking or speed bonus (inclusive) | its **final** value is inside | no value (every drop), or the value isn't final |
 
 **Records without a UTC offset** come from builds before the offset was
@@ -50,13 +55,25 @@ kept; most current data is like this.
 - They are unplaced only by local-date and local-hour filters.
 - A time zone is never reconstructed for them.
 
+**Unreliable portal levels.** The app flags a level as conflicting when its
+reads disagree, and every released build through 1.0.0 (2) can read an L1
+label as L7. A level flagged conflicting or low-confidence is never used:
+the portal-level filter leaves such records unplaced, and the level grid
+and the portal-level comparison leave them out.
+
 `time_basis` is when the app received the hack or group, which can fall in
 the next hour or day. An interval that crosses an event boundary can't be
 assigned to either side.
 
 ## Record counts
 
-The page shows matching records by kind, read status and coverage:
+The page shows matching records by kind, read status, coverage and the
+app build that captured them, and how many uploads they came from. Each
+record counts toward the earliest completed upload that supplied it.
+Records cluster by player, so the upload count is the scale to read every
+figure against.
+
+Coverage:
 
 | Coverage | Meaning |
 | --- | --- |
@@ -97,7 +114,37 @@ For eligible observations, per item:
   first hack of the day.
 - **Colour unread:** quantity whose colour wasn't read.
 
+- **Chance per observation:** eligible observations with the item ÷
+  eligible observations.
+- **Average when present:** quantity ÷ observations with the item.
+- **By rarity:** quantity that is Common, Rare or Very Rare (in the TSV).
+
 With no eligible observations, the average is shown as "—", not 0.
+
+## Shares, levels and comparisons
+
+Over the eligible observations of the matching records:
+- **Rare or better:** the share with a Rare or Very Rare item. An
+  observation without one, but with an item whose rarity is unknown (an
+  item that has a rarity, with none read), is unknown either way and left
+  out of the share's denominator.
+- **Portal Key:** the share with a Portal Key.
+- **Item level by portal level:** for each exact, reliable portal level,
+  each item level's share of the levelled items (Resonators, XMP Bursters,
+  Ultra Strikes, Power Cubes). A portal level range is left out.
+- **What an observation gives:** the average quantity per eligible
+  observation of each levelled item, shields, other mods, Portal Keys and
+  everything else.
+
+The comparison groups the matching records by **portal alignment** (the
+default), exact reliable portal level, Glyph count, speed command or key
+command, each group with the same figures. Records without the value form
+an "unknown" group, shown last. The level grid can show every record or
+one group.
+
+**Few observations.** A figure resting on fewer than 30 eligible
+observations (30 known, for a share) is dimmed and says so. This is a
+warning, not a test: there are still no intervals (below).
 
 A blank cell is unknown. A blank `multiplied` is neither true nor false.
 

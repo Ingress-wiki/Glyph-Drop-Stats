@@ -46,6 +46,7 @@ export const VERSION_COLUMNS = [
   "portal_level_high",
   "portal_level_confidence",
   "portal_level_conflict",
+  "portal_alignment",
   "capture_mode",
   "game_language",
   "game_language_source",
@@ -119,6 +120,7 @@ export function toRows(record: ObservationRecord, versionHash: string, createdAt
     portal_level_high: hack?.portalLevel?.high ?? null,
     portal_level_confidence: hack?.portalLevel?.confidence ?? null,
     portal_level_conflict: flag(hack?.portalLevel?.conflict ?? null),
+    portal_alignment: hack?.portalAlignment ?? null,
     capture_mode: origin.captureMode,
     game_language: origin.gameLanguage,
     game_language_source: origin.gameLanguageSource,
@@ -196,6 +198,8 @@ export function fromRows(version: VersionRow, panelRows: PanelRow[], itemRows: I
               conflict: must(bool(v.portal_level_conflict)),
             },
     };
+    // Left absent when unknown, as the importer leaves it, so the version hashes the same.
+    if (v.portal_alignment !== null) hack.portalAlignment = v.portal_alignment;
   }
 
   let reading: Reading | null = null;

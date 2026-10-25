@@ -1,5 +1,6 @@
 import { isListedItem } from "./cells.ts";
-import type { Kind, ObservationRecord, PanelStage, ReadStatus } from "./record.ts";
+import { ITEMS_WITH_RARITY, KEY_COMMANDS, PORTAL_ALIGNMENTS, SPEED_COMMANDS } from "./format.ts";
+import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlignment, ReadStatus } from "./record.ts";
 
 /**
  * Descriptive statistics over accepted, counted records. The rules live here
@@ -11,6 +12,20 @@ import type { Kind, ObservationRecord, PanelStage, ReadStatus } from "./record.t
  */
 
 export type PanelSelection = "portal" | "bonus" | "both";
+
+/** What the comparison groups records by. */
+export const SPLITS = ["alignment", "portalLevel", "glyphCount", "speedCommand", "keyCommand"] as const;
+export type Split = (typeof SPLITS)[number];
+
+/** A group's key when its records don't have the split's value (drops, older builds, unreliable levels). */
+export const UNKNOWN_GROUP = "unknown";
+
+/**
+ * Below this many eligible observations a figure is marked as resting on
+ * few observations. There are no confidence intervals (see
+ * docs/statistics.md), so this is the page's only sample-size warning.
+ */
+export const SMALL_SAMPLE = 30;
 
 /** Inclusive bounds. */
 export interface Range {
@@ -30,8 +45,10 @@ export interface StatsFilter {
   /** Percent, final values only. */
   hackingBonus: Range | null;
   speedBonus: Range | null;
+  alignment: PortalAlignment | null;
   /** Which panels item metrics read. */
   panels: PanelSelection;
+  split: Split;
 }
 
 export const NO_FILTER: StatsFilter = {
@@ -42,7 +59,9 @@ export const NO_FILTER: StatsFilter = {
   portalLevel: null,
   hackingBonus: null,
   speedBonus: null,
+  alignment: null,
   panels: "portal",
+  split: "alignment",
 };
 
 /**
@@ -54,11 +73,13 @@ export const UNPLACED_REASONS = [
   "no_local_time",
   "no_local_hour",
   "no_portal_level",
+  "portal_level_unreliable",
   "portal_level_crosses_filter",
   "no_hacking_bonus",
   "hacking_bonus_not_final",
   "no_speed_bonus",
   "speed_bonus_not_final",
+  "no_alignment",
 ] as const;
 export type UnplacedReason = (typeof UNPLACED_REASONS)[number];
 
@@ -94,17 +115,76 @@ export interface ItemTotal {
   multipliedUnknown: number;
   /** Quantity by level, L1 at index 0 to L8 at index 7; null for items without levels. */
   levels: number[] | null;
+  /** Eligible observations with this item: the chance per observation is this ÷ eligible. */
+  observations: number;
+  /** Of `quantity`, by known rarity; the rest has none or wasn't read. */
+  rarities: { common: number; rare: number; veryRare: number };
+}
+
+/** How many observations answer yes, of those where the answer is known. */
+export interface Share {
+  yes: number;
+  known: number;
+}
+
+/** The headline figures for a set of records, over the selected panels. */
+export interface Summary {
+  records: number;
+  eligible: number;
+  totalQuantity: number;
+  /** Null when no observation is eligible. */
+  averagePerObservation: number | null;
+  /**
+   * Eligible observations with a Rare or Very Rare item. One without, but
+   * with an item whose rarity wasn't read, isn't known either way.
+   */
+  rare: Share;
+  /** Eligible observations with a Portal Key. */
+  key: Share;
+  /** Eligible observations by reliable portal level, P1 at index 0. */
+  portalLevels: number[];
+  /** Levelled item quantities: row = reliable portal level, column = item level, both 1–8 at index 0–7. */
+  levelGrid: number[][];
+}
+
+export interface Group {
+  /** The split's value (`same_faction`, `6`, `complex`…) or `UNKNOWN_GROUP`. */
+  key: string;
+  summary: Summary;
+}
+
+/** Records by the app build that captured them. */
+export interface AppCount {
+  version: string | null;
+  build: string | null;
+  records: number;
 }
 
 export interface Statistics {
   filter: StatsFilter;
-  selection: { matched: number; unplaced: Record<UnplacedReason, number> };
+  selection: {
+    matched: number;
+    unplaced: Record<UnplacedReason, number>;
+    /**
+     * Distinct uploads the matched records came from, each record counted
+     * with the earliest active upload that supplied it. Records cluster by
+     * player, so this is the scale to read every figure against. Null when
+     * the caller didn't say where records came from.
+     */
+    uploads: number | null;
+  };
   records: {
     total: number;
     byKind: Record<Kind, number>;
     byReadStatus: Record<ReadStatus, number>;
     byCoverage: Record<Coverage, number>;
+    byApp: AppCount[];
   };
+  /** Every matched record together. */
+  summary: Summary;
+  split: Split;
+  /** The matched records grouped by `split`, in the split's natural order, unknown last; only groups with records. */
+  groups: Group[];
   items: {
     panels: PanelSelection;
     eligible: number;
@@ -121,6 +201,22 @@ function zeroes<const K extends string>(keys: readonly K[]): Record<K, number> {
 }
 
 type Placement = "in" | "out" | UnplacedReason;
+
+/**
+ * Whether a portal level can be used at all. The app flags a conflict when
+ * its reads disagree, and every released build through 1.0.0 (2) can read an
+ * L1 label as L7 and report such a level, so conflicts and low confidence
+ * are left out rather than counted at the wrong level.
+ */
+function levelTrusted(level: NonNullable<HackResult["portalLevel"]>): boolean {
+  return !level.conflict && level.confidence !== "low";
+}
+
+/** The portal's exact level, when it is trusted and not a range. */
+export function exactPortalLevel(hack: HackResult | null): number | null {
+  const level = hack?.portalLevel ?? null;
+  return level !== null && levelTrusted(level) && level.low === level.high ? level.low : null;
+}
 
 /** Inclusive range test for a single known value. */
 function inRange(value: number, range: Range): boolean {
@@ -159,6 +255,7 @@ export function place(record: ObservationRecord, filter: StatsFilter): Placement
   if (filter.portalLevel) {
     const level = hack?.portalLevel ?? null;
     if (level === null) verdicts.push("no_portal_level");
+    else if (!levelTrusted(level)) verdicts.push("portal_level_unreliable");
     else if (inRange(level.low, filter.portalLevel) && inRange(level.high, filter.portalLevel)) verdicts.push("in");
     else if (level.high < filter.portalLevel.min || level.low > filter.portalLevel.max) verdicts.push("out");
     else verdicts.push("portal_level_crosses_filter");
@@ -172,6 +269,12 @@ export function place(record: ObservationRecord, filter: StatsFilter): Placement
   };
   bonus(hack?.hackingBonus ?? null, filter.hackingBonus, "no_hacking_bonus", "hacking_bonus_not_final");
   bonus(hack?.speedBonus ?? null, filter.speedBonus, "no_speed_bonus", "speed_bonus_not_final");
+
+  if (filter.alignment) {
+    const alignment = hack?.portalAlignment;
+    if (alignment === undefined) verdicts.push("no_alignment");
+    else verdicts.push(alignment === filter.alignment ? "in" : "out");
+  }
 
   if (verdicts.includes("out")) return "out";
   return verdicts.find((verdict) => verdict !== "in") ?? "in";
@@ -215,19 +318,105 @@ export function itemEligibility(record: ObservationRecord, panels: PanelSelectio
   return "eligible";
 }
 
-export function computeStatistics(records: readonly ObservationRecord[], filter: StatsFilter): Statistics {
+const GROUP_ORDER: Record<Split, readonly string[]> = {
+  alignment: PORTAL_ALIGNMENTS,
+  portalLevel: ["1", "2", "3", "4", "5", "6", "7", "8"],
+  glyphCount: Array.from({ length: 11 }, (_, n) => String(n)),
+  speedCommand: SPEED_COMMANDS,
+  keyCommand: KEY_COMMANDS,
+};
+
+/** Which group of `split` a record belongs to. */
+export function groupKey(record: ObservationRecord, split: Split): string {
+  const { hack } = record;
+  const known = (value: string | number | null | undefined) => (value === null || value === undefined ? UNKNOWN_GROUP : String(value));
+  switch (split) {
+    case "alignment":
+      return known(hack?.portalAlignment);
+    case "portalLevel":
+      return known(exactPortalLevel(hack));
+    case "glyphCount":
+      return known(hack?.glyphCount);
+    case "speedCommand":
+      return known(hack?.commands?.speed);
+    case "keyCommand":
+      return known(hack?.commands?.key);
+  }
+}
+
+const RARE = new Set(["rare", "veryRare"]);
+
+/** Running totals for one `Summary`. */
+class Tally {
+  records = 0;
+  eligible = 0;
+  totalQuantity = 0;
+  rare: Share = { yes: 0, known: 0 };
+  key: Share = { yes: 0, known: 0 };
+  portalLevels = Array<number>(8).fill(0);
+  levelGrid = Array.from({ length: 8 }, () => Array<number>(8).fill(0));
+
+  /** `items` is the selected panels' items when the record is eligible, else null. */
+  add(record: ObservationRecord, items: readonly Item[] | null): void {
+    this.records++;
+    if (items === null) return;
+    this.eligible++;
+    for (const entry of items) this.totalQuantity += entry.quantity;
+
+    if (items.some((entry) => entry.rarity !== null && RARE.has(entry.rarity))) {
+      this.rare.yes++;
+      this.rare.known++;
+    } else if (!items.some((entry) => ITEMS_WITH_RARITY.has(entry.item as string) && (entry.rarity === null || entry.rarity === "unreadable"))) {
+      this.rare.known++;
+    }
+    this.key.known++;
+    if (items.some((entry) => entry.item === "Portal Key")) this.key.yes++;
+
+    const level = exactPortalLevel(record.hack);
+    if (level !== null) {
+      this.portalLevels[level - 1]++;
+      for (const entry of items) {
+        if (entry.level !== null) this.levelGrid[level - 1][entry.level - 1] += entry.quantity;
+      }
+    }
+  }
+
+  summary(): Summary {
+    return {
+      records: this.records,
+      eligible: this.eligible,
+      totalQuantity: this.totalQuantity,
+      averagePerObservation: this.eligible === 0 ? null : this.totalQuantity / this.eligible,
+      rare: this.rare,
+      key: this.key,
+      portalLevels: this.portalLevels,
+      levelGrid: this.levelGrid,
+    };
+  }
+}
+
+/** Builds sort first by version, then build, both as numbers where they are; unknown last. */
+function compareApps(a: AppCount, b: AppCount): number {
+  const text = (x: string | null, y: string | null) => (x === y ? 0 : x === null ? 1 : y === null ? -1 : x.localeCompare(y, "en", { numeric: true }));
+  return text(a.version, b.version) || text(a.build, b.build);
+}
+
+/**
+ * `uploadOf` maps a record id to the upload it is counted from; without it,
+ * `selection.uploads` is null.
+ */
+export function computeStatistics(records: readonly ObservationRecord[], filter: StatsFilter, uploadOf?: ReadonlyMap<string, number>): Statistics {
   const unplaced = zeroes(UNPLACED_REASONS);
   const byKind: Record<Kind, number> = { hack: 0, drop: 0 };
   const byReadStatus: Record<ReadStatus, number> = { read: 0, notRead: 0, unavailable: 0, unsupported: 0 };
   const byCoverage = zeroes(COVERAGES);
   const excluded = zeroes(ITEM_EXCLUSIONS);
-  const totals = new Map<
-    string,
-    { quantity: number; multiplied: number; multipliedUnknown: number; levels: number[] | null }
-  >();
+  const totals = new Map<string, Omit<ItemTotal, "item" | "averagePerObservation">>();
+  const apps = new Map<string, AppCount>();
+  const uploads = new Set<number>();
+  const overall = new Tally();
+  const groups = new Map<string, Tally>();
   let matched = 0;
-  let eligible = 0;
-  let totalQuantity = 0;
 
   for (const record of records) {
     const placement = place(record, filter);
@@ -240,47 +429,83 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
     byKind[record.kind]++;
     byReadStatus[record.readStatus]++;
     byCoverage[coverage(record)]++;
+    const { sourceAppVersion: version, sourceAppBuild: build } = record.origin;
+    const appKey = JSON.stringify([version, build]);
+    const app = apps.get(appKey) ?? { version, build, records: 0 };
+    app.records++;
+    apps.set(appKey, app);
+    const upload = uploadOf?.get(record.recordId);
+    if (upload !== undefined) uploads.add(upload);
 
     const verdict = itemEligibility(record, filter.panels);
-    if (verdict !== "eligible") {
-      excluded[verdict]++;
-      continue;
-    }
-    eligible++;
-    for (const panel of record.reading?.panels ?? []) {
-      if (!STAGES[filter.panels].includes(panel.stage)) continue;
-      for (const entry of panel.items) {
-        // Eligibility guarantees every name is known and listed.
-        const name = entry.item as string;
-        const total = totals.get(name) ?? { quantity: 0, multiplied: 0, multipliedUnknown: 0, levels: null };
-        total.quantity += entry.quantity;
-        // Eligibility rules out unreadable levels, so a levelled item always has its level here.
-        if (entry.level !== null) {
-          total.levels ??= [0, 0, 0, 0, 0, 0, 0, 0];
-          total.levels[entry.level - 1] += entry.quantity;
-        }
-        if (entry.multiplied === true) total.multiplied += entry.quantity;
-        if (entry.multiplied === null) total.multipliedUnknown += entry.quantity;
-        totals.set(name, total);
-        totalQuantity += entry.quantity;
+    if (verdict !== "eligible") excluded[verdict]++;
+    const items =
+      verdict === "eligible"
+        ? (record.reading?.panels ?? []).filter((panel) => STAGES[filter.panels].includes(panel.stage)).flatMap((panel) => panel.items)
+        : null;
+    overall.add(record, items);
+    const key = groupKey(record, filter.split);
+    const group = groups.get(key) ?? new Tally();
+    group.add(record, items);
+    groups.set(key, group);
+    if (items === null) continue;
+
+    const seen = new Set<string>();
+    for (const entry of items) {
+      // Eligibility guarantees every name is known and listed.
+      const name = entry.item as string;
+      const total = totals.get(name) ?? {
+        quantity: 0,
+        multiplied: 0,
+        multipliedUnknown: 0,
+        levels: null,
+        observations: 0,
+        rarities: { common: 0, rare: 0, veryRare: 0 },
+      };
+      total.quantity += entry.quantity;
+      // Eligibility rules out unreadable levels, so a levelled item always has its level here.
+      if (entry.level !== null) {
+        total.levels ??= [0, 0, 0, 0, 0, 0, 0, 0];
+        total.levels[entry.level - 1] += entry.quantity;
       }
+      if (entry.multiplied === true) total.multiplied += entry.quantity;
+      if (entry.multiplied === null) total.multipliedUnknown += entry.quantity;
+      if (entry.rarity !== null && entry.rarity !== "unreadable") total.rarities[entry.rarity] += entry.quantity;
+      if (!seen.has(name)) total.observations++;
+      seen.add(name);
+      totals.set(name, total);
     }
   }
 
+  const summary = overall.summary();
   const byItem: ItemTotal[] = [...totals]
-    .map(([item, total]) => ({ item, ...total, averagePerObservation: total.quantity / eligible }))
+    .map(([item, total]) => ({
+      item,
+      ...total,
+      averagePerObservation: total.quantity / summary.eligible,
+    }))
     .sort((a, b) => b.quantity - a.quantity || (a.item < b.item ? -1 : 1));
+  const order = [...GROUP_ORDER[filter.split], UNKNOWN_GROUP];
 
   return {
     filter,
-    selection: { matched, unplaced },
-    records: { total: matched, byKind, byReadStatus, byCoverage },
+    selection: { matched, unplaced, uploads: uploadOf ? uploads.size : null },
+    records: {
+      total: matched,
+      byKind,
+      byReadStatus,
+      byCoverage,
+      byApp: [...apps.values()].sort(compareApps),
+    },
+    summary,
+    split: filter.split,
+    groups: [...groups].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b)).map(([key, tally]) => ({ key, summary: tally.summary() })),
     items: {
       panels: filter.panels,
-      eligible,
+      eligible: summary.eligible,
       excluded,
-      totalQuantity,
-      averagePerObservation: eligible === 0 ? null : totalQuantity / eligible,
+      totalQuantity: summary.totalQuantity,
+      averagePerObservation: summary.averagePerObservation,
       byItem,
     },
   };

@@ -1,6 +1,8 @@
 import { makeIssue, type Issue } from "./importer.ts";
 import type { IssueKey, IssueParams } from "./issueMessages.ts";
-import { NO_FILTER, type PanelSelection, type Range, type StatsFilter } from "./statistics.ts";
+import { PORTAL_ALIGNMENTS } from "./format.ts";
+import { NO_FILTER, SPLITS, type PanelSelection, type Range, type Split, type StatsFilter } from "./statistics.ts";
+import type { PortalAlignment } from "./record.ts";
 
 /**
  * The statistics filter as URL query parameters. Parsing is strict: an
@@ -17,7 +19,7 @@ const PAIRS = {
   speedBonus: ["speedBonusMin", "speedBonusMax"],
 } as const;
 
-const KNOWN = new Set<string>(["kind", "panels", ...Object.values(PAIRS).flat()]);
+const KNOWN = new Set<string>(["kind", "panels", "alignment", "split", ...Object.values(PAIRS).flat()]);
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,6 +89,10 @@ export function parseStatsQuery(params: URLSearchParams): { ok: true; filter: St
   if (kind !== null && kind !== "hack" && kind !== "drop") bad("filter.kind");
   const panels = params.get("panels") ?? NO_FILTER.panels;
   if (panels !== "portal" && panels !== "bonus" && panels !== "both") bad("filter.panels");
+  const alignment = params.get("alignment");
+  if (alignment !== null && !(PORTAL_ALIGNMENTS as readonly string[]).includes(alignment)) bad("filter.alignment");
+  const split = params.get("split") ?? NO_FILTER.split;
+  if (!(SPLITS as readonly string[]).includes(split)) bad("filter.split");
 
   if (issues.length > 0) return { ok: false, issues };
   return {
@@ -99,7 +105,9 @@ export function parseStatsQuery(params: URLSearchParams): { ok: true; filter: St
       portalLevel,
       hackingBonus,
       speedBonus,
+      alignment: alignment as PortalAlignment | null,
       panels: panels as PanelSelection,
+      split: split as Split,
     },
   };
 }
@@ -128,6 +136,8 @@ export function statsQueryString(filter: StatsFilter): string {
       params.set(PAIRS[key][1], String(range.max));
     }
   }
+  if (filter.alignment) params.set("alignment", filter.alignment);
   if (filter.panels !== NO_FILTER.panels) params.set("panels", filter.panels);
+  if (filter.split !== NO_FILTER.split) params.set("split", filter.split);
   return params.toString();
 }

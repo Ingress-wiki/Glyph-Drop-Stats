@@ -1,4 +1,4 @@
-import { COVERAGES, ITEM_EXCLUSIONS, UNPLACED_REASONS, type ItemTotal, type Statistics } from "../domain/statistics.ts";
+import { COVERAGES, ITEM_EXCLUSIONS, SPLITS, UNPLACED_REASONS, type ItemTotal, type Statistics, type Summary } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import type { Preview } from "../domain/preview.ts";
 import { OUTCOMES } from "../domain/versions.ts";
@@ -208,32 +208,69 @@ function isCounts(value: unknown, keys: readonly string[]): boolean {
   return isObject(value) && keys.every((key) => isCount(value[key]));
 }
 
+const isLevels = (value: unknown): value is number[] => Array.isArray(value) && value.length === 8 && value.every(isCount);
+
 function isItemTotal(value: unknown): value is ItemTotal {
   if (!isObject(value)) return false;
-  const { item, quantity, averagePerObservation, multiplied, multipliedUnknown, levels } = value;
+  const { item, quantity, averagePerObservation, multiplied, multipliedUnknown, levels, observations, rarities } = value;
   return (
     typeof item === "string" &&
     isCount(quantity) &&
     isAverage(averagePerObservation) &&
     isCount(multiplied) &&
     isCount(multipliedUnknown) &&
-    (levels === null || (Array.isArray(levels) && levels.length === 8 && levels.every(isCount)))
+    (levels === null || isLevels(levels)) &&
+    isCount(observations) &&
+    isCounts(rarities, ["common", "rare", "veryRare"])
   );
+}
+
+const isShare = (value: unknown): boolean => isCounts(value, ["yes", "known"]);
+
+function isSummary(value: unknown): value is Summary {
+  if (!isObject(value)) return false;
+  const { records, eligible, totalQuantity, averagePerObservation, rare, key, portalLevels, levelGrid } = value;
+  return (
+    isCount(records) &&
+    isCount(eligible) &&
+    isCount(totalQuantity) &&
+    (averagePerObservation === null || isAverage(averagePerObservation)) &&
+    isShare(rare) &&
+    isShare(key) &&
+    isLevels(portalLevels) &&
+    Array.isArray(levelGrid) &&
+    levelGrid.length === 8 &&
+    levelGrid.every(isLevels)
+  );
+}
+
+function isApp(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  const text = (v: unknown) => v === null || typeof v === "string";
+  return text(value.version) && text(value.build) && isCount(value.records);
 }
 
 /** Checks every field the dashboard reads, so a malformed answer fails cleanly instead of crashing the page. */
 export function isStatistics(value: unknown): value is Statistics {
   if (!isObject(value)) return false;
-  const { selection, records, items } = value;
+  const { selection, records, items, summary, split, groups } = value;
   return (
     isObject(selection) &&
     isCount(selection.matched) &&
     isCounts(selection.unplaced, UNPLACED_REASONS) &&
+    (selection.uploads === null || isCount(selection.uploads)) &&
     isObject(records) &&
     isCount(records.total) &&
     isCounts(records.byKind, ["hack", "drop"]) &&
     isCounts(records.byReadStatus, ["read", "notRead", "unavailable", "unsupported"]) &&
     isCounts(records.byCoverage, COVERAGES) &&
+    Array.isArray(records.byApp) &&
+    records.byApp.every(isApp) &&
+    isSummary(summary) &&
+    typeof split === "string" &&
+    (SPLITS as readonly string[]).includes(split) &&
+    Array.isArray(groups) &&
+    groups.every((group) => isObject(group) && typeof group.key === "string" && isSummary(group.summary)) &&
     isObject(items) &&
     (items.panels === "portal" || items.panels === "bonus" || items.panels === "both") &&
     isCount(items.eligible) &&

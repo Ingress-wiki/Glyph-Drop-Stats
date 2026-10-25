@@ -15,6 +15,9 @@ import {
   LEVEL_STATES,
   PANEL_EFFECTS,
   PANELS,
+  PLAYER_FACTIONS,
+  PORTAL_ALIGNMENTS,
+  PORTAL_FACTIONS,
   PORTAL_LEVEL_CONFIDENCES,
   RARITIES,
   RARITY_SOURCES,
@@ -23,7 +26,7 @@ import {
   SPEED_COMMANDS,
   SPREADSHEET_GUARDED_PREFIXES,
   TIME_BASES,
-  type ColumnName,
+  type CellName,
 } from "./format.ts";
 
 import type { IssueKey, IssueParams } from "./issueMessages.ts";
@@ -167,15 +170,18 @@ const DECODERS = {
   source_app_build: appVersion,
   exporter_app_version: appVersion,
   exporter_app_build: appVersion,
-} satisfies { [K in ColumnName]: Decoder<unknown> };
+  portal_faction: oneOf(PORTAL_FACTIONS),
+  player_faction: oneOf(PLAYER_FACTIONS),
+  portal_alignment: oneOf(PORTAL_ALIGNMENTS),
+} satisfies { [K in CellName]: Decoder<unknown> };
 
 type Decoded<D> = D extends Decoder<infer T> ? T : never;
 
 /** A row with every cell typed; null is a blank cell. */
-export type DecodedRow = { [K in ColumnName]: Decoded<(typeof DECODERS)[K]> | null };
+export type DecodedRow = { [K in CellName]: Decoded<(typeof DECODERS)[K]> | null };
 
 export interface CellIssue {
-  column: ColumnName;
+  column: CellName;
   key: IssueKey;
   params: IssueParams;
 }
@@ -184,7 +190,7 @@ export interface CellIssue {
  * Undoes the exporter's spreadsheet guard: a `text` or `id` cell that would
  * start with a formula character was written with one leading `'`.
  */
-export function unguard(column: ColumnName, raw: string): string {
+export function unguard(column: CellName, raw: string): string {
   const type = COLUMN_TYPES.get(column);
   if (type !== "text" && type !== "identifier") return raw;
   if (raw.length >= 2 && raw[0] === "'" && (SPREADSHEET_GUARDED_PREFIXES as readonly string[]).includes(raw[1])) {
@@ -193,12 +199,12 @@ export function unguard(column: ColumnName, raw: string): string {
   return raw;
 }
 
-/** Types every cell of a row whose fields are already in v1 column order. */
+/** Types every cell of a row whose fields are in `columns` order (`CELL_NAMES`, blank for an absent appended column). */
 export function decodeRow(
   fields: readonly string[],
-  columns: readonly ColumnName[],
+  columns: readonly CellName[],
 ): { row: DecodedRow; issues: CellIssue[] } {
-  const row = {} as Record<ColumnName, unknown>;
+  const row = {} as Record<CellName, unknown>;
   const issues: CellIssue[] = [];
   columns.forEach((column, index) => {
     const raw = unguard(column, fields[index]);

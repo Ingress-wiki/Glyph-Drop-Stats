@@ -80,6 +80,25 @@ export async function newContext(browser, options) {
 }
 
 /**
+ * Wheel the canvas until a text run matching `text` is wholly on screen and
+ * return it, looking down the page (`direction` 1) or up it (-1). The text
+ * layer holds only what is drawn, so a run off screen isn't there until the
+ * canvas scrolls to it.
+ */
+export async function scrollToRun(page, text, direction = 1, tries = 20) {
+  const run = page.locator("#canvas-text .canvas-text-run").filter({ hasText: text }).first();
+  const { width, height } = page.viewportSize();
+  for (let i = 0; i < tries; i++) {
+    const box = (await run.count()) > 0 ? await run.boundingBox() : null;
+    if (box !== null && box.y >= 0 && box.y + box.height <= height) return run;
+    await page.mouse.move(width / 2, height / 2);
+    await page.mouse.wheel(0, box === null ? 200 * direction : box.y < 0 ? -200 : 200);
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`no text run ${text} on screen after ${tries} scrolls`);
+}
+
+/**
  * Wait until a frame has taken the keys sent so far. synth-ui moves the focus
  * for Tab as soon as it reads a frame's input but gives typed text to
  * whatever is focused when it draws, so text and a Tab in one frame would

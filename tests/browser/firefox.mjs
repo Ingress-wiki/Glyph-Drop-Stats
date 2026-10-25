@@ -1,4 +1,4 @@
-import { checks, newContext } from "./keyboard.mjs";
+import { checks, newContext, scrollToRun } from "./keyboard.mjs";
 
 /**
  * Selecting canvas text in Firefox, whose word boundaries differ from
@@ -20,20 +20,21 @@ export async function firefoxSuite({ browser, base: BASE }) {
     const run = (re) => page.locator("#canvas-text .canvas-text-run").filter({ hasText: re }).first();
     const selected = () => page.evaluate(() => getSelection().toString());
 
-    const name = await run(/^Resonator\s*$/).boundingBox();
+    const number = await run(/^10\s*$/).boundingBox();
+    await page.mouse.dblclick(number.x + number.width / 4, number.y + number.height / 2);
+    check("double-click selects a whole number", (await selected()).trim() === "10", JSON.stringify(await selected()));
+
+    const prose = await run(/^From \d+ uploads?\s*$/i).boundingBox();
+    await page.mouse.dblclick(prose.x + prose.width * 0.85, prose.y + prose.height / 2);
+    check("double-click selects a whole word", /^uploads?$/.test((await selected()).trim()), JSON.stringify(await selected()));
+
+    const name = await (await scrollToRun(page, /^Resonator\s*$/)).boundingBox();
     await page.mouse.move(name.x + 1, name.y + name.height / 2);
     await page.mouse.down();
     await page.mouse.move(name.x + name.width - 1, name.y + name.height / 2, { steps: 8 });
     await page.mouse.up();
     check("drag selects an item name", (await selected()).trim() === "Resonator", JSON.stringify(await selected()));
-
-    const number = await run(/^10\s*$/).boundingBox();
-    await page.mouse.dblclick(number.x + number.width / 4, number.y + number.height / 2);
-    check("double-click selects a whole number", (await selected()).trim() === "10", JSON.stringify(await selected()));
-
-    const prose = await run(/^Each counted once\s*$/i).boundingBox();
-    await page.mouse.dblclick(prose.x + prose.width * 0.85, prose.y + prose.height / 2);
-    check("double-click selects a whole word", (await selected()).trim() === "once", JSON.stringify(await selected()));
+    await scrollToRun(page, /^Submit\s*$/i, -1);
     // Firefox drops a background tab's WebGL context (opening the GitHub link in a new tab
     // does it); the page must draw and respond again once the context is restored.
     const lost = await page.evaluate(() => {

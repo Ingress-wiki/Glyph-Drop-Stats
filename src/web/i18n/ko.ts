@@ -60,6 +60,12 @@ export const ko: Messages = {
     panelShort: { portal: "포탈", bonus: "보너스", both: "양쪽" },
     panelChoice: { portal: "아이템: 포탈 패널", bonus: "아이템: 보너스 패널", both: "아이템: 양쪽 패널" },
     kind: { "": "해킹과 드롭", hack: "해킹만", drop: "드롭만" },
+    alignmentChoice: {
+      "": "모든 포탈",
+      same_faction: "같은 진영 포탈",
+      enemy: "적 진영 포탈",
+      machina: "Machina 포탈",
+    },
     filters: (active: number) => (active > 0 ? `필터 (${active})` : "필터"),
     filtersHint: "날짜, 시각, 레벨, 보너스 필터 (F3)",
     about: "설명",
@@ -79,21 +85,94 @@ export const ko: Messages = {
     datePlaceholder: "YYYY-MM-DD",
     headline: {
       records: "기록",
-      recordsNote: (unplaced: number) => (unplaced > 0 ? `각 1회 집계 · 판정 불가 ${unplaced}` : "각 1회 집계"),
+      recordsNote: (uploads: number | null, unplaced: number): string =>
+        [uploads === null ? "각 1회 집계" : `업로드 ${uploads}건에서`, unplaced > 0 ? `판정 불가 ${unplaced}` : ""].filter(Boolean).join(" · "),
       eligible: "집계 대상",
       eligibleValue: (eligible: number, total: number) => `${eligible} / ${total}`,
       eligibleNote: (panel: string) => `${panel} 전부 읽음`,
-      leftOut: "제외",
-      leftOutNote: "알 수 없음, 0 아님",
-      items: "아이템",
-      itemsNote: "집계 대상 관측 기준",
       perObservation: "관측당",
       perObservationNote: (eligible: number) => `아이템 / 집계 대상 ${eligible}`,
+      rare: "레어 이상",
+      rareNote: (known: number) => `Rare 또는 Very Rare 포함 · ${known}건 중`,
+      key: "키 포함",
+      keyNote: (known: number) => `키 포함 · ${known}건 중`,
+      few: "관측 적음",
+    },
+    compare: {
+      heading: "비교",
+      splitChoice: {
+        alignment: "포탈 진영 관계별",
+        portalLevel: "포탈 레벨별",
+        glyphCount: "Glyph 수별",
+        speedCommand: "속도 명령별",
+        keyCommand: "키 명령별",
+      },
+      columns: {
+        records: "기록",
+        eligible: "대상",
+        perObservation: "관측당",
+        rare: "레어+",
+        key: "키",
+      },
+      alignments: {
+        same_faction: "같은 진영",
+        enemy: "적 진영",
+        machina: "Machina 포탈",
+      },
+      portalLevel: (level: string) => `P${level}`,
+      glyphCount: (count: number) => `Glyph ${count}개`,
+      speedCommands: {
+        simple: "심플",
+        complex: "컴플렉스",
+      },
+      keyCommands: {
+        requestKey: "키 요청",
+        noKey: "키 없음",
+        keysOnly: "키만",
+      },
+      unknown: "알 수 없음",
+      few: (min: number) => `흐린 행은 집계 대상 관측이 ${min}건 미만입니다.`,
+      notes: {
+        alignment:
+          "진영 관계는 DynamicGlyph 1.0.0 이후 빌드가 기록한 Glyph 해킹에만 있습니다. 해킹 직전에 읽은 포탈 화면에서 나온 것이며 확인된 포탈이 아닙니다. 중립 포탈은 아직 인식하지 못합니다.",
+        portalLevel: "앱이 확신한 정확한 포탈 레벨만 씁니다. 범위, 충돌, 낮은 신뢰도는 알 수 없음으로 둡니다.",
+        glyphCount: "드롭에는 Glyph 수가 없습니다.",
+        speedCommand: "앱이 확정을 확인한 명령만 셉니다.",
+        keyCommand: "앱이 확정을 확인한 명령만 셉니다.",
+      },
+      empty: "아직 비교할 데이터가 없습니다.",
+    },
+    levels: {
+      heading: "포탈 레벨별 아이템 레벨",
+      all: "전체",
+      note: "각 행은 한 포탈 레벨에서 나온 레벨 아이템(Resonator, XMP Burster, Ultra Strike, Power Cube)을 아이템 레벨별 비율(%)로 나눈 것입니다. 앱이 확신한 정확한 포탈 레벨만 씁니다.",
+      row: (level: number, observations: number) => `P${level} n=${observations}`,
+      empty: "포탈 레벨을 믿을 수 있는 집계 대상 관측이 아직 없습니다.",
+      mirrorCaption: (group: string) => `포탈 레벨별 아이템 레벨 비율: ${group}`,
+    },
+    gives: {
+      heading: "관측 한 번에 얻는 것",
+      note: (eligible: number) => `집계 대상 관측당 평균 아이템 수, n=${eligible}`,
+      groups: {
+        shields: "실드",
+        mods: "기타 모드",
+        other: "기타 아이템",
+      },
+    },
+    sample: {
+      heading: "이 표본에 대해",
+      hint: "판독 상태, 제외된 기록, 집계에 쓰인 앱 빌드",
+      apps: "앱 빌드",
+      app: (version: string, build: string) => `DynamicGlyph ${version} (${build})`,
+      appUnknown: "알 수 없음",
+      gaps: "0.1.0 beta 4 이전 빌드는 레벨 1 포탈 해킹을 드롭으로 기록했고, Enlightened와 Machina 포탈 화면을 감지하지 못했으며, 38% 해킹 보너스도 자주 놓쳤습니다. 1.0.0 (2)까지의 모든 빌드는 L1 포탈을 L7로 잘못 읽을 수 있습니다. 충돌이나 낮은 신뢰도로 표시된 레벨은 제외합니다.",
     },
     table: {
       item: "아이템",
       quantity: "수량",
       perObservation: (eligible: number) => `관측당 n=${eligible}`,
+      chance: "확률",
+      whenPresent: "나올 때",
       multiplied: "배수",
       colourUnread: "색상 ?",
       noEligible: "이 필터에 맞는 집계 대상 관측이 없습니다.",
@@ -105,11 +184,19 @@ export const ko: Messages = {
     caption: (hacks: number, drops: number, panel: string, updating: boolean) =>
       `해킹 ${hacks} · 드롭 그룹 ${drops} · ${panel} 아이템${updating ? " · 업데이트 중…" : ""}`,
     mirrorCaption: (panel: string, eligible: number) => `${panel} 아이템, 집계 대상 관측 ${eligible}개 기준`,
-    mirrorHeadline: { records: "기록", eligible: "집계 대상 관측", items: "아이템", perObservation: "관측당" },
+    mirrorHeadline: {
+      records: "기록",
+      eligible: "집계 대상 관측",
+      perObservation: "관측당",
+      rare: "Rare 또는 Very Rare가 있는 관측",
+      key: "Portal Key가 있는 관측",
+    },
     mirrorColumns: {
       item: "아이템",
       quantity: "수량",
       perObservation: "관측당",
+      chance: "관측당 확률",
+      whenPresent: "나올 때의 평균",
       multiplied: "배수 적용",
       colourUnread: "색상 미판독",
     },
@@ -125,11 +212,13 @@ export const ko: Messages = {
     no_local_time: "현지 시각 정보 없음 (UTC로만 기록)",
     no_local_hour: "현지 시각 (시 단위) 없음 (하루 단위 구간)",
     no_portal_level: "포탈 레벨 없음 (모든 드롭 포함)",
+    portal_level_unreliable: "포탈 레벨이 충돌하거나 신뢰도가 낮음",
     portal_level_crosses_filter: "포탈 레벨 범위가 필터 경계에 걸침",
     no_hacking_bonus: "해킹 보너스 없음 (모든 드롭 포함)",
     hacking_bonus_not_final: "해킹 보너스가 최종값이 아님",
     no_speed_bonus: "속도 보너스 없음 (모든 드롭 포함)",
     speed_bonus_not_final: "속도 보너스가 최종값이 아님",
+    no_alignment: "포탈 진영 관계 없음 (모든 드롭 포함)",
   },
 
   coverage: {
@@ -167,7 +256,7 @@ export const ko: Messages = {
       "관측당 값은 수량 ÷ 집계 대상 관측 수이며, 그 아이템이 나오지 않은 관측도 포함합니다.",
       "음영은 값이 해당 열의 최댓값에 가까울수록 밝아집니다. 더 많다는 뜻이지 더 좋다는 뜻이 아닙니다.",
       "기록을 판정할 수 없는 필터 (드롭에는 포탈 레벨이 없고, 오래된 기록에는 현지 시각이 없음)는 추측하지 않고 그 기록을 따로 두며, 그 사실을 표시합니다.",
-      "여기에는 앱이 읽은 내용만 있으며, 무엇을 제출할지는 플레이어가 선택합니다. 에이전트 레벨, 진영, 모드, 해킹 종류는 기록되지 않습니다. 신뢰 구간은 없습니다. 기록이 플레이어와 세션별로 몰려 있기 때문입니다.",
+      "여기에는 앱이 읽은 내용만 있으며, 무엇을 제출할지는 플레이어가 선택합니다. 에이전트 레벨, 모드, 해킹 종류는 기록되지 않고 누구의 진영도 저장하지 않습니다. 새 빌드가 기록한 포탈 진영 관계만 저장합니다. 신뢰 구간은 없습니다. 기록이 플레이어와 세션별로 몰려 있으므로 관측이 30건 미만인 수치는 흐리게 표시합니다.",
     ],
   },
 
@@ -340,6 +429,8 @@ export const ko: Messages = {
     "file.mixedExporters": "서로 다른 앱 빌드가 작성한 행이 섞여 있습니다. 내보내기 파일을 각각 따로 업로드하세요.",
 
     "warning.ignoredColumns": "이 사이트가 모르는 열 {count}개는 무시되었고 저장되지 않았습니다: {columns}.",
+    "warning.factionsNotStored":
+      "내 진영과 포탈 진영은 portal_alignment를 확인하는 데만 쓰고 저장하지 않습니다. 이 업로드로 내 진영을 알 수 없습니다.",
     "warning.unlistedItems":
       "이 사이트 목록에 아직 없는 아이템 이름 (수집한 앱 빌드 포함): {items}. 이 이름은 검증되지 않은 텍스트로 보관되며 공개되지 않고, 이름이 검토될 때까지 해당 기록은 아이템 통계에서 제외됩니다.",
 
@@ -387,6 +478,7 @@ export const ko: Messages = {
     "hack.commandNotConfirmed": "{column} 값이 있지만 확인되지 않았습니다.",
     "hack.levelColumns": "포탈 레벨 열은 모두 값이 있거나 모두 비어 있어야 합니다.",
     "hack.levelOrder": "portal_level_low가 portal_level_high보다 큽니다.",
+    "hack.alignment": "portal_alignment가 portal_faction 및 player_faction과 맞지 않습니다.",
 
     "panel.withoutPanel": "패널이 없는 행은 그 기록의 유일한 행이어야 하며, 아이템 열은 비어 있어야 합니다.",
     "panel.order": "포탈 패널의 행이 보너스 패널의 행보다 앞에 와야 합니다.",
@@ -419,6 +511,8 @@ export const ko: Messages = {
     "filter.localHourOrder": "현지 시각 (시작) 값은 현지 시각 (끝) 값보다 늦으면 안 됩니다.",
     "filter.rangeOrder": "{first} 값은 {second} 값보다 크면 안 됩니다.",
     "filter.kind": "종류는 해킹 또는 드롭이어야 합니다.",
+    "filter.alignment": "alignment는 same_faction, enemy, machina 중 하나여야 합니다.",
+    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand 중 하나여야 합니다.",
     "filter.panels": "패널은 포탈, 보너스, 양쪽 중 하나여야 합니다.",
   },
 };

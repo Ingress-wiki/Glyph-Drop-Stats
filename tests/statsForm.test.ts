@@ -28,4 +28,17 @@ describe("formQuery", () => {
     });
     expect(parseStatsQuery(new URLSearchParams(formQuery({ ...EMPTY_FORM, portalLevelMin: "6" })))).toMatchObject({ ok: false });
   });
+
+  it("sends the alignment filter and a split other than the default", () => {
+    const query = formQuery({
+      ...EMPTY_FORM,
+      alignment: "machina",
+      split: "glyphCount",
+    });
+    expect(parseStatsQuery(new URLSearchParams(query))).toMatchObject({
+      ok: true,
+      filter: { alignment: "machina", split: "glyphCount" },
+    });
+    expect(formQuery({ ...EMPTY_FORM, split: "alignment" })).toBe("");
+  });
 });

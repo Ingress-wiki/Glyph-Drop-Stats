@@ -58,9 +58,9 @@ export async function canvasSuite({ browser, base: BASE, lan: LAN, dir: DIR, scr
     check("the canvas started (no fallback)", !(await page.evaluate(() => document.body.classList.contains("fallback"))));
     await activate(page, "Got it");
     await dialogsClosed(page);
-    check("headline numbers", (await headline(page)) === "Records10Eligible observations5 of 10Items10Per observation2.00", await headline(page));
+    check("headline numbers", (await headline(page)) === "Records10Eligible observations5 of 10Per observation2.00 (few observations)With a Rare or Very Rare item0% (few observations)With a Portal Key0% (few observations)", await headline(page));
     const resonator = (await itemRows(page)).find((row) => row.startsWith("Resonator"));
-    check("Resonator row matches hand calculation", resonator === "Resonator71.400000340023", resonator);
+    check("Resonator row matches hand calculation", resonator === "Resonator71.4080%1.750000340023", resonator);
 
     // Pickers, filters, search and sorting, all by keyboard.
     await activate(page, "Items: portal");

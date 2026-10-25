@@ -4,7 +4,8 @@ import type { ObservationRecord } from "../src/domain/record.ts";
 import { computeStatistics, NO_FILTER, type StatsFilter } from "../src/domain/statistics.ts";
 import { parseStatsQuery, statsQueryString } from "../src/domain/statsQuery.ts";
 import { datasetCsv, EXPECTED } from "./helpers/dataset.ts";
-import { csv, hackId, hackRecord, item, type Row } from "./helpers/export.ts";
+import { COLUMN_NAMES } from "../src/domain/format.ts";
+import { csv, dropRecord, hackId, hackRecord, item, type Row } from "./helpers/export.ts";
 
 const NOW = Date.UTC(2026, 9, 4) / 1000;
 
@@ -28,6 +29,16 @@ describe("the whole dataset", () => {
 
   it("sums items only over observations whose portal panel was read completely", () => {
     expect(result.items).toEqual({ panels: "portal", ...EXPECTED.portalItems });
+  });
+
+  it("summarizes every matched record, and puts them all in one unknown group without alignments", () => {
+    expect(result.summary).toEqual(EXPECTED.summary);
+    expect(result.split).toBe("alignment");
+    expect(result.groups).toEqual([{ key: "unknown", summary: EXPECTED.summary }]);
+  });
+
+  it("can't count uploads unless told where records came from", () => {
+    expect(result.selection.uploads).toBeNull();
   });
 });
 
@@ -88,7 +99,16 @@ describe("panel selection", () => {
     expect(items.eligible).toBe(2);
     expect(items.excluded.panel_not_seen).toBe(7);
     expect(items.byItem).toEqual([
-      { item: "Hypercube", quantity: 2, averagePerObservation: 1, multiplied: 0, multipliedUnknown: 0, levels: null },
+      {
+        item: "Hypercube",
+        quantity: 2,
+        averagePerObservation: 1,
+        multiplied: 0,
+        multipliedUnknown: 0,
+        levels: null,
+        observations: 2,
+        rarities: { common: 0, rare: 0, veryRare: 2 },
+      },
     ]);
   });
 });
@@ -105,6 +125,8 @@ describe("filters", () => {
         multiplied: 0,
         multipliedUnknown: 0,
         levels: [0, 0, 0, 0, 0, 0, 0, 2],
+        observations: 1,
+        rarities: { common: 0, rare: 0, veryRare: 0 },
       },
     ]);
   });
@@ -190,7 +212,9 @@ describe("query parameters", () => {
       portalLevel: { min: 5, max: 8 },
       hackingBonus: { min: 0, max: 120 },
       speedBonus: { min: 10, max: 40 },
+      alignment: "enemy",
       panels: "both",
+      split: "glyphCount",
     };
     expect(parseStatsQuery(new URLSearchParams(statsQueryString(filter)))).toEqual({ ok: true, filter });
     expect(parseStatsQuery(new URLSearchParams(""))).toEqual({ ok: true, filter: NO_FILTER });
@@ -211,5 +235,237 @@ describe("query parameters", () => {
     expect(codes("localDateFrom=2026-02-30&localDateTo=2026-03-01")).toEqual(["localDateFrom must be a YYYY-MM-DD date."]);
     expect(codes("localHourFrom=5&localHourTo=24")).toEqual(["localHourTo must be an hour from 0 to 23."]);
     expect(codes("panels=all")).toEqual(["panels must be portal, bonus or both."]);
+    expect(codes("alignment=neutral")).toEqual(["alignment must be same_faction, enemy or machina."]);
+    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand or keyCommand."]);
+  });
+});
+
+/**
+ * Six records for alignment, portal-level trust, shares and splits. Every
+ * expected value below is worked out by hand from this table (portal panel
+ * only, each read in full):
+ *
+ * | id | kind | alignment    | portal level        | speed   | app        | items                                              |
+ * | -- | ---- | ------------ | ------------------- | ------- | ---------- | -------------------------------------------------- |
+ * | a  | hack | enemy        | 6 high              | complex | 0.1.0 (74) | Resonator L6 ×2, Portal Shield rare ×1, Portal Key ×1 |
+ * | b  | hack | enemy        | 6 low, conflict     | complex | 0.1.0 (74) | Resonator L5 ×1                                    |
+ * | c  | hack | machina      | 3 medium            | simple  | 0.1.0 (74) | Portal Shield rarity unread ×1, XMP Burster L3 ×1  |
+ * | d  | hack | —            | 7 high              | complex | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
+ * | e  | drop | —            | —                   | —       | 0.1.0 (74) | Power Cube L8 ×1                                   |
+ * | f  | hack | same_faction | 2 low               | complex | 0.1.0 (10) | Resonator L2 ×1, Hypercube ×1, Resonator L3 ×1     |
+ */
+describe("alignment, trusted levels, shares and splits", () => {
+  const ALIGNED = [...COLUMN_NAMES, "portal_alignment"];
+  const one: Row = {
+    observed_panels_read_in_full: "true",
+    both_panels_read: "false",
+  };
+  const noLevel = (name: string, extra: Row = {}): Row => ({
+    item: name,
+    level: "",
+    level_state: "notApplicable",
+    ...extra,
+  });
+  const level = (low: string, confidence: string, conflict = "false"): Row => ({
+    portal_level_low: low,
+    portal_level_high: low,
+    portal_level_confidence: confidence,
+    portal_level_conflict: conflict,
+  });
+  const a = hackRecord({
+    record_id: hackId(31),
+    ...one,
+    ...level("6", "high"),
+  });
+  const b = hackRecord({
+    record_id: hackId(32),
+    ...one,
+    ...level("6", "low", "true"),
+  });
+  const c = hackRecord({
+    record_id: hackId(33),
+    ...one,
+    ...level("3", "medium"),
+    speed_command: "simple",
+  });
+  const d = hackRecord({
+    record_id: hackId(34),
+    ...one,
+    ...level("7", "high"),
+    source_app_version: "1.0.0",
+    source_app_build: "2",
+  });
+  const e = dropRecord({ ...one });
+  const f = hackRecord({
+    record_id: hackId(36),
+    ...one,
+    ...level("2", "low"),
+    source_app_build: "10",
+  });
+  const rows: [Row, string][] = [
+    [{ ...a, ...item("portal", 0, { quantity: "2" }) }, "enemy"],
+    [
+      {
+        ...a,
+        ...item("portal", 1, noLevel("Portal Shield", { rarity: "rare", rarity_source: "read" })),
+      },
+      "enemy",
+    ],
+    [{ ...a, ...item("portal", 2, noLevel("Portal Key")) }, "enemy"],
+    [{ ...b, ...item("portal", 0, { level: "5" }) }, "enemy"],
+    [
+      {
+        ...c,
+        ...item(
+          "portal",
+          0,
+          noLevel("Portal Shield", {
+            rarity: "unreadable",
+            rarity_source: "read",
+          }),
+        ),
+      },
+      "machina",
+    ],
+    [{ ...c, ...item("portal", 1, { item: "XMP Burster", level: "3" }) }, "machina"],
+    [
+      {
+        ...d,
+        ...item("portal", 0, noLevel("Heat Sink", { rarity: "common", rarity_source: "read" })),
+      },
+      "",
+    ],
+    [{ ...d, ...item("portal", 1, { level: "7" }) }, ""],
+    [{ ...e, ...item("portal", 0, { item: "Power Cube", level: "8" }) }, ""],
+    [{ ...f, ...item("portal", 0, { level: "2" }) }, "same_faction"],
+    [
+      {
+        ...f,
+        ...item("portal", 1, noLevel("Hypercube", { rarity: "veryRare", rarity_source: "fixed" })),
+      },
+      "same_faction",
+    ],
+    [{ ...f, ...item("portal", 2, { level: "3" }) }, "same_faction"],
+  ];
+  const parsed = parseExport(
+    new TextEncoder().encode(
+      csv(
+        rows.map(([row]) => row),
+        { header: ALIGNED, extra: rows.map(([, alignment]) => [alignment]) },
+      ),
+    ),
+    { now: NOW },
+  );
+  if (!parsed.ok || parsed.rejected.length > 0) throw new Error(`rejected: ${JSON.stringify(parsed)}`);
+  const records = parsed.records.map((entry) => entry.record);
+  const uploadOf = new Map([
+    [hackId(31), 1],
+    [hackId(32), 1],
+    [hackId(33), 2],
+  ]);
+  const run = (filter: Partial<StatsFilter> = {}) => computeStatistics(records, { ...NO_FILTER, ...filter }, uploadOf);
+  const grid = (cells: [number, number, number][]) => {
+    const rows = Array.from({ length: 8 }, () => Array<number>(8).fill(0));
+    for (const [portal, itemLevel, quantity] of cells) rows[portal - 1][itemLevel - 1] = quantity;
+    return rows;
+  };
+
+  it("summarizes shares, trusted portal levels and the level grid", () => {
+    expect(run().summary).toEqual({
+      records: 6,
+      eligible: 6,
+      // a 4, b 1, c 2, d 2, e 1, f 3
+      totalQuantity: 13,
+      averagePerObservation: 13 / 6,
+      // Yes: a (rare shield), f (Hypercube). Unknown: c, whose only candidate's rarity is unread.
+      rare: { yes: 2, known: 5 },
+      key: { yes: 1, known: 6 },
+      // b's level conflicts and f's is low confidence: neither is placed.
+      portalLevels: [0, 0, 1, 0, 0, 1, 1, 0],
+      levelGrid: grid([
+        [3, 3, 1],
+        [6, 6, 2],
+        [7, 7, 1],
+      ]),
+    });
+  });
+
+  it("counts an item's observations once per record, and its quantity by known rarity", () => {
+    const { byItem } = run().items;
+    const resonator = byItem.find((entry) => entry.item === "Resonator");
+    const shield = byItem.find((entry) => entry.item === "Portal Shield");
+    // a, b, d, f; f has two Resonator rows.
+    expect(resonator).toMatchObject({
+      quantity: 6,
+      observations: 4,
+      levels: [0, 1, 1, 0, 1, 2, 1, 0],
+    });
+    expect(shield).toMatchObject({
+      quantity: 2,
+      observations: 2,
+      rarities: { common: 0, rare: 1, veryRare: 0 },
+    });
+  });
+
+  it("groups by alignment in a fixed order, unknown last", () => {
+    const result = run();
+    expect(result.groups.map((group) => [group.key, group.summary.records])).toEqual([
+      ["same_faction", 1],
+      ["enemy", 2],
+      ["machina", 1],
+      ["unknown", 2],
+    ]);
+    const enemy = result.groups[1].summary;
+    expect(enemy).toMatchObject({
+      eligible: 2,
+      totalQuantity: 5,
+      rare: { yes: 1, known: 2 },
+      key: { yes: 1, known: 2 },
+    });
+    expect(enemy.levelGrid).toEqual(grid([[6, 6, 2]]));
+  });
+
+  it("groups by other splits, putting untrusted levels and drops in unknown", () => {
+    const keys = (split: StatsFilter["split"]) => run({ split }).groups.map((group) => [group.key, group.summary.records]);
+    expect(keys("portalLevel")).toEqual([
+      ["3", 1],
+      ["6", 1],
+      ["7", 1],
+      ["unknown", 3],
+    ]);
+    expect(keys("speedCommand")).toEqual([
+      ["simple", 1],
+      ["complex", 4],
+      ["unknown", 1],
+    ]);
+    expect(keys("glyphCount")).toEqual([
+      ["4", 5],
+      ["unknown", 1],
+    ]);
+  });
+
+  it("filters by alignment, setting aside records without one", () => {
+    const result = run({ alignment: "enemy" });
+    expect(result.selection.matched).toBe(2);
+    // d has no alignment and e is a drop; c and f are out.
+    expect(result.selection.unplaced.no_alignment).toBe(2);
+    expect(result.selection.uploads).toBe(1);
+  });
+
+  it("sets aside conflicting and low-confidence levels in a level filter", () => {
+    const result = run({ portalLevel: { min: 1, max: 8 } });
+    expect(result.selection.matched).toBe(3);
+    expect(result.selection.unplaced.portal_level_unreliable).toBe(2);
+    expect(result.selection.unplaced.no_portal_level).toBe(1);
+  });
+
+  it("counts distinct uploads and app builds, newest last", () => {
+    const result = run();
+    expect(result.selection.uploads).toBe(2);
+    expect(result.records.byApp).toEqual([
+      { version: "0.1.0", build: "10", records: 1 },
+      { version: "0.1.0", build: "74", records: 4 },
+      { version: "1.0.0", build: "2", records: 1 },
+    ]);
   });
 });

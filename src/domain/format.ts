@@ -67,7 +67,29 @@ export type ColumnName = (typeof COLUMNS)[number][0];
 
 export const COLUMN_NAMES: readonly ColumnName[] = COLUMNS.map(([name]) => name);
 
-export const COLUMN_TYPES: ReadonlyMap<ColumnName, ColumnType> = new Map(COLUMNS);
+/**
+ * Columns appended within v1 that this site reads when a file has them
+ * (faction metadata, from DynamicGlyph builds after 1.0.0). Files without
+ * them stay valid. Only `portal_alignment` is stored: the two faction
+ * columns are read to check it and then dropped, because either one with
+ * the alignment tells the uploader's faction.
+ */
+export const APPENDED_COLUMNS = [
+  ["portal_faction", "enumeration"],
+  ["player_faction", "enumeration"],
+  ["portal_alignment", "enumeration"],
+] as const satisfies readonly (readonly [string, ColumnType])[];
+
+export type AppendedName = (typeof APPENDED_COLUMNS)[number][0];
+
+export const APPENDED_NAMES: readonly AppendedName[] = APPENDED_COLUMNS.map(([name]) => name);
+
+/** Every column the importer decodes: the v1 columns, then the appended ones it knows. */
+export type CellName = ColumnName | AppendedName;
+
+export const CELL_NAMES: readonly CellName[] = [...COLUMN_NAMES, ...APPENDED_NAMES];
+
+export const COLUMN_TYPES: ReadonlyMap<CellName, ColumnType> = new Map<CellName, ColumnType>([...COLUMNS, ...APPENDED_COLUMNS]);
 
 /** Columns that describe one panel; they may differ between a record's rows. */
 export const PANEL_COLUMNS = ["panel", "panel_partial", "panel_effects"] as const satisfies readonly ColumnName[];
@@ -140,6 +162,10 @@ export const PORTAL_LEVEL_CONFIDENCES = ["low", "medium", "high"] as const;
 export const CAPTURE_MODES = ["glyphAssistance", "gearOnly"] as const;
 export const GAME_LANGUAGES = ["en", "zh-Hans", "zh-Hant", "ja", "ko"] as const;
 export const GAME_LANGUAGE_SOURCES = ["chosen", "detected", "assumed"] as const;
+export const PORTAL_FACTIONS = ["resistance", "enlightened", "machina"] as const;
+export const PLAYER_FACTIONS = ["resistance", "enlightened"] as const;
+/** `neutral` is reserved by the app for when it recognizes neutral portals; it isn't accepted until then. */
+export const PORTAL_ALIGNMENTS = ["same_faction", "enemy", "machina"] as const;
 
 /**
  * Item names the app recognizes (DynamicGlyph `Docs/GEAR_DROP_ITEMS.md`,
@@ -170,6 +196,28 @@ export const ITEM_NAMES = [
   "Kinetic Capsule",
   "Media",
 ] as const;
+
+/**
+ * Items that have a rarity, fixed or read from a meter. Levelled items,
+ * Portal Keys and Media have none, so a blank rarity is only unknown here.
+ */
+export const ITEMS_WITH_RARITY: ReadonlySet<string> = new Set([
+  "Portal Shield",
+  "Aegis Shield",
+  "Force Amp",
+  "Turret",
+  "Heat Sink",
+  "Multi-Hack",
+  "Link Amp",
+  "SoftBank Ultra Link",
+  "ITO EN Transmuter (+)",
+  "ITO EN Transmuter (-)",
+  "Hypercube",
+  "ADA Refactor",
+  "JARVIS Virus",
+  "Capsule",
+  "Kinetic Capsule",
+]);
 
 /** Panel effects the app recognizes, as written in `panel_effects`. */
 export const PANEL_EFFECTS = ["ITO EN (+)", "ITO EN (-)"] as const;

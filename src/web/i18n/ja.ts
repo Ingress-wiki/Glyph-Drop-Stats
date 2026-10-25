@@ -60,6 +60,12 @@ export const ja: Messages = {
     panelShort: { portal: "ポータル", bonus: "ボーナス", both: "両方" },
     panelChoice: { portal: "アイテム：ポータルパネル", bonus: "アイテム：ボーナスパネル", both: "アイテム：両方のパネル" },
     kind: { "": "ハックとドロップ", hack: "ハックのみ", drop: "ドロップのみ" },
+    alignmentChoice: {
+      "": "すべてのポータル",
+      same_faction: "自陣営のポータル",
+      enemy: "敵陣営のポータル",
+      machina: "Machina のポータル",
+    },
     filters: (active: number) => (active > 0 ? `フィルター（${active}）` : "フィルター"),
     filtersHint: "日付・時間帯・レベル・ボーナスのフィルター（F3）",
     about: "見方",
@@ -79,21 +85,96 @@ export const ja: Messages = {
     datePlaceholder: "YYYY-MM-DD",
     headline: {
       records: "記録",
-      recordsNote: (unplaced: number) => (unplaced > 0 ? `各 1 回のみ集計 · 判定不可 ${unplaced}` : "各 1 回のみ集計"),
+      recordsNote: (uploads: number | null, unplaced: number): string =>
+        [uploads === null ? "各 1 回のみ集計" : `アップロード ${uploads} 件から`, unplaced > 0 ? `判定不可 ${unplaced}` : ""]
+          .filter(Boolean)
+          .join(" · "),
       eligible: "対象",
       eligibleValue: (eligible: number, total: number) => `${eligible} / ${total}`,
       eligibleNote: (panel: string) => `${panel}をすべて読み取り`,
-      leftOut: "除外",
-      leftOutNote: "ゼロではなく不明扱い",
-      items: "アイテム",
-      itemsNote: "対象の観測から集計",
       perObservation: "1 観測あたり",
       perObservationNote: (eligible: number) => `アイテム / 対象 ${eligible}`,
+      rare: "レア以上",
+      rareNote: (known: number) => `Rare か Very Rare を含む · ${known} 件中`,
+      key: "キーあり",
+      keyNote: (known: number) => `キーを含む · ${known} 件中`,
+      few: "観測が少ない",
+    },
+    compare: {
+      heading: "比較",
+      splitChoice: {
+        alignment: "ポータルの陣営別",
+        portalLevel: "ポータルレベル別",
+        glyphCount: "Glyph 数別",
+        speedCommand: "スピードコマンド別",
+        keyCommand: "キーコマンド別",
+      },
+      columns: {
+        records: "記録",
+        eligible: "対象",
+        perObservation: "観測あたり",
+        rare: "レア+",
+        key: "キー",
+      },
+      alignments: {
+        same_faction: "自陣営",
+        enemy: "敵陣営",
+        machina: "Machina のポータル",
+      },
+      portalLevel: (level: string) => `P${level}`,
+      glyphCount: (count: number) => `Glyph ${count} 個`,
+      speedCommands: {
+        simple: "シンプル",
+        complex: "コンプレックス",
+      },
+      keyCommands: {
+        requestKey: "キー要求",
+        noKey: "キーなし",
+        keysOnly: "キーのみ",
+      },
+      unknown: "不明",
+      few: (min: number) => `暗い行は対象の観測が ${min} 件未満です。`,
+      notes: {
+        alignment:
+          "陣営が分かるのは、DynamicGlyph 1.0.0 より後のビルドで記録した Glyph ハックだけです。ハック直前に読み取ったポータル画面によるもので、ポータルを確かめたものではありません。中立ポータルはまだ認識できません。",
+        portalLevel: "アプリが確信したポータルレベルの値だけを使います。範囲、矛盾、低い信頼度は不明になります。",
+        glyphCount: "ドロップには Glyph 数がありません。",
+        speedCommand: "アプリが確定を確認したコマンドだけを数えます。",
+        keyCommand: "アプリが確定を確認したコマンドだけを数えます。",
+      },
+      empty: "まだ比較できるデータがありません。",
+    },
+    levels: {
+      heading: "ポータルレベル別のアイテムレベル",
+      all: "すべて",
+      note: "各行は 1 つのポータルレベルで出たレベル付きアイテム（Resonator、XMP Burster、Ultra Strike、Power Cube）を、アイテムレベル別の割合（%）に分けたものです。アプリが確信したポータルレベルだけを使います。",
+      row: (level: number, observations: number) => `P${level} n=${observations}`,
+      empty: "ポータルレベルが確かな対象の観測はまだありません。",
+      mirrorCaption: (group: string) => `ポータルレベルごとのアイテムレベルの割合：${group}`,
+    },
+    gives: {
+      heading: "1 観測で得られるもの",
+      note: (eligible: number) => `対象の観測 1 件あたりの平均アイテム数、n=${eligible}`,
+      groups: {
+        shields: "シールド",
+        mods: "その他の MOD",
+        other: "その他のアイテム",
+      },
+    },
+    sample: {
+      heading: "このサンプルについて",
+      hint: "読み取りの状況、除外した記録、集計に使ったアプリのビルド",
+      apps: "アプリのビルド",
+      app: (version: string, build: string) => `DynamicGlyph ${version}（${build}）`,
+      appUnknown: "不明",
+      gaps: "0.1.0 beta 4 より前のビルドは、レベル 1 ポータルのハックをドロップとして記録し、Enlightened と Machina のポータル画面を検出できず、38% のハッキングボーナスもよく読み落としていました。1.0.0 (2) までのすべてのビルドは L1 のポータルを L7 と読み違えることがあります。矛盾や低い信頼度の付いたレベルは除外します。",
     },
     table: {
       item: "アイテム",
       quantity: "数量",
       perObservation: (eligible: number) => `観測あたり n=${eligible}`,
+      chance: "確率",
+      whenPresent: "出た時",
       multiplied: "倍増",
       colourUnread: "色 ?",
       noEligible: "このフィルターに合う対象の観測はありません。",
@@ -105,11 +186,19 @@ export const ja: Messages = {
     caption: (hacks: number, drops: number, panel: string, updating: boolean) =>
       `ハック ${hacks} 回 · ドロップグループ ${drops} 件 · ${panel}のアイテム${updating ? " · 更新中…" : ""}`,
     mirrorCaption: (panel: string, eligible: number) => `${panel}のアイテム（対象の観測 ${eligible} 件）`,
-    mirrorHeadline: { records: "記録", eligible: "対象の観測", items: "アイテム", perObservation: "1 観測あたり" },
+    mirrorHeadline: {
+      records: "記録",
+      eligible: "対象の観測",
+      perObservation: "1 観測あたり",
+      rare: "Rare か Very Rare を含む観測",
+      key: "Portal Key を含む観測",
+    },
     mirrorColumns: {
       item: "アイテム",
       quantity: "数量",
       perObservation: "1 観測あたり",
+      chance: "1 観測あたりの確率",
+      whenPresent: "出た時の平均",
       multiplied: "倍増",
       colourUnread: "色不明",
     },
@@ -125,11 +214,13 @@ export const ja: Messages = {
     no_local_time: "ローカル時刻なし（UTC のみで記録）",
     no_local_hour: "ローカル時間帯なし（1 日単位の区間）",
     no_portal_level: "ポータルレベルなし（ドロップはすべて該当）",
+    portal_level_unreliable: "ポータルレベルが矛盾しているか信頼度が低い",
     portal_level_crosses_filter: "ポータルレベルの範囲がフィルターの境界をまたぐ",
     no_hacking_bonus: "ハッキングボーナスなし（ドロップはすべて該当）",
     hacking_bonus_not_final: "ハッキングボーナスが確定値でない",
     no_speed_bonus: "スピードボーナスなし（ドロップはすべて該当）",
     speed_bonus_not_final: "スピードボーナスが確定値でない",
+    no_alignment: "ポータルの陣営が不明（ドロップはすべて該当）",
   },
 
   coverage: {
@@ -167,7 +258,7 @@ export const ja: Messages = {
       "「1 観測あたり」は、数量 ÷ 対象の観測数です。そのアイテムが出なかった観測も含みます。",
       "網掛けは、値がその列の最大値に近いほど明るくなります。多いことを示すだけで、良いという意味ではありません。",
       "記録を判定できないフィルター（ドロップにはポータルレベルがない、古い記録にはローカル時刻がない など）は、推測せずにその記録を別に分け、その旨を表示します。",
-      "ここにあるのはアプリが読み取ったものだけで、何を提出するかはプレイヤーが選びます。エージェントレベル、陣営、MOD、ハックの種類は記録されません。信頼区間はありません。記録はプレイヤーやセッションごとに偏るためです。",
+      "ここにあるのはアプリが読み取ったものだけで、何を提出するかはプレイヤーが選びます。エージェントレベル、MOD、ハックの種類は記録されず、誰の陣営も保存しません。保存するのは新しいビルドが記録したポータルの陣営関係だけです。信頼区間はありません。記録はプレイヤーやセッションごとに偏るため、観測が 30 件未満の数値は暗く表示します。",
     ],
   },
 
@@ -339,6 +430,8 @@ export const ja: Messages = {
     "file.mixedExporters": "異なるアプリのビルドで書き出された行が混在しています。書き出しファイルは 1 つずつアップロードしてください。",
 
     "warning.ignoredColumns": "このサイトが認識しない {count} 個の列は無視され、保存されていません：{columns}。",
+    "warning.factionsNotStored":
+      "あなたの陣営とポータルの陣営は portal_alignment の確認にだけ使い、保存しません。このアップロードからあなたの陣営が分かることはありません。",
     "warning.unlistedItems":
       "このサイトのリストにまだないアイテム名（読み取ったアプリのビルド付き）：{items}。これらは未確認のテキストとして保管され、公開されることはありません。名前が確認されるまで、その記録はアイテム統計から除外されます。",
 
@@ -386,6 +479,7 @@ export const ja: Messages = {
     "hack.commandNotConfirmed": "{column} が設定されていますが、確認されていません。",
     "hack.levelColumns": "ポータルレベルの列は、すべて設定するか、すべて空欄にする必要があります。",
     "hack.levelOrder": "portal_level_low が portal_level_high より大きくなっています。",
+    "hack.alignment": "portal_alignment が portal_faction と player_faction に合いません。",
 
     "panel.withoutPanel": "パネルのない行は、その記録の唯一の行で、アイテムの列が空欄である必要があります。",
     "panel.order": "ポータルパネルの行は、ボーナスパネルの行より前にある必要があります。",
@@ -418,6 +512,8 @@ export const ja: Messages = {
     "filter.localHourOrder": "ローカル時間帯（開始）をローカル時間帯（終了）より後にすることはできません。",
     "filter.rangeOrder": "{first} を {second} より大きくすることはできません。",
     "filter.kind": "種類は hack または drop で指定してください。",
+    "filter.alignment": "alignment は same_faction、enemy、machina のいずれかで指定してください。",
+    "filter.split": "split は alignment、portalLevel、glyphCount、speedCommand、keyCommand のいずれかで指定してください。",
     "filter.panels": "パネルは portal、bonus、both のいずれかで指定してください。",
   },
 };

@@ -167,8 +167,12 @@ describe("fetchStatistics", () => {
         multiplied: 0,
         multipliedUnknown: 0,
         levels: [0, 0, 0, 0, 0, 2, 0, 0],
+        observations: 1,
+        rarities: { common: 0, rare: 0, veryRare: 0 },
       },
     ];
+    statistics.groups = [{ key: "enemy", summary: structuredClone(statistics.summary) }];
+    statistics.records.byApp = [{ version: "1.0.0", build: null, records: 1 }];
     return statistics;
   };
   const answerWith = (statistics: unknown) => answer(json(200, { ok: true, statistics }));
@@ -180,7 +184,10 @@ describe("fetchStatistics", () => {
   });
 
   it("fails cleanly on an answer missing what the dashboard reads", async () => {
-    const broken = valid() as unknown as { records: Record<string, unknown>; selection: Record<string, unknown> };
+    const broken = valid() as unknown as {
+      records: Record<string, unknown>;
+      selection: Record<string, unknown>;
+    };
     delete broken.records.byKind;
     delete broken.records.byCoverage;
     delete broken.selection.unplaced;
@@ -204,6 +211,18 @@ describe("fetchStatistics", () => {
       ["level array length", (s) => (s.items.byItem[0].levels = [1, 2, 3])],
       ["level value", (s) => (s.items.byItem[0].levels[5] = null)],
       ["multiplied", (s) => delete s.items.byItem[0].multipliedUnknown],
+      ["item observations", (s) => (s.items.byItem[0].observations = -2)],
+      ["item rarities", (s) => delete s.items.byItem[0].rarities.veryRare],
+      ["uploads", (s) => (s.selection.uploads = "3")],
+      ["app builds", (s) => (s.records.byApp[0].build = 74)],
+      ["summary", (s) => delete s.summary],
+      ["summary share", (s) => (s.summary.rare = { yes: 1 })],
+      ["summary portal levels", (s) => (s.summary.portalLevels = [1])],
+      ["summary level grid", (s) => s.summary.levelGrid.pop()],
+      ["summary grid row", (s) => (s.summary.levelGrid[2] = [0, 0])],
+      ["split", (s) => (s.split = "faction")],
+      ["group key", (s) => (s.groups[0].key = 1)],
+      ["group summary", (s) => (s.groups[0].summary.eligible = null)],
     ];
     for (const [name, breakIt] of cases) {
       // A test fixture deliberately broken field by field; the validator is what's under test.

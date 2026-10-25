@@ -1,6 +1,7 @@
 import type { Statistics } from "../../domain/statistics.ts";
 import type { Messages } from "../i18n/en.ts";
 import { issuesText, issueText, messages, problemText } from "../i18n/index.ts";
+import { averageText, barLabel, barTotals, chance, groupLabel, isFew, levelShares, percent, whenPresent } from "../dashboard.ts";
 import { matchesSearch } from "../items.ts";
 import { sortItems } from "../itemTable.ts";
 import { SOURCE_URL } from "../site.ts";
@@ -34,80 +35,131 @@ function counts(s: Messages, labels: Record<string, string>, values: Record<stri
 }
 
 function statisticsSection(s: Messages, state: AppState): HTMLElement {
-  const { outcome, search, sort } = state.statistics;
+  const { outcome } = state.statistics;
   const section = el("section", { "aria-label": s.app.statistics }, el("h2", {}, s.app.statistics));
   if (state.testPeriod) section.append(el("p", { "data-testid": "test-period" }, s.app.testPeriod));
   if (outcome === null) section.append(el("p", {}, s.stats.loading));
   else if (outcome.kind === "refused") section.append(el("p", { role: "alert" }, issuesText(s, outcome.issues)));
   else if (outcome.kind === "failed") section.append(el("p", { role: "alert" }, s.stats.loadFailed(problemText(s, outcome.problem))));
-  else section.append(...statisticsBody(s, outcome.statistics, search, sort));
+  else section.append(...statisticsBody(s, state, outcome.statistics));
   section.append(el("h3", {}, s.disclaimer.title), el("p", {}, s.disclaimer.text), el("h3", {}, s.guide.title), list(s.guide.points));
   return section;
 }
 
-function statisticsBody(s: Messages, statistics: Statistics, search: string, sort: AppState["statistics"]["sort"]): Node[] {
-  const { selection, records, items } = statistics;
+/** A table with a caption, column headings and rows whose first cell names the row. */
+function dataTable(testId: string, caption: string, headings: readonly string[], rows: readonly (readonly string[])[]): HTMLElement {
+  return el(
+    "table",
+    { "data-testid": testId },
+    el("caption", {}, caption),
+    el("thead", {}, el("tr", {}, ...headings.map((h) => el("th", { scope: "col" }, h)))),
+    el("tbody", {}, ...rows.map(([name, ...cells]) => el("tr", {}, el("th", { scope: "row" }, name), ...cells.map((cell) => el("td", {}, cell))))),
+  );
+}
+
+function statisticsBody(s: Messages, state: AppState, statistics: Statistics): Node[] {
+  const { search, sort, gridGroup } = state.statistics;
+  const { selection, records, items, summary, groups, split } = statistics;
   const headline = s.stats.mirrorHeadline;
-  const average = items.averagePerObservation === null ? s.stats.averageNone : items.averagePerObservation.toFixed(2);
-  const summary = el(
+  const few = (text: string, observations: number) => (isFew(observations) ? `${text} (${s.stats.headline.few})` : text);
+  const headlineList = el(
     "dl",
     { "data-testid": "headline" },
     el("dt", {}, headline.records),
     el("dd", {}, String(records.total)),
     el("dt", {}, headline.eligible),
-    el("dd", {}, s.stats.headline.eligibleValue(items.eligible, records.total)),
-    el("dt", {}, headline.items),
-    el("dd", {}, String(items.totalQuantity)),
+    el("dd", {}, s.stats.headline.eligibleValue(summary.eligible, records.total)),
     el("dt", {}, headline.perObservation),
-    el("dd", {}, average),
+    el("dd", {}, few(averageText(summary.averagePerObservation), summary.eligible)),
+    el("dt", {}, headline.rare),
+    el("dd", {}, few(percent(summary.rare), summary.rare.known)),
+    el("dt", {}, headline.key),
+    el("dd", {}, few(percent(summary.key), summary.key.known)),
   );
+  const notes = el("p", {}, s.stats.headline.recordsNote(selection.uploads, Object.values(selection.unplaced).reduce((a, b) => a + b, 0)));
+
+  const c = s.stats.compare;
+  const comparison = dataTable(
+    "compare",
+    c.splitChoice[split],
+    ["", c.columns.records, c.columns.eligible, c.columns.perObservation, c.columns.rare, c.columns.key],
+    groups.map(({ key, summary: g }) => [
+      few(groupLabel(s, split, key), g.eligible),
+      String(g.records),
+      String(g.eligible),
+      averageText(g.averagePerObservation),
+      percent(g.rare),
+      percent(g.key),
+    ]),
+  );
+
+  const selected = groups.find((group) => group.key === gridGroup) ?? null;
+  const grid = selected?.summary ?? summary;
+  const levelRows = grid.portalLevels.flatMap((observations, index) => {
+    if (observations === 0) return [];
+    const shares = levelShares(grid.levelGrid[index]) ?? Array<number>(8).fill(0);
+    return [[s.stats.levels.row(index + 1, observations), ...shares.map((share) => `${Math.round(share * 100)}%`)]];
+  });
+  const levels =
+    levelRows.length === 0
+      ? el("p", {}, s.stats.levels.empty)
+      : dataTable(
+          "levels",
+          s.stats.levels.mirrorCaption(selected ? groupLabel(s, split, selected.key) : s.stats.levels.all),
+          ["", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"],
+          levelRows,
+        );
+
+  const bars = barTotals(items.byItem, summary.eligible);
+  const givesList = list(bars.map(({ bar, perObservation }) => `${barLabel(s, bar)}: ${perObservation.toFixed(2)}`));
+
   const rows = sortItems(
     items.byItem.filter((row) => matchesSearch(row.item, search, s.stats.categories)),
     sort,
   );
   const columns = s.stats.mirrorColumns;
-  const levels = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"];
-  const table = el(
-    "table",
-    { "data-testid": "items" },
-    el("caption", {}, s.stats.mirrorCaption(s.panels[items.panels], items.eligible)),
-    el(
-      "thead",
-      {},
-      el(
-        "tr",
-        {},
-        ...[columns.item, columns.quantity, columns.perObservation, ...levels, columns.multiplied, columns.colourUnread].map((h) =>
-          el("th", { scope: "col" }, h),
-        ),
-      ),
-    ),
-    el(
-      "tbody",
-      {},
-      ...rows.map((row) =>
-        el(
-          "tr",
-          {},
-          el("th", { scope: "row" }, row.item),
-          el("td", {}, String(row.quantity)),
-          el("td", {}, row.averagePerObservation.toFixed(2)),
-          ...(row.levels ?? Array<number | null>(8).fill(null)).map((value) => el("td", {}, value === null ? s.stats.noLevels : String(value))),
-          el("td", {}, String(row.multiplied)),
-          el("td", {}, String(row.multipliedUnknown)),
-        ),
-      ),
-    ),
+  const table = dataTable(
+    "items",
+    s.stats.mirrorCaption(s.panels[items.panels], items.eligible),
+    [columns.item, columns.quantity, columns.perObservation, columns.chance, columns.whenPresent, ...["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"], columns.multiplied, columns.colourUnread],
+    rows.map((row) => {
+      const share = chance(row, items.eligible);
+      return [
+        row.item,
+        String(row.quantity),
+        row.averagePerObservation.toFixed(2),
+        share === null ? "—" : `${Math.round(share * 100)}%`,
+        averageText(whenPresent(row)),
+        ...(row.levels ?? Array<number | null>(8).fill(null)).map((value) => (value === null ? s.stats.noLevels : String(value))),
+        String(row.multiplied),
+        String(row.multipliedUnknown),
+      ];
+    }),
   );
+  const t = s.stats.sample;
+  const apps = records.byApp.map((app) => `${app.records} ${t.app(app.version ?? t.appUnknown, app.build ?? t.appUnknown)}`);
   return [
-    summary,
+    headlineList,
+    notes,
+    el("h3", {}, c.heading),
+    comparison,
+    el("p", {}, c.notes[split]),
+    el("h3", {}, s.stats.levels.heading),
+    levels,
+    el("p", {}, s.stats.levels.note),
+    el("h3", {}, s.stats.gives.heading),
+    givesList,
     table,
-    el("h3", {}, s.stats.breakdowns.coverage),
+    el("h3", {}, t.heading),
+    el("h4", {}, s.stats.breakdowns.coverage),
     counts(s, s.coverage, records.byCoverage),
-    el("h3", {}, s.stats.breakdowns.leftOut),
+    el("h4", {}, s.stats.breakdowns.leftOut),
     counts(s, s.exclusions, items.excluded),
-    el("h3", {}, s.stats.breakdowns.unplaced),
+    el("h4", {}, s.stats.breakdowns.unplaced),
     counts(s, s.unplaced, selection.unplaced),
+    el("h4", {}, t.apps),
+    apps.length === 0 ? el("p", {}, s.stats.noneMirror) : list(apps),
+    el("p", {}, t.gaps),
   ];
 }
 

@@ -13,7 +13,12 @@ before testing.
 ## What is stored
 
 - Only validated v1 fields of accepted records. Columns outside the 49 v1
-  columns are dropped, never stored.
+  columns are dropped, never stored, except `portal_alignment` (whether a
+  hack's portal was the player's own faction, the enemy's or Machina's).
+- **Factions are never stored.** `portal_faction` and `player_faction` are
+  read only to check the alignment, then dropped: with the alignment,
+  either one would tell the uploader's faction. The alignment alone
+  doesn't, and no portal is identified.
 - **One exception holds unverified text:** an item name not yet on the
   server's list. It is bounded to 40 characters from
   `[A-Za-z0-9 ().+-]`, but it could still hold anything a person types,

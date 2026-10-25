@@ -2,14 +2,17 @@ import { decodeRow, isListedItem, type DecodedRow } from "./cells.ts";
 import { parseCsv, type CsvError } from "./csv.ts";
 import { issueMessage, type IssueKey, type IssueParams } from "./issueMessages.ts";
 import {
+  APPENDED_NAMES,
   BUCKET_SECONDS,
+  CELL_NAMES,
   COLUMN_NAMES,
   FORMAT_VERSION,
   HACK_COLUMNS,
   ITEM_COLUMNS,
   PANEL_COLUMNS,
   PANELS,
-  type ColumnName,
+  type AppendedName,
+  type CellName,
 } from "./format.ts";
 import type {
   ExportPlacement,
@@ -19,6 +22,7 @@ import type {
   Origin,
   Panel,
   PanelStage,
+  PortalAlignment,
   Reading,
   TimeBucket,
 } from "./record.ts";
@@ -173,10 +177,20 @@ export function parseExport(bytes: Uint8Array, options: ImportOptions = {}): Imp
   if (extraColumns.some((name) => name === "") || new Set(header).size !== header.length) {
     return fail("unsupported_columns", "file.badHeader", undefined, { line: 1 });
   }
+  const appendedAt = new Map<AppendedName, number>();
+  extraColumns.forEach((name, offset) => {
+    if ((APPENDED_NAMES as readonly string[]).includes(name)) appendedAt.set(name as AppendedName, COLUMN_NAMES.length + offset);
+  });
+  const ignored = extraColumns.filter((name) => !(APPENDED_NAMES as readonly string[]).includes(name));
   const warnings: Issue[] = [];
-  if (extraColumns.length > 0) {
-    warnings.push(makeIssue("ignored_columns", "warning.ignoredColumns", { count: extraColumns.length, columns: extraColumns.join(", ") }));
+  if (ignored.length > 0) {
+    warnings.push(makeIssue("ignored_columns", "warning.ignoredColumns", { count: ignored.length, columns: ignored.join(", ") }));
   }
+  if (appendedAt.has("portal_faction") || appendedAt.has("player_faction")) {
+    warnings.push(makeIssue("factions_not_stored", "warning.factionsNotStored"));
+  }
+  // With both factions given, the alignment must follow from them; with either missing it can't be checked.
+  const checkAlignment = appendedAt.has("portal_faction") && appendedAt.has("player_faction");
 
   const dataRows = csv.rows.slice(1);
   if (dataRows.length === 0) return fail("no_records", "file.noRecords");
@@ -212,14 +226,21 @@ export function parseExport(bytes: Uint8Array, options: ImportOptions = {}): Imp
     } else if (exporter.appVersion !== rowExporter.appVersion || exporter.appBuild !== rowExporter.appBuild) {
       return fail("mixed_exporters", "file.mixedExporters", undefined, { line });
     }
-    const v1Fields = fields.slice(0, COLUMN_NAMES.length);
-    const id = v1Fields[1];
+    // In `CELL_NAMES` order: the v1 cells, then each known appended column's, blank when the file lacks it.
+    const cells = [
+      ...fields.slice(0, COLUMN_NAMES.length),
+      ...APPENDED_NAMES.map((name) => {
+        const index = appendedAt.get(name);
+        return index === undefined ? "" : fields[index];
+      }),
+    ];
+    const id = cells[1];
     const group = groups.get(id);
     if (group) {
       group.lines.push(line);
-      group.fields.push(v1Fields);
+      group.fields.push(cells);
     } else {
-      groups.set(id, { lines: [line], fields: [v1Fields], issues: [] });
+      groups.set(id, { lines: [line], fields: [cells], issues: [] });
     }
   }
 
@@ -230,7 +251,7 @@ export function parseExport(bytes: Uint8Array, options: ImportOptions = {}): Imp
   const records: ParsedRecord[] = [];
   const rejected: RejectedRecord[] = [...unattributed];
   for (const [id, group] of groups) {
-    const result: Built = group.issues.length > 0 ? { issues: group.issues } : buildRecord(group.fields, group.lines, now);
+    const result: Built = group.issues.length > 0 ? { issues: group.issues } : buildRecord(group.fields, group.lines, now, checkAlignment);
     if ("issues" in result) {
       rejected.push({ recordId: RECORD_ID.test(id) ? id : null, lines: group.lines, issues: result.issues });
     } else {
@@ -268,7 +289,7 @@ export function parseExport(bytes: Uint8Array, options: ImportOptions = {}): Imp
   };
 }
 
-const RECORD_COLUMNS: readonly ColumnName[] = COLUMN_NAMES.filter(
+const RECORD_COLUMNS: readonly CellName[] = CELL_NAMES.filter(
   (name) => !(PANEL_COLUMNS as readonly string[]).includes(name) && !(ITEM_COLUMNS as readonly string[]).includes(name),
 );
 
@@ -276,7 +297,7 @@ type Built = { record: ObservationRecord; placement: ExportPlacement } | { issue
 
 class RecordIssues {
   readonly list: Issue[] = [];
-  add(code: string, key: IssueKey, params: IssueParams | undefined, line?: number, column?: ColumnName): void {
+  add(code: string, key: IssueKey, params: IssueParams | undefined, line?: number, column?: CellName): void {
     this.list.push(makeIssue(code, key, params, { ...(line === undefined ? {} : { line }), ...(column ? { column } : {}) }));
   }
   get any(): boolean {
@@ -284,11 +305,22 @@ class RecordIssues {
   }
 }
 
-function buildRecord(rawRows: string[][], lines: number[], now: number): Built {
+/**
+ * The portal's side as the app derives it (DynamicGlyph `GearExport.alignment`):
+ * Machina whoever the player is; otherwise own faction or enemy, once both are known.
+ */
+function expectedAlignment(r: DecodedRow): PortalAlignment | null {
+  if (r.portal_faction === null) return null;
+  if (r.portal_faction === "machina") return "machina";
+  if (r.player_faction === null) return null;
+  return r.portal_faction === r.player_faction ? "same_faction" : "enemy";
+}
+
+function buildRecord(rawRows: string[][], lines: number[], now: number, checkAlignment: boolean): Built {
   const issues = new RecordIssues();
   const rows: DecodedRow[] = [];
   rawRows.forEach((fields, index) => {
-    const decoded = decodeRow(fields, COLUMN_NAMES);
+    const decoded = decodeRow(fields, CELL_NAMES);
     for (const issue of decoded.issues) {
       issues.add("invalid_value", issue.key, { column: issue.column, ...issue.params }, lines[index], issue.column);
     }
@@ -297,8 +329,8 @@ function buildRecord(rawRows: string[][], lines: number[], now: number): Built {
   if (issues.any) return { issues: issues.list };
 
   for (const column of RECORD_COLUMNS) {
-    const first = rawRows[0][COLUMN_NAMES.indexOf(column)];
-    const index = rawRows.findIndex((fields) => fields[COLUMN_NAMES.indexOf(column)] !== first);
+    const first = rawRows[0][CELL_NAMES.indexOf(column)];
+    const index = rawRows.findIndex((fields) => fields[CELL_NAMES.indexOf(column)] !== first);
     if (index !== -1) {
       issues.add("inconsistent_record", "record.columnDiffers", { column }, lines[index], column);
     }
@@ -307,12 +339,12 @@ function buildRecord(rawRows: string[][], lines: number[], now: number): Built {
 
   const r = rows[0];
   const line = lines[0];
-  const require = <K extends ColumnName>(column: K): NonNullable<DecodedRow[K]> | null => {
+  const require = <K extends CellName>(column: K): NonNullable<DecodedRow[K]> | null => {
     const value = r[column];
     if (value === null) issues.add("missing_value", "record.blank", { column }, line, column);
     return value ?? null;
   };
-  const requireBlank = (columns: readonly ColumnName[], why: IssueKey, params: IssueParams = {}): void => {
+  const requireBlank = (columns: readonly CellName[], why: IssueKey, params: IssueParams = {}): void => {
     for (const column of columns) {
       if (r[column] !== null) issues.add("unexpected_value", why, { column, ...params }, line, column);
     }
@@ -335,8 +367,9 @@ function buildRecord(rawRows: string[][], lines: number[], now: number): Built {
   }
 
   const time = buildTime(r, line, now, issues);
-  const hack = kind === "hack" ? buildHack(r, line, issues) : null;
-  if (kind === "drop") requireBlank(HACK_COLUMNS, "record.mustBeBlankForDrop");
+  const hack = kind === "hack" ? buildHack(r, line, issues, checkAlignment) : null;
+  // A drop has no portal; the player's own faction may still be set.
+  if (kind === "drop") requireBlank([...HACK_COLUMNS, "portal_faction", "portal_alignment"], "record.mustBeBlankForDrop");
 
   let reading: Reading | null = null;
   if (readStatus === "read") {
@@ -425,7 +458,7 @@ function buildTime(r: DecodedRow, line: number, now: number, issues: RecordIssue
   };
 }
 
-function buildHack(r: DecodedRow, line: number, issues: RecordIssues): HackResult | null {
+function buildHack(r: DecodedRow, line: number, issues: RecordIssues, checkAlignment: boolean): HackResult | null {
   const state = r.hack_state;
   const glyphCount = r.hack_glyph_count;
   if (state === null) issues.add("missing_value", "record.blank", { column: "hack_state" }, line, "hack_state");
@@ -486,8 +519,14 @@ function buildHack(r: DecodedRow, line: number, issues: RecordIssues): HackResul
     }
   }
 
+  if (checkAlignment && r.portal_alignment !== expectedAlignment(r)) {
+    issues.add("inconsistent_record", "hack.alignment", undefined, line, "portal_alignment");
+  }
+
   if (state === null || glyphCount === null) return null;
-  return { state, glyphCount, hackingBonus, speedBonus, commands, portalLevel };
+  const hack: HackResult = { state, glyphCount, hackingBonus, speedBonus, commands, portalLevel };
+  if (r.portal_alignment !== null) hack.portalAlignment = r.portal_alignment;
+  return hack;
 }
 
 const PANEL_ORDER: Record<PanelStage, number> = { portal: 0, bonus: 1 };

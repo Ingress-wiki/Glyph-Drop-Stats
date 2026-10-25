@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { LOCALES, messages } from "../../src/web/i18n/index.ts";
 import { SOURCE_URL } from "../../src/web/site.ts";
-import { activate, checks, dialogsClosed, newContext } from "./keyboard.mjs";
+import { activate, checks, dialogsClosed, newContext, scrollToRun } from "./keyboard.mjs";
 
 /** Tab until the focus announcement is exactly `announced` (any language's punctuation), then press `key`. */
 const activateExactly = (page, announced, key = "Enter", max = 80) =>
@@ -85,11 +85,13 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
     await page.keyboard.press("F1");
     await page.locator("[data-testid=headline]").waitFor();
     await page.waitForTimeout(500);
-    const inkOf = () =>
-      page.evaluate(() => {
+    const inkOf = async () => {
+      await scrollToRun(page, /^Resonator\s*$/);
+      return page.evaluate(() => {
         const run = [...document.querySelectorAll("#canvas-text .canvas-text-run")].find((node) => node.textContent?.trim() === "Resonator");
         return run ? getComputedStyle(run).color : null;
       });
+    };
     check("pixel font: the text layer is transparent", (await inkOf()) === "rgba(0, 0, 0, 0)", await inkOf());
     await activateExactly(page, ko.a11y.button(ko.app.fontPixel));
     await page.waitForTimeout(300);

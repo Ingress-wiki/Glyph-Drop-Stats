@@ -10,6 +10,7 @@ import type {
   KINDS,
   LEVEL_STATES,
   PANELS,
+  PORTAL_ALIGNMENTS,
   PORTAL_LEVEL_CONFIDENCES,
   RARITIES,
   RARITY_SOURCES,
@@ -42,6 +43,7 @@ export type PortalLevelConfidence = (typeof PORTAL_LEVEL_CONFIDENCES)[number];
 export type CaptureMode = (typeof CAPTURE_MODES)[number];
 export type GameLanguage = (typeof GAME_LANGUAGES)[number];
 export type GameLanguageSource = (typeof GAME_LANGUAGE_SOURCES)[number];
+export type PortalAlignment = (typeof PORTAL_ALIGNMENTS)[number];
 
 export type TimePrecision = "hour" | "day";
 
@@ -100,6 +102,12 @@ export interface HackResult {
     keyStatus: CommandStatus;
   } | null;
   portalLevel: { low: number; high: number; confidence: PortalLevelConfidence; conflict: boolean } | null;
+  /**
+   * The associated portal's side against the player's. Absent, rather than
+   * null, when unknown, so a record from a file without the column hashes
+   * exactly as it did before the site read it.
+   */
+  portalAlignment?: PortalAlignment;
 }
 
 export interface Origin {

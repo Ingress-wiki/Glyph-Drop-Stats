@@ -11,14 +11,38 @@ the server reads that format. The code is `src/domain/`.
 - UTF-8. A byte-order mark added by another tool is ignored.
 - RFC 4180 CSV. CRLF or LF line endings; blank lines are skipped.
 - The header must begin with the 49 v1 columns, in order (`src/domain/format.ts`).
-  - Within v1 the app may append columns. The server ignores any column after
-    the 49 and **does not store it**, and the preview says so. This matters:
-    later columns may hold data, such as portal names, that the site has not
-    agreed to collect.
+  - Within v1 the app may append columns. The server reads the appended
+    columns it knows (below), wherever they come after the 49. It ignores
+    any other column and **does not store it**, and the preview says so.
+    This matters: later columns may hold data, such as portal names, that
+    the site has not agreed to collect.
   - A renamed, missing or reordered column rejects the file.
 - `format_version` must be `1` on every row.
 - Every row must have the same `exporter_app_version` and
   `exporter_app_build`, because one export is one snapshot.
+
+## Appended faction columns
+
+DynamicGlyph builds after 1.0.0 append three columns. Files without them
+stay valid.
+
+| Column | Values | Stored |
+| --- | --- | --- |
+| `portal_faction` | `resistance`, `enlightened`, `machina` | no |
+| `player_faction` | `resistance`, `enlightened` | no |
+| `portal_alignment` | `same_faction`, `enemy`, `machina` | yes, on hacks |
+
+- Only `portal_alignment` is stored. Either faction with the alignment
+  would tell the uploader's faction, so both are read only to check it
+  and then dropped, and the preview says so (`factions_not_stored`).
+- When both faction columns are present, a hack's alignment must follow
+  from them: `machina` for a Machina portal; otherwise `same_faction` or
+  `enemy` when both factions are known; otherwise blank. Anything else
+  rejects the record (`inconsistent_record`).
+- `neutral` is reserved by the app for when it recognizes neutral
+  portals, and is rejected until then.
+- A drop may have `player_faction`, but not `portal_faction` or
+  `portal_alignment`.
 
 ## Records
 
@@ -140,4 +164,5 @@ Record-level (that record is rejected): `row_width`, `invalid_value`,
 `missing_value`, `unexpected_value`, `inconsistent_record`,
 `malformed_record`, `invalid_time`.
 
-Warnings (the file is accepted): `ignored_columns`, `unlisted_items`.
+Warnings (the file is accepted): `ignored_columns`, `factions_not_stored`,
+`unlisted_items`.

@@ -468,3 +468,92 @@ describe("time intervals", () => {
     ).toEqual(["invalid_time"]);
   });
 });
+
+describe("faction columns", () => {
+  const FACTIONS = ["portal_faction", "player_faction", "portal_alignment"];
+  /** A file with the three faction columns; `cells` gives each row's values, in that order. */
+  const withFactions = (rows: Row[], cells: (index: number) => string[], header = [...COLUMN_NAMES, ...FACTIONS]) =>
+    parseExport(bytes(csv(rows, { header, extra: rows.map((_, index) => cells(index)) })), { now: NOW });
+
+  it("keeps the alignment, drops both factions and says so", () => {
+    const result = accepted(withFactions(fullHackRows(), () => ["enlightened", "resistance", "enemy"]));
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0].record.hack?.portalAlignment).toBe("enemy");
+    expect(result.warnings.map((warning) => warning.code)).toEqual(["factions_not_stored"]);
+    const stored = JSON.stringify(result.records);
+    expect(stored).not.toContain("enlightened");
+    expect(stored).not.toContain("resistance");
+  });
+
+  it("accepts each alignment the app derives", () => {
+    const alignmentOf = (portal: string, player: string, alignment: string) =>
+      accepted(withFactions(fullHackRows(), () => [portal, player, alignment])).records[0]?.record.hack?.portalAlignment;
+    expect(alignmentOf("resistance", "resistance", "same_faction")).toBe("same_faction");
+    expect(alignmentOf("machina", "", "machina")).toBe("machina");
+    expect(alignmentOf("machina", "enlightened", "machina")).toBe("machina");
+    // No portal screen, or no faction set: unknown, and left absent.
+    expect(alignmentOf("", "resistance", "")).toBeUndefined();
+    expect(alignmentOf("enlightened", "", "")).toBeUndefined();
+  });
+
+  it("rejects an alignment that doesn't follow from the factions", () => {
+    for (const cells of [
+      ["enlightened", "enlightened", "enemy"],
+      ["resistance", "enlightened", "same_faction"],
+      ["machina", "resistance", "enemy"],
+      ["enlightened", "", "enemy"],
+      ["", "", "machina"],
+    ]) {
+      const result = accepted(withFactions(fullHackRows(), () => cells));
+      expect(result.rejected.map((rejected) => rejected.issues.map((issue) => issue.key))).toEqual([["hack.alignment"]]);
+    }
+  });
+
+  it("rejects values outside the app's lists, including the reserved neutral", () => {
+    for (const cells of [
+      ["neutral", "", ""],
+      ["", "machina", ""],
+      ["", "", "neutral"],
+    ]) {
+      const result = accepted(withFactions(fullHackRows(), () => cells));
+      expect(result.records).toHaveLength(0);
+      expect(result.rejected[0].issues[0].key).toBe("cell.notAllowed");
+    }
+  });
+
+  it("allows the player's faction on a drop, but no portal", () => {
+    const drop = [
+      {
+        ...dropRecord(),
+        ...item("portal", 0, { item: "Power Cube", level: "8" }),
+      },
+    ];
+    expect(accepted(withFactions(drop, () => ["", "resistance", ""])).records).toHaveLength(1);
+    const withPortal = accepted(withFactions(drop, () => ["machina", "", "machina"]));
+    expect(withPortal.rejected[0].issues.map((issue) => issue.column)).toEqual(["portal_faction", "portal_alignment"]);
+  });
+
+  it("requires the same factions on every row of a record", () => {
+    const result = accepted(withFactions(fullHackRows(), (index) => ["enlightened", index === 2 ? "enlightened" : "resistance", "enemy"]));
+    expect(result.rejected[0].issues.map((issue) => issue.key)).toContain("record.columnDiffers");
+  });
+
+  it("takes the alignment unchecked when the factions aren't given, and still ignores unknown columns", () => {
+    const rows = fullHackRows();
+    const result = accepted(withFactions(rows, () => ["Secret Portal", "same_faction"], [...COLUMN_NAMES, "portal_name", "portal_alignment"]));
+    expect(result.records[0].record.hack?.portalAlignment).toBe("same_faction");
+    expect(result.warnings.map((warning) => warning.code)).toEqual(["ignored_columns"]);
+    expect(result.warnings[0].params).toEqual({
+      count: 1,
+      columns: "portal_name",
+    });
+  });
+
+  it("leaves a record without an alignment exactly as a file without the columns gives it", () => {
+    const plain = parseRows(fullHackRows()).records[0].record;
+    const blank = accepted(withFactions(fullHackRows(), () => ["", "", ""])).records[0].record;
+    expect(blank).toEqual(plain);
+    expect(JSON.stringify(blank)).toBe(JSON.stringify(plain));
+    expect("portalAlignment" in (blank.hack ?? {})).toBe(false);
+  });
+});

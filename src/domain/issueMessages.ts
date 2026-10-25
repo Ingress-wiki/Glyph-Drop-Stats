@@ -24,6 +24,8 @@ export const ISSUE_MESSAGES = {
   "file.mixedExporters": "Rows were written by different app builds; upload each export separately.",
 
   "warning.ignoredColumns": "{count} column(s) this site doesn't know were ignored and not stored: {columns}.",
+  "warning.factionsNotStored":
+    "Your faction and the portal's faction were read only to check portal_alignment. They aren't stored, so no one can tell your faction from this upload.",
   "warning.unlistedItems":
     "Item names not on this site's list yet, with the app build that captured them: {items}. They are kept as unverified text, never shown publicly, and their records are left out of item statistics until the names are reviewed.",
 
@@ -71,6 +73,7 @@ export const ISSUE_MESSAGES = {
   "hack.commandNotConfirmed": "{column} is set but not confirmed.",
   "hack.levelColumns": "Portal level columns must all be set or all blank.",
   "hack.levelOrder": "portal_level_low is above portal_level_high.",
+  "hack.alignment": "portal_alignment doesn't follow from portal_faction and player_faction.",
 
   "panel.withoutPanel": "A row without a panel must be the record's only row, with item columns blank.",
   "panel.order": "The portal panel's rows must come before the bonus panel's.",
@@ -103,6 +106,8 @@ export const ISSUE_MESSAGES = {
   "filter.localHourOrder": "localHourFrom must not be after localHourTo.",
   "filter.rangeOrder": "{first} must not be above {second}.",
   "filter.kind": "kind must be hack or drop.",
+  "filter.alignment": "alignment must be same_faction, enemy or machina.",
+  "filter.split": "split must be alignment, portalLevel, glyphCount, speedCommand or keyCommand.",
   "filter.panels": "panels must be portal, bonus or both.",
 } as const;
 

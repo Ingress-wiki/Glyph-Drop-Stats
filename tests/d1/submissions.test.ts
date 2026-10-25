@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { COLUMN_NAMES } from "../../src/domain/format.ts";
 import { parseExport } from "../../src/domain/importer.ts";
 import { contentHash } from "../../src/domain/normalize.ts";
 import { hashReceiptSecret, newReceiptSecret } from "../../src/domain/receipt.ts";
@@ -88,6 +89,25 @@ describe("storage", () => {
     for (const [index, record] of records.entries()) {
       expect(stored.get(hashes[index])).toEqual(record);
     }
+  });
+
+  it("stores a portal alignment, and only that, reading back with the same hash", async () => {
+    const rows = fullHackRows();
+    const file = csv(rows, {
+      header: [...COLUMN_NAMES, "portal_faction", "player_faction", "portal_alignment"],
+      extra: rows.map(() => ["machina", "enlightened", "machina"]),
+    });
+    const { parsed } = input(file);
+    await confirmed(file);
+    const record = parsed.records[0].record;
+    const hash = await contentHash(record);
+    const stored = (await loadVersions(db, [hash])).get(hash);
+    expect(stored).toEqual(record);
+    expect(stored?.hack?.portalAlignment).toBe("machina");
+    expect(await contentHash(stored ?? record)).toBe(hash);
+    const row = await db.prepare("SELECT * FROM record_versions WHERE version_hash = ?1").bind(hash).first<Record<string, unknown>>();
+    expect(row?.portal_alignment).toBe("machina");
+    expect(JSON.stringify(row)).not.toContain("enlightened");
   });
 
   it("stores an upload too large for one bulk statement per table", async () => {

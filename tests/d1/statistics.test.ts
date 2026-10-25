@@ -25,7 +25,9 @@ async function submit(file: string): Promise<{ secret: string; outcomes: Record<
   const secret = newReceiptSecret();
   const response = await call("/api/submissions", { method: "POST", body: file, headers: { authorization: `Receipt ${secret}` } });
   expect(response.status).toBe(201);
-  const body = (await response.json()) as { submission: { outcomes: Record<string, number> } };
+  const body = (await response.json()) as {
+    submission: { outcomes: Record<string, number> };
+  };
   return { secret, outcomes: body.submission.outcomes };
 }
 
@@ -72,12 +74,17 @@ describe("withdrawal", () => {
     // A supplies h1–h6; B supplies h4–h6 and the rest. Together they are the whole dataset.
     const a = await submit(filesOf(records.slice(0, 6)));
     const b = await submit(filesOf(records.slice(3)));
-    expect((await stats()).records).toEqual(EXPECTED.records);
+    const before = await stats();
+    expect(before.records).toEqual(EXPECTED.records);
+    expect(before.summary).toEqual(EXPECTED.summary);
+    // h1–h6 are counted from A, the earliest upload that supplied them; the rest from B.
+    expect(before.selection.uploads).toBe(2);
 
     await withdraw(a.secret);
     const afterA = await stats();
     // Left: h4 h5 h6 (still supported by B), d h8 h9 h10.
     expect(afterA.records.total).toBe(7);
+    expect(afterA.selection.uploads).toBe(1);
     expect(afterA.items).toEqual({
       panels: "portal",
       eligible: 3, // d, h9, h10
@@ -93,6 +100,8 @@ describe("withdrawal", () => {
           multiplied: 0,
           multipliedUnknown: 0,
           levels: [0, 0, 0, 0, 0, 0, 0, 2],
+          observations: 1,
+          rarities: { common: 0, rare: 0, veryRare: 0 },
         },
         {
           item: "Resonator",
@@ -101,6 +110,8 @@ describe("withdrawal", () => {
           multiplied: 0,
           multipliedUnknown: 0,
           levels: [0, 0, 0, 0, 0, 2, 0, 0],
+          observations: 2,
+          rarities: { common: 0, rare: 0, veryRare: 0 },
         },
       ],
     });
@@ -108,6 +119,7 @@ describe("withdrawal", () => {
     await withdraw(b.secret);
     const afterBoth = await stats();
     expect(afterBoth.records.total).toBe(0);
+    expect(afterBoth.selection.uploads).toBe(0);
     expect(afterBoth.items.averagePerObservation).toBeNull();
   });
 });

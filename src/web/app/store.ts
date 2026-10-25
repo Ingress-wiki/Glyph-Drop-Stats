@@ -39,6 +39,10 @@ export interface StatisticsState {
   filtersOpen: boolean;
   guideOpen: boolean;
   disclaimerOpen: boolean;
+  /** The comparison group whose level grid is shown; null for every record. */
+  gridGroup: string | null;
+  /** The "about this sample" section is expanded. */
+  sampleOpen: boolean;
 }
 
 export type CheckState =
@@ -157,6 +161,8 @@ export class Store {
         filtersOpen: false,
         guideOpen: false,
         disclaimerOpen: deps.storage.get(DISCLAIMER_KEY) !== "1",
+        gridGroup: null,
+        sampleOpen: false,
       },
       crt: deps.storage.get(CRT_KEY) !== "off",
       smoothText: deps.storage.get(SMOOTH_TEXT_KEY) === "on",
@@ -273,21 +279,30 @@ export class Store {
     this.updateStatistics({ form: { ...this.state.statistics.form, [name]: value } });
   }
 
-  /** Pickers apply at once, like a unit switch; ranges wait for `applyFilters`. */
-  choose(patch: Partial<Pick<StatsForm, "kind" | "panels">>): void {
-    const form = { ...this.state.statistics.form, ...patch };
-    this.updateStatistics({ form });
+  /** Pickers apply at once, like a unit switch; ranges wait for `applyFilters`. A new split's groups start from "all". */
+  choose(patch: Partial<Pick<StatsForm, "kind" | "panels" | "alignment" | "split">>): void {
+    const { form: current, gridGroup } = this.state.statistics;
+    const form = { ...current, ...patch };
+    this.updateStatistics({ form, gridGroup: form.split === current.split ? gridGroup : null });
     void this.loadStatistics(formQuery(form));
+  }
+
+  setGridGroup(gridGroup: string | null): void {
+    this.updateStatistics({ gridGroup });
+  }
+
+  toggleSample(): void {
+    this.updateStatistics({ sampleOpen: !this.state.statistics.sampleOpen });
   }
 
   applyFilters(): void {
     void this.loadStatistics(formQuery(this.state.statistics.form));
   }
 
-  /** Clears the ranges; the kind and panel pickers keep their choice. */
+  /** Clears the ranges; the pickers keep their choice. */
   clearFilters(): void {
-    const { kind, panels } = this.state.statistics.form;
-    const form = { ...EMPTY_FORM, kind, panels };
+    const { kind, panels, alignment, split } = this.state.statistics.form;
+    const form = { ...EMPTY_FORM, kind, panels, alignment, split };
     this.updateStatistics({ form });
     void this.loadStatistics(formQuery(form));
   }

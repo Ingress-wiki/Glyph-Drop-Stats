@@ -110,6 +110,33 @@ export const EXPECTED = {
       unavailable: 1,
       unsupported: 0,
     },
+    byApp: [{ version: "0.1.0", build: "74", records: 10 }],
+  },
+  /**
+   * The summary of every record, portal panel. Nothing has a rarity or is a
+   * key, so both shares are 0 of 5. Exact trusted portal levels: h1 and h9
+   * at 6, h2 at 5; h10 is a range and the drop has none.
+   */
+  summary: {
+    records: 10,
+    eligible: 5,
+    totalQuantity: 10,
+    averagePerObservation: 2,
+    rare: { yes: 0, known: 5 },
+    key: { yes: 0, known: 5 },
+    portalLevels: [0, 0, 0, 0, 1, 2, 0, 0],
+    levelGrid: [
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      // P5: h2's Resonator L5 ×3.
+      [0, 0, 0, 0, 3, 0, 0, 0],
+      // P6: h1's Resonator L6 ×2 and XMP Burster L6 ×1, h9's Resonator L6 ×1.
+      [0, 0, 0, 0, 0, 4, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0],
+    ],
   },
   portalItems: {
     // h1, h2, d, h9, h10
@@ -127,6 +154,9 @@ export const EXPECTED = {
         multiplied: 2,
         multipliedUnknown: 3,
         levels: [0, 0, 0, 0, 3, 4, 0, 0],
+        // h1, h2, h9, h10
+        observations: 4,
+        rarities: { common: 0, rare: 0, veryRare: 0 },
       },
       {
         item: "Power Cube",
@@ -135,6 +165,8 @@ export const EXPECTED = {
         multiplied: 0,
         multipliedUnknown: 0,
         levels: [0, 0, 0, 0, 0, 0, 0, 2],
+        observations: 1,
+        rarities: { common: 0, rare: 0, veryRare: 0 },
       },
       {
         item: "XMP Burster",
@@ -143,6 +175,8 @@ export const EXPECTED = {
         multiplied: 0,
         multipliedUnknown: 0,
         levels: [0, 0, 0, 0, 0, 1, 0, 0],
+        observations: 1,
+        rarities: { common: 0, rare: 0, veryRare: 0 },
       },
     ],
   },
