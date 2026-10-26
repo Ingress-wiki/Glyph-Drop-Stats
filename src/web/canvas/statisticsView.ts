@@ -231,6 +231,10 @@ function headline(ctx: Context, s: Messages, statistics: Statistics): void {
   const smallH = lineHeight(ctx, FONT.small);
   const valueH = lineHeight(ctx, FONT.mixed) * 2;
   const perRow = Math.max(1, Math.min(5, Math.floor(ctx.bounds.w / 128)));
+  if (perRow === 1) {
+    headlineList(ctx, cells, h.few);
+    return;
+  }
   const cellW = Math.floor(ctx.bounds.w / perRow);
   for (let i = 0; i < cells.length; i += perRow) {
     // A caveat wraps rather than being cut off (larger CJK faces need it); a row is as tall as its longest.
@@ -255,6 +259,35 @@ function headline(ctx: Context, s: Messages, statistics: Statistics): void {
       ctx.drawText(caveat, x + 4, r.y + 3 + smallH + 2 + valueH + 2);
     });
   }
+  ctx.place({ w: 0, h: 6 });
+}
+
+/**
+ * The headline on a narrow screen: a figure per line, its value beside its
+ * label (large when there's room), the caveat under them.
+ */
+function headlineList(ctx: Context, cells: readonly [string, string, string, boolean][], fewNote: string): void {
+  const { colors: c } = useTheme(ctx);
+  const smallH = lineHeight(ctx, FONT.small);
+  const mixedH = lineHeight(ctx, FONT.mixed);
+  const w = ctx.bounds.w;
+  cells.forEach(([label, value, note, few], index) => {
+    const labelW = ctx.measureText(label, { font: FONT.small });
+    const scale = labelW + 6 + ctx.measureText(value, { font: FONT.mixed, scale: 2 }) <= w - 8 ? 2 : 1;
+    const valueW = ctx.measureText(value, { font: FONT.mixed, scale });
+    const caveat = ctx.layoutText(wrapText(ctx, few ? `${note} · ${fewNote}` : note, w - 8, FONT.small), {
+      font: FONT.small,
+      color: few ? c.muted : c.slate,
+      width: w - 8,
+      lineGap: 1,
+    });
+    const top = Math.max(smallH, mixedH * scale);
+    const r = ctx.place({ w, h: 2 + top + 1 + caveat.bounds.h + 2 });
+    if (index > 0) ctx.hline(r.x, r.y - 2, w, c.line);
+    ctx.text(label, r.x + 4, r.y + 2 + top - smallH, { color: c.muted, font: FONT.small });
+    ctx.text(value, r.x + w - 4 - valueW, r.y + 2, { color: few ? c.muted : c.paper, font: FONT.mixed, scale });
+    ctx.drawText(caveat, r.x + 4, r.y + 2 + top + 1);
+  });
   ctx.place({ w: 0, h: 6 });
 }
 
@@ -296,6 +329,28 @@ function compare(ctx: Context, store: Store, s: Messages, statistics: Statistics
   const nameW = Math.max(72, ...labels.map((name) => ctx.measureText(name, { font: FONT.mixed }) + 10));
   const columns = [t.columns.records, t.columns.eligible, t.columns.perObservation, t.columns.rare, t.columns.key].map((name) => ({ name, w: fit(name, 44) }));
   const width = nameW + columns.reduce((total, col) => total + col.w, 0);
+  const notes = [t.notes[split], ...(groups.some((group) => isFew(group.summary.eligible)) ? [t.few(SMALL_SAMPLE)] : [])];
+  if (width > ctx.bounds.w) {
+    // Too narrow for the table: each group's name, then its figures, wrapping.
+    groups.forEach(({ summary }, index) => {
+      const few = isFew(summary.eligible);
+      const r = ctx.place({ w: ctx.bounds.w, h: lineHeight(ctx, FONT.mixed) });
+      if (index > 0) ctx.hline(r.x, r.y - 3, r.w, c.line);
+      ctx.text(labels[index], r.x, r.y, { color: few ? c.dim : c.paper, font: FONT.mixed });
+      const figures = [
+        `${t.columns.records} ${summary.records}`,
+        `${t.columns.eligible} ${summary.eligible}`,
+        `${t.columns.perObservation} ${averageText(summary.averagePerObservation)}`,
+        `${t.columns.rare} ${percent(summary.rare)}`,
+        `${t.columns.key} ${percent(summary.key)}`,
+      ];
+      paragraph(ctx, figures.join(" · "), { color: few ? c.dim : c.text, font: FONT.small });
+    });
+    ctx.place({ w: 0, h: 3 });
+    for (const note of notes) paragraph(ctx, note, { color: c.slate, font: FONT.small });
+    ctx.place({ w: 0, h: 6 });
+    return;
+  }
   const smallH = lineHeight(ctx, FONT.small);
   const rowH = lineHeight(ctx, FONT.mixed) + 5;
   const headH = smallH + 6;
@@ -326,7 +381,6 @@ function compare(ctx: Context, store: Store, s: Messages, statistics: Statistics
     table.strokeRect({ x: origin.x, y: origin.y, w: width, h: height }, c.border);
   });
   ctx.place({ w: 0, h: 3 });
-  const notes = [t.notes[split], ...(groups.some((group) => isFew(group.summary.eligible)) ? [t.few(SMALL_SAMPLE)] : [])];
   for (const note of notes) paragraph(ctx, note, { color: c.slate, font: FONT.small });
   ctx.place({ w: 0, h: 6 });
 }
@@ -363,18 +417,33 @@ function levelGrid(ctx: Context, store: Store, s: Messages, statistics: Statisti
   }
   const maxShare = Math.max(...rows.flatMap((row) => row.shares ?? []));
   const labelW = Math.max(...rows.map((row) => ctx.measureText(t.row(row.level, row.observations), { font: FONT.small }) + 8));
-  const cellW = 26;
+  // Narrower than the grid: the cells shrink to fit, in the small face, while a 100 still fits in one.
+  const fitW = Math.floor((ctx.bounds.w - labelW) / 8);
+  const fits = fitW >= ctx.measureText("100", { font: FONT.small }) + 4;
+  if (!fits) {
+    // Too narrow even for that (a phone): each portal level's line lists the item levels it gave.
+    for (const row of rows) {
+      const shares = (row.shares ?? []).flatMap((share, level) => (share > 0 ? [`L${level + 1} ${Math.round(share * 100)}%`] : []));
+      paragraph(ctx, `${t.row(row.level, row.observations)}: ${shares.join(" · ")}`, { color: isFew(row.observations) ? c.dim : c.text, font: FONT.small });
+    }
+    ctx.place({ w: 0, h: 3 });
+    paragraph(ctx, t.note, { color: c.slate, font: FONT.small });
+    ctx.place({ w: 0, h: 6 });
+    return;
+  }
+  const shrink = labelW + 26 * 8 > ctx.bounds.w;
+  const cellW = shrink ? fitW : 26;
+  const cellFont = shrink ? FONT.small : FONT.mixed;
   const smallH = lineHeight(ctx, FONT.small);
-  const mixedH = lineHeight(ctx, FONT.mixed);
   const headH = smallH + 6;
-  const rowH = mixedH + 6;
+  const rowH = lineHeight(ctx, cellFont) + 6;
   const width = labelW + cellW * 8;
   const height = headH + rows.length * rowH + 1;
   wideTable(ctx, "levels:scroll", width, height, (table) => {
     const origin = table.place({ w: width, h: height });
     table.fillRect({ x: origin.x, y: origin.y, w: width, h: headH }, c.panel);
     for (let level = 1; level <= 8; level++) {
-      table.text(`L${level}`, origin.x + labelW + (level - 1) * cellW + 3, origin.y + 3, { color: c.ash, font: FONT.small });
+      table.text(`L${level}`, origin.x + labelW + (level - 1) * cellW + 2, origin.y + 3, { color: c.ash, font: FONT.small });
     }
     rows.forEach((row, index) => {
       const y = origin.y + headH + index * rowH;
@@ -388,7 +457,7 @@ function levelGrid(ctx: Context, store: Store, s: Messages, statistics: Statisti
         const fill = shadeFill(shade(share, maxShare));
         if (fill !== null) table.fillRect(cell, fill);
         const text = share === 0 ? "·" : String(Math.round(share * 100));
-        table.text(text, cell.x + 3, y + 3, { color: fill !== null ? inkOn(fill) : c.dim, font: FONT.mixed });
+        table.text(text, cell.x + 2, y + 3, { color: fill !== null ? inkOn(fill) : c.dim, font: cellFont });
       }
       table.hline(origin.x, y + rowH - 1, width, c.line);
     });
@@ -505,6 +574,10 @@ function itemTable(ctx: Context, store: Store, s: Messages, statistics: Statisti
     items.byItem.filter((row) => matchesSearch(row.item, search, s.stats.categories)),
     sort,
   );
+  if (width > ctx.bounds.w) {
+    itemList(ctx, store, s, statistics, rows);
+    return;
+  }
   const smallH = lineHeight(ctx, FONT.small);
   const mixedH = lineHeight(ctx, FONT.mixed);
   const headH = smallH + 8;
@@ -555,6 +628,81 @@ function itemTable(ctx: Context, store: Store, s: Messages, statistics: Statisti
   };
 
   wideTable(ctx, "items:scroll", width, height, draw);
+  ctx.place({ w: 0, h: 6 });
+}
+
+/**
+ * The item table on a screen too narrow for it: a sort picker, then each
+ * item's name and category, its figures, and its levels where it has any.
+ * Sideways scrolling would trap a vertical swipe, so nothing here scrolls.
+ */
+function itemList(ctx: Context, store: Store, s: Messages, statistics: Statistics, rows: readonly ItemTotal[]): void {
+  const { colors: c } = useTheme(ctx);
+  const { items } = statistics;
+  const { sort } = store.state.statistics;
+  const t = s.stats.table;
+  const sortOptions: { value: SortKey; label: string }[] = [
+    { value: "item", label: t.item },
+    { value: "quantity", label: t.quantity },
+    { value: "averagePerObservation", label: s.stats.compare.columns.perObservation },
+    { value: "chance", label: t.chance },
+    { value: "whenPresent", label: t.whenPresent },
+  ];
+  const current = sortOptions.find((option) => option.value === sort.key) ?? sortOptions[1];
+  const label = t.sort(current.label);
+  const [rect] = wrapRow(ctx, [buttonWidth(ctx, label, true)], buttonHeight(ctx), 4);
+  picker(ctx, rect, {
+    key: "items:sort",
+    label,
+    value: current.value,
+    options: sortOptions,
+    onPick: (key) => {
+      if (key !== sort.key) store.sortBy(key);
+    },
+  });
+  ctx.place({ w: 0, h: 2 });
+  if (rows.length === 0) {
+    paragraph(ctx, items.byItem.length === 0 ? t.noEligible : t.noMatch, { color: c.muted });
+    ctx.place({ w: 0, h: 6 });
+    return;
+  }
+
+  const smallH = lineHeight(ctx, FONT.small);
+  const mixedH = lineHeight(ctx, FONT.mixed);
+  rows.forEach((row, index) => {
+    const r = ctx.place({ w: ctx.bounds.w, h: mixedH + 1 });
+    if (index > 0) ctx.hline(r.x, r.y - 3, r.w, c.line);
+    ctx.text(row.item, r.x, r.y, { color: c.paper, font: FONT.mixed });
+    const category = itemCategory(row.item);
+    const nameW = ctx.measureText(row.item, { font: FONT.mixed });
+    if (category) {
+      const tagLabel = s.stats.categories[category];
+      const tag = { x: 0, y: r.y + 1, w: ctx.measureText(tagLabel, { font: FONT.small }) + 4, h: smallH + 1 };
+      tag.x = r.x + r.w - tag.w;
+      // A long name in a large face leaves no room for its tag; the search still finds the category.
+      if (tag.x > r.x + nameW + 4) {
+        const name = s.a11y.showCategory(tagLabel);
+        const { it, activated } = pressable(ctx, tag, { key: `tag:${row.item}`, label: name, hint: name });
+        if (activated) store.setSearch(tagLabel);
+        ctx.fillRect(tag, it.hovered || it.focused ? c.accent : c.control);
+        ctx.text(tagLabel, tag.x + 2, tag.y + 1, { color: it.hovered || it.focused ? c.void : c.muted, font: FONT.small });
+        if (it.focused) drawFocusRing(ctx, tag);
+      }
+    }
+    const share = chance(row, items.eligible);
+    const figures = [
+      `${t.quantity} ${row.quantity}`,
+      `${s.stats.compare.columns.perObservation} ${row.averagePerObservation.toFixed(2)}`,
+      `${t.chance} ${share === null ? "—" : `${Math.round(share * 100)}%`}`,
+      `${t.whenPresent} ${averageText(whenPresent(row))}`,
+      ...(row.multiplied > 0 ? [`${t.multiplied} ${row.multiplied}`] : []),
+      ...(row.multipliedUnknown > 0 ? [`${t.colourUnread} ${row.multipliedUnknown}`] : []),
+    ];
+    paragraph(ctx, figures.join(" · "), { color: c.text, font: FONT.small });
+    const levels = (row.levels ?? []).flatMap((n, level) => (n > 0 ? [`L${level + 1} ${n}`] : []));
+    if (levels.length > 0) paragraph(ctx, levels.join(" · "), { color: c.muted, font: FONT.small });
+    ctx.place({ w: 0, h: 2 });
+  });
   ctx.place({ w: 0, h: 6 });
 }
 

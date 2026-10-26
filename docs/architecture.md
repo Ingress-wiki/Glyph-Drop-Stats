@@ -24,6 +24,7 @@ effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
 | `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
 | `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying, and shows it in the system font when the font switch says so. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0, with its source in the `vendor/synth-ui` submodule: check the text layer (`npm run test:browser`) before upgrading it (see [deployment](deployment.md#synth-ui)). |
 | `src/web/dashboard.ts` | What the statistics page derives from an answer (shares, bars, group names, the few-observations mark), shared by the canvas and the mirror so both say the same. Unit-tested. |
+| `src/web/touchScroll.ts` | Scrolling with a finger. synth-ui reads only mouse-like pointer events and the wheel, and its canvas sets `touch-action: none`, so a touch that moves becomes wheel events on one axis, then a glide; its press is released off screen so nothing activates. A touch that doesn't move stays a tap. |
 | `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
 | `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
 
@@ -44,6 +45,17 @@ no native controls. So:
   - While a dialog is open (the first-visit note, the guide, the
     withdrawal confirmation), only F9 works, as synth-ui dialogs keep the
     keyboard.
+- **Phones and narrow windows:**
+  - A finger scrolls the canvas (`src/web/touchScroll.ts`); on a touch
+    screen the F-key labels and shortcut line aren't shown.
+  - When the switches don't fit beside the title, only the language stays
+    and the rest go in a menu (the three-bar button).
+  - A section too wide for the screen changes form rather than scrolling
+    sideways: the headline becomes a list, the comparison and the item
+    table stack each row's figures, and the level grid shrinks its cells,
+    then becomes a line per portal level. A sideways-scrolling table would
+    take a vertical swipe (synth-ui gives it the vertical wheel too) and
+    stop the page from scrolling.
 - **Selecting and copying:** synth-ui 0.1.0 selects text only inside its
   editable `textField` (its demo works the same way); labels and prose
   can't be selected. So a transparent HTML text layer follows the

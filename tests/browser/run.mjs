@@ -12,6 +12,7 @@ import { canvasSuite } from "./canvas.mjs";
 import { firefoxSuite } from "./firefox.mjs";
 import { languageSuite } from "./language.mjs";
 import { textLayerSuite } from "./text-layer.mjs";
+import { touchSuite } from "./touch.mjs";
 
 const PORT = Number(process.env.BROWSER_TEST_PORT ?? 8799);
 const CONFIG = "dist/glyph_drop_stats/wrangler.json";
@@ -63,7 +64,8 @@ try {
     const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir, screens: screenshots });
     const textLayer = await textLayerSuite({ browser, base, upload: join(dir, "b.csv") });
     const languages = await languageSuite({ browser, base, dir: screenshots });
-    passed = canvas && textLayer && languages;
+    const touch = await touchSuite({ browser, base, dir: screenshots });
+    passed = canvas && textLayer && languages && touch;
   } finally {
     await browser.close();
   }

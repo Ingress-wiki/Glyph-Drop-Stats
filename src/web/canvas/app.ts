@@ -1,5 +1,5 @@
 import type { Context } from "@synth-ui/core";
-import { scrollView, sheet, statusLine, tooltip, useTheme, type StatusMessage } from "@synth-ui/widgets";
+import { menu, scrollView, sheet, statusLine, tooltip, useTheme, type StatusMessage } from "@synth-ui/widgets";
 import type { AppState, Store, View } from "../app/store.ts";
 import { LOCALES, messages, problemText } from "../i18n/index.ts";
 import { CJK_SIZES } from "../textSize.ts";
@@ -9,6 +9,8 @@ import { drawSubmit, type SubmitEnv } from "./submitView.ts";
 export interface PageEnv extends SubmitEnv {
   /** Opens the site's code on GitHub in a new tab. */
   openSource(): void;
+  /** The pointer is a finger: the F-key shortcuts aren't shown, since there's no keyboard to press them on. */
+  touch: boolean;
 }
 import { FONT, fontRoles, useLocale } from "./theme.ts";
 import { actionButton, beginFrame, buttonHeight, bullets, drawFocusRing, errorLine, lineHeight, paragraph, pressable } from "./ui.ts";
@@ -54,7 +56,7 @@ export function paint(ctx: Context, store: Store, env: PageEnv): void {
     shownNotice = store.state.notice;
     shownMessage = shownNotice ? { text: s.notice[shownNotice.id] } : null;
   }
-  statusLine(ctx, { text: ctx.hint || s.app.statusLine, message: shownMessage }, { x: footer.x + 4, y: footer.y + 2, w: footer.w - 8, h: lineH + 2 });
+  statusLine(ctx, { text: ctx.hint || (env.touch ? "" : s.app.statusLine), message: shownMessage }, { x: footer.x + 4, y: footer.y + 2, w: footer.w - 8, h: lineH + 2 });
 
   scrollView(ctx, { key: "page", axis: "y", fade: 6, wheelUnit: 24 }, (content) => {
     content.inset(6, 6, 6, 8);
@@ -170,6 +172,8 @@ export function paint(ctx: Context, store: Store, env: PageEnv): void {
 }
 
 const BAR_PAD = 8;
+/** The menu button: three bars, as a phone's menus are. */
+const MENU_W = 14;
 
 /** The wordmark, the view tabs and the switches; the tabs take a second row when the screen is narrow. */
 function topBar(ctx: Context, store: Store, env: PageEnv): void {
@@ -181,7 +185,7 @@ function topBar(ctx: Context, store: Store, env: PageEnv): void {
   const title = s.app.title;
   const titleW = ctx.measureText(title, { font: FONT.caps }) + 10;
   const tabLabel = (view: View) => (view === "statistics" ? s.app.statistics : s.app.submit);
-  const keyW = (key: string) => ctx.measureText(key, { font: FONT.small }) + 3;
+  const keyW = (key: string) => (env.touch ? 0 : ctx.measureText(key, { font: FONT.small }) + 3);
   const tabWidths = TABS.map((tab) => keyW(tab.key) + ctx.measureText(tabLabel(tab.view), { font: FONT.caps }) + 10);
   const switches = [
     { key: "source", text: "GitHub", label: s.app.source, hint: s.app.source, act: () => env.openSource() },
@@ -197,8 +201,12 @@ function topBar(ctx: Context, store: Store, env: PageEnv): void {
     { key: "text-view", text: s.app.textView, label: s.app.textView, hint: s.app.textViewHint, act: () => store.setTextView(true) },
   ];
   const switchWidths = switches.map((sw) => ctx.measureText(sw.text, { font: FONT.small }) + 8);
-  const needed = titleW + 6 + tabWidths.reduce((total, w) => total + w + 2, 0) + switchWidths.reduce((total, w) => total + w + 4, 0);
-  const twoRows = needed > ctx.bounds.w;
+  const switchesW = switchWidths.reduce((total, w) => total + w + 4, 0);
+  const twoRows = titleW + 6 + tabWidths.reduce((total, w) => total + w + 2, 0) + switchesW > ctx.bounds.w;
+  // Too narrow for every switch beside the title (a phone): the language stays, the rest go in a menu.
+  const compact = titleW + 6 + switchesW > ctx.bounds.w;
+  const shown = compact ? switches.filter((sw) => sw.key === "language") : switches;
+  const menuItems = switches.filter((sw) => !shown.includes(sw));
   const bar = ctx.cutTop(twoRows ? barH * 2 : barH);
   ctx.fillRect(bar, c.panel);
   ctx.hline(bar.x, bar.y + bar.h - 1, bar.w, c.border);
@@ -207,7 +215,23 @@ function topBar(ctx: Context, store: Store, env: PageEnv): void {
 
   // Right end, from the edge: the text view (select, copy, search), the CRT switch, the language.
   let right = bar.x + bar.w - 2;
-  [...switches].reverse().forEach((sw) => {
+  if (compact) {
+    const rect = { x: right - MENU_W, y: bar.y + 2, w: MENU_W, h: barH - 5 };
+    const state = ctx.state(() => ({ open: false }), { key: "menu:state" });
+    const { it, activated } = pressable(ctx, rect, { key: "menu", label: s.app.menu, hint: s.app.menuHint });
+    if (activated) state.open = !state.open;
+    const ink = it.hovered || state.open ? c.paper : c.muted;
+    for (const dy of [-3, 0, 3]) ctx.hline(rect.x + 3, rect.y + Math.floor(rect.h / 2) + dy, rect.w - 6, ink);
+    if (it.focused) drawFocusRing(ctx, rect);
+    const result = menu(ctx, { key: "menu:list", items: menuItems.map((sw) => ({ label: sw.text })), anchor: rect, open: state.open });
+    if (result.picked !== null) {
+      state.open = false;
+      menuItems[result.picked].act();
+    }
+    if (result.dismissed) state.open = false;
+    right -= MENU_W + 4;
+  }
+  [...shown].reverse().forEach((sw) => {
     const w = ctx.measureText(sw.text, { font: FONT.small }) + 8;
     const rect = { x: right - w, y: bar.y + 2, w, h: barH - 5 };
     const takeFocus = sw.key === "language" && pickerFocus.toSwitch;
@@ -229,7 +253,7 @@ function topBar(ctx: Context, store: Store, env: PageEnv): void {
     const { it, activated } = pressable(ctx, rect, { key: `tab:${tab.view}`, label: s.a11y.view(label, current), hint: `${label} (${tab.key})` });
     if (activated) store.setView(tab.view);
     if (current) ctx.fillRect(rect, c.raised);
-    ctx.text(tab.key, rect.x + 5, rect.y + Math.ceil((rect.h - smallH) / 2), { color: c.slate, font: FONT.small });
+    if (!env.touch) ctx.text(tab.key, rect.x + 5, rect.y + Math.ceil((rect.h - smallH) / 2), { color: c.slate, font: FONT.small });
     const ink = current ? c.paper : it.hovered ? c.text : c.muted;
     ctx.text(label, rect.x + 5 + keyW(tab.key), rect.y + Math.floor((rect.h - capsH) / 2), { color: ink, font: FONT.caps });
     if (current) ctx.hline(rect.x, rect.y + rect.h - 1, rect.w, c.accent);

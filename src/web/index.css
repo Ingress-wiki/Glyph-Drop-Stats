@@ -27,6 +27,8 @@ body {
 #canvas-text {
   position: fixed;
   pointer-events: none;
+  /* Like the canvas: a swipe over text scrolls the canvas (touchScroll.ts), not the page. */
+  touch-action: none;
   overflow: hidden;
   user-select: text;
   -webkit-user-select: text;

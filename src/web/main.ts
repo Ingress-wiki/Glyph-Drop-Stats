@@ -9,7 +9,11 @@ import { TextLayer } from "./canvas/textLayer.ts";
 import { COLORS, FONTS, PALETTE } from "./canvas/theme.ts";
 import { endFrame } from "./canvas/ui.ts";
 import { SOURCE_URL } from "./site.ts";
+import { enableTouchScroll } from "./touchScroll.ts";
 import "./index.css";
+
+/** 120%: two CSS pixels per virtual pixel read as too small. */
+const PIXEL_SCALE = 2.4;
 
 function element<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T {
   const node = document.getElementById(id);
@@ -87,7 +91,9 @@ async function copyText(text: string, restoreFocus: HTMLElement): Promise<void> 
 
 async function main(): Promise<void> {
   const canvas = element("screen", HTMLCanvasElement);
-  const textLayer = new TextLayer(canvas, element("canvas-text", HTMLElement));
+  const textRoot = element("canvas-text", HTMLElement);
+  const textLayer = new TextLayer(canvas, textRoot);
+  enableTouchScroll(canvas, textRoot, PIXEL_SCALE);
   const mirror = element("mirror", HTMLElement);
   const live = element("live", HTMLElement);
   const focusLive = element("focus-live", HTMLElement);
@@ -204,6 +210,7 @@ async function main(): Promise<void> {
   const env = {
     openFilePicker: () => fileInput.click(),
     openSource: () => window.open(SOURCE_URL, "_blank", "noopener,noreferrer"),
+    touch: matchMedia("(pointer: coarse)").matches,
   };
   const startHost = () =>
     createViewHost(
@@ -215,8 +222,7 @@ async function main(): Promise<void> {
         if (focused) focusLive.textContent = focused;
       },
       {
-        // 120%: two CSS pixels per virtual pixel read as too small.
-        pixelScale: 2.4,
+        pixelScale: PIXEL_SCALE,
         palette: PALETTE,
         fonts: FONTS,
         defaultFont: "text",

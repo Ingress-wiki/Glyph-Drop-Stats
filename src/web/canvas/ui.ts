@@ -193,6 +193,17 @@ export function announceField(label: string): void {
 export function heading(ctx: Context, text: string, right?: string): void {
   const { colors: c } = useTheme(ctx);
   const capsH = lineHeight(ctx, FONT.caps);
+  const rightW = right ? ctx.measureText(right, { font: FONT.small }) + 6 : 0;
+  if (ctx.measureText(text, { font: FONT.caps }) + rightW > ctx.bounds.w) {
+    // Wider than the screen: it wraps rather than being cut off.
+    const width = ctx.bounds.w - rightW;
+    const layout = ctx.layoutText(wrapText(ctx, text, width, FONT.caps), { font: FONT.caps, color: c.paper, width, lineGap: 2 });
+    const r = ctx.place({ w: ctx.bounds.w, h: layout.bounds.h + 4 });
+    ctx.drawText(layout, r.x, r.y);
+    if (right) ctx.text(right, r.x + r.w - rightW + 6, r.y + layout.bounds.h - lineHeight(ctx, FONT.small), { color: c.muted, font: FONT.small });
+    ctx.hline(r.x, r.y + layout.bounds.h + 2, r.w, c.border);
+    return;
+  }
   const r = ctx.place({ w: ctx.bounds.w, h: capsH + 4 });
   ctx.text(text, r.x, r.y, { color: c.paper, font: FONT.caps });
   if (right) {
