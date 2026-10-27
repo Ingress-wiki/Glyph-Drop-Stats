@@ -108,6 +108,8 @@ describe("panel selection", () => {
         levels: null,
         observations: 2,
         rarities: { common: 0, rare: 0, veryRare: 2 },
+        distribution: [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: 0,
       },
     ]);
   });
@@ -127,6 +129,9 @@ describe("filters", () => {
         levels: [0, 0, 0, 0, 0, 0, 0, 2],
         observations: 1,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        // One observation: no variance.
+        distribution: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: null,
       },
     ]);
   });
@@ -480,5 +485,41 @@ describe("alignment, trusted levels, shares and splits", () => {
       { version: "0.1.0", build: "74", records: 4 },
       { version: "1.0.0", build: "2", records: 1 },
     ]);
+  });
+});
+
+describe("count distributions", () => {
+  /**
+   * Three hacks, portal panel read in full:
+   * | id | Portal Shield rows      | per observation |
+   * | -- | ----------------------- | --------------- |
+   * | p  | ×1 in slot 0, ×2 in slot 1 | 3            |
+   * | q  | ×12                     | 12              |
+   * | r  | none (a Resonator)      | 0               |
+   */
+  const shield = (slot: number, quantity: string): Row =>
+    item("portal", slot, { item: "Portal Shield", level: "", level_state: "notApplicable", rarity: "common", rarity_source: "read", quantity });
+  const seen: Row = { observed_panels_read_in_full: "true", both_panels_read: "false" };
+  const p = hackRecord({ record_id: hackId(51), order: "1", ...seen });
+  const q = hackRecord({ record_id: hackId(52), order: "2", ...seen });
+  const r = hackRecord({ record_id: hackId(53), order: "3", ...seen });
+  const rows = [{ ...p, ...shield(0, "1") }, { ...p, ...shield(1, "2") }, { ...q, ...shield(0, "12") }, { ...r, ...item("portal", 0) }];
+  const parsed = parseExport(new TextEncoder().encode(csv(rows)), { now: NOW });
+  if (!parsed.ok || parsed.rejected.length > 0) throw new Error(`rejected: ${JSON.stringify(parsed)}`);
+  const result = computeStatistics(
+    parsed.records.map((entry) => entry.record),
+    NO_FILTER,
+  );
+  const shields = result.items.byItem.find((row) => row.item === "Portal Shield");
+
+  it("counts an observation by its total of the item, over every slot, with 10 or more in the last bin", () => {
+    expect(shields?.distribution).toEqual([1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1]);
+    expect(shields?.observations).toBe(2);
+  });
+
+  it("works out the variance from the uncapped counts", () => {
+    // Σq = 15, Σq² = 9 + 144 = 153: (3·153 − 15²) / (3·2) = 234 / 6.
+    expect(shields?.variance).toBe(39);
+    expect(shields?.averagePerObservation).toBe(5);
   });
 });

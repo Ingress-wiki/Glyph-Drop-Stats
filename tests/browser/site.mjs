@@ -106,6 +106,13 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await page.locator("[data-testid=headline]").waitFor();
     check("a reload keeps the view", (await itemNames(page)).join(",") === "Power Cube,Resonator,XMP Burster");
 
+    // Count distributions: no shields in this dataset, so the first item, Resonator (2, 3, 0, 1, 1).
+    const figures = () => page.locator("[data-testid=distribution] dd").allTextContents();
+    check("count distribution figures match hand calculation", (await figures()).join(",") === "5,1.40,1.30,0.93", (await figures()).join(","));
+    await page.getByRole("combobox", { name: "Item", exact: true }).selectOption("Power Cube");
+    check("choosing another item shows its counts", (await figures()).join(",") === "5,0.40,0.80,2.00", (await figures()).join(","));
+    check("the address records the item", new URL(page.url()).searchParams.get("item") === "Power Cube", page.url());
+
     const [tsvDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "TSV" }).click()]);
     const tsv = readFileSync(await tsvDownload.path(), "utf8");
     check("TSV download", tsv.split("\n").some((line) => line.startsWith("Resonator\t7\t5\t1.4\t")));

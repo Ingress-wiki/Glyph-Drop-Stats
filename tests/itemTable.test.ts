@@ -12,6 +12,8 @@ const row = (item: string, quantity: number, levels: number[] | null = null, obs
   levels,
   observations,
   rarities: { common: 0, rare: 0, veryRare: 0 },
+  distribution: [],
+  variance: null,
 });
 
 describe("shade", () => {

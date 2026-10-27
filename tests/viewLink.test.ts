@@ -15,10 +15,11 @@ describe("view links", () => {
       search: "shield",
       sort: { key: "item", descending: false },
       gridGroup: "ITO EN (+)",
+      item: "Portal Shield",
     };
     const query = viewQuery(view);
     expect(query).toBe(
-      "kind=hack&panels=both&alignment=enemy&split=panelEffect&utcFrom=2026-10-01&utcTo=2026-10-03&portalLevelMin=6&portalLevelMax=8&group=ITO+EN+%28%2B%29&q=shield&sort=item",
+      "kind=hack&panels=both&alignment=enemy&split=panelEffect&utcFrom=2026-10-01&utcTo=2026-10-03&portalLevelMin=6&portalLevelMax=8&group=ITO+EN+%28%2B%29&item=Portal+Shield&q=shield&sort=item",
     );
     expect(viewFromQuery(`?${query}`)).toEqual(view);
   });

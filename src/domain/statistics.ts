@@ -34,6 +34,12 @@ export const NO_EFFECT_GROUP = "none";
  */
 export const SMALL_SAMPLE = 30;
 
+/**
+ * An item's distribution counts observations with 0, 1, … of it, and puts
+ * every count from this one up in its last bin.
+ */
+export const COUNT_CAP = 10;
+
 /** Inclusive bounds. */
 export interface Range {
   min: number;
@@ -126,6 +132,17 @@ export interface ItemTotal {
   observations: number;
   /** Of `quantity`, by known rarity; the rest has none or wasn't read. */
   rarities: { common: number; rare: number; veryRare: number };
+  /**
+   * Eligible observations by how many of this item they had: index k for k
+   * (0 included), the last index for `COUNT_CAP` or more. Sums to the
+   * eligible observations.
+   */
+  distribution: number[];
+  /**
+   * Sample variance of the quantity per eligible observation (n - 1 in the
+   * denominator, uncapped); null with fewer than two eligible observations.
+   */
+  variance: number | null;
 }
 
 /** How many observations answer yes, of those where the answer is known. */
@@ -432,7 +449,9 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
   const byReadStatus: Record<ReadStatus, number> = { read: 0, notRead: 0, unavailable: 0, unsupported: 0 };
   const byCoverage = zeroes(COVERAGES);
   const excluded = zeroes(ITEM_EXCLUSIONS);
-  const totals = new Map<string, Omit<ItemTotal, "item" | "averagePerObservation">>();
+  const totals = new Map<string, Omit<ItemTotal, "item" | "averagePerObservation" | "variance">>();
+  /** Per item, the sum of each eligible observation's squared quantity: the variance needs it uncapped. */
+  const squares = new Map<string, number>();
   const apps = new Map<string, AppCount>();
   const uploads = new Set<number>();
   const overall = new Tally();
@@ -471,7 +490,8 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
     groups.set(key, group);
     if (items === null) continue;
 
-    const seen = new Set<string>();
+    /** This observation's quantity of each item: one item can fill several slots. */
+    const here = new Map<string, number>();
     for (const entry of items) {
       // Eligibility guarantees every name is known and listed.
       const name = entry.item as string;
@@ -482,6 +502,7 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
         levels: null,
         observations: 0,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        distribution: Array<number>(COUNT_CAP + 1).fill(0),
       };
       total.quantity += entry.quantity;
       // Eligibility rules out unreadable levels, so a levelled item always has its level here.
@@ -492,19 +513,27 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
       if (entry.multiplied === true) total.multiplied += entry.quantity;
       if (entry.multiplied === null) total.multipliedUnknown += entry.quantity;
       if (entry.rarity !== null && entry.rarity !== "unreadable") total.rarities[entry.rarity] += entry.quantity;
-      if (!seen.has(name)) total.observations++;
-      seen.add(name);
+      if (!here.has(name)) total.observations++;
+      here.set(name, (here.get(name) ?? 0) + entry.quantity);
       totals.set(name, total);
+    }
+    for (const [name, quantity] of here) {
+      (totals.get(name) as { distribution: number[] }).distribution[Math.min(quantity, COUNT_CAP)]++;
+      squares.set(name, (squares.get(name) ?? 0) + quantity * quantity);
     }
   }
 
   const summary = overall.summary();
   const byItem: ItemTotal[] = [...totals]
-    .map(([item, total]) => ({
-      item,
-      ...total,
-      averagePerObservation: total.quantity / summary.eligible,
-    }))
+    .map(([item, total]) => {
+      const n = summary.eligible;
+      // Observations without the item are the eligible ones not counted yet.
+      const distribution = total.distribution.map((count, k) => (k === 0 ? n - total.observations : count));
+      // (n·Σq² − (Σq)²) / n(n − 1): whole numbers until the one division, so it is exact and never negative.
+      const sum = total.quantity;
+      const variance = n < 2 ? null : (n * (squares.get(item) ?? 0) - sum * sum) / (n * (n - 1));
+      return { item, ...total, distribution, averagePerObservation: sum / n, variance };
+    })
     .sort((a, b) => b.quantity - a.quantity || (a.item < b.item ? -1 : 1));
   const order = [...GROUP_ORDER[filter.split], UNKNOWN_GROUP];
 

@@ -154,6 +154,23 @@ warning, not a test: there are still no intervals (below).
 
 A blank cell is unknown. A blank `multiplied` is neither true nor false.
 
+## Count distributions
+
+For each item, the eligible observations are counted by how many of it they
+had: 0, 1, … up to 9, then 10 or more in one bin. An observation's count is
+its total over every slot of the selected panels. With them come:
+- **Mean:** the average per eligible observation (as in the item table).
+- **Variance:** the sample variance of the count per eligible observation,
+  `(n·Σq² − (Σq)²) / n(n − 1)`, from the uncapped counts; none with fewer
+  than two eligible observations.
+- **Variance ÷ mean:** 1 for a Poisson count. Above 1, counts are more
+  spread out than Poisson (more observations with none and more with many);
+  below 1, more even.
+
+The page draws the observed counts against what a Poisson distribution with
+the same mean would give the same number of observations. This describes
+the sample; it is not a goodness-of-fit test (see below).
+
 ## No confidence intervals
 
 The first release publishes descriptive statistics, sample counts and

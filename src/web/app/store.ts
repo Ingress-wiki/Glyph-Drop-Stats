@@ -43,6 +43,8 @@ export interface StatisticsState {
   disclaimerOpen: boolean;
   /** The comparison group whose level grid is shown; null for every record. */
   gridGroup: string | null;
+  /** The item whose count distribution is shown; null for the page's default. */
+  distItem: string | null;
   /** The "about this sample" section is expanded. */
   sampleOpen: boolean;
 }
@@ -151,6 +153,7 @@ export class Store {
         guideOpen: false,
         disclaimerOpen: deps.storage.get(DISCLAIMER_KEY) !== "1",
         gridGroup: initial.gridGroup,
+        distItem: initial.item,
         sampleOpen: false,
       },
       locale,
@@ -163,8 +166,8 @@ export class Store {
 
   /** The address for the current state: the applied view, and whether submitting. */
   private address(): string {
-    const { applied, search, sort, gridGroup } = this.state.statistics;
-    return address({ form: applied, search, sort, gridGroup }, this.state.view === "submit");
+    const { applied, search, sort, gridGroup, distItem } = this.state.statistics;
+    return address({ form: applied, search, sort, gridGroup, item: distItem }, this.state.view === "submit");
   }
 
   async loadConfig(): Promise<void> {
@@ -258,6 +261,10 @@ export class Store {
 
   setGridGroup(gridGroup: string | null): void {
     this.updateStatistics({ gridGroup });
+  }
+
+  setDistItem(distItem: string): void {
+    this.updateStatistics({ distItem });
   }
 
   toggleSample(): void {

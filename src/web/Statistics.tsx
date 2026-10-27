@@ -1,13 +1,27 @@
 import { useCallback, useMemo } from "react";
 import { SMALL_SAMPLE, SPLITS, type ItemTotal, type Statistics } from "../domain/statistics.ts";
 import type { AppState, Store } from "./app/store.ts";
-import { averageText, barLabel, barTotals, chance, groupLabel, isFew, levelShares, percent, sharePercent, whenPresent } from "./dashboard.ts";
+import {
+  averageText,
+  barLabel,
+  barTotals,
+  chance,
+  countLabel,
+  dispersion,
+  groupLabel,
+  isFew,
+  levelShares,
+  percent,
+  poissonExpected,
+  sharePercent,
+  whenPresent,
+} from "./dashboard.ts";
 import type { Messages } from "./i18n/en.ts";
 import { issuesText, messages, problemText } from "./i18n/index.ts";
 import { itemCategory, matchesSearch } from "./items.ts";
 import { columnMaxima, shade, sortItems, type SortKey } from "./itemTable.ts";
 import type { StatsForm } from "./statsForm.ts";
-import { Bars, LevelHeatmap, type BarRow, type GridCell } from "./charts.tsx";
+import { Bars, CountChart, LevelHeatmap, type BarRow, type CountRow, type GridCell } from "./charts.tsx";
 import { usePaint, type Paint } from "./paint.ts";
 
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((total, n) => total + n, 0);
@@ -137,6 +151,7 @@ function Dashboard({ store, state, s, statistics, paint }: { store: Store; state
         <Levels store={store} state={state} s={s} statistics={statistics} paint={paint} />
         <Gives s={s} statistics={statistics} paint={paint} />
       </div>
+      <Distribution store={store} state={state} s={s} statistics={statistics} paint={paint} />
       <ItemTable store={store} state={state} s={s} statistics={statistics} />
       <Sample s={s} statistics={statistics} />
       <p className="caption">
@@ -362,6 +377,91 @@ function Gives({ s, statistics, paint }: { s: Messages; statistics: Statistics; 
         <Bars rows={rows} paint={paint} label={t.heading} metric={s.stats.headline.perObservation} format={two} />
       </div>
       <p className="note">{t.note(summary.eligible)}</p>
+    </Section>
+  );
+}
+
+/** The item shown when none is chosen: shields, whose counts first suggested looking at all this. */
+const DEFAULT_DIST_ITEM = "Portal Shield";
+
+/**
+ * How many of one item each eligible observation had, against a Poisson
+ * count with the same mean. A description of the sample, not a test.
+ */
+function Distribution({ store, state, s, statistics, paint }: { store: Store; state: AppState; s: Messages; statistics: Statistics; paint: Paint }) {
+  const t = s.stats.distribution;
+  const { byItem, eligible } = statistics.items;
+  const { distItem } = state.statistics;
+  const row =
+    byItem.find((entry) => entry.item === distItem) ?? byItem.find((entry) => entry.item === DEFAULT_DIST_ITEM) ?? byItem[0] ?? null;
+  const rows = useMemo((): CountRow[] => {
+    if (row === null) return [];
+    const expected = poissonExpected(row.averagePerObservation, eligible);
+    const all = row.distribution.map((observed, k) => ({ label: countLabel(k), observed, expected: expected[k] }));
+    // The tail past anything observed or expected even once only stretches the axis.
+    const last = Math.max(2, ...all.flatMap((entry, k) => (entry.observed > 0 || entry.expected >= 1 ? [k] : [])));
+    return all.slice(0, last + 1);
+  }, [row, eligible]);
+  const describe = useCallback(
+    (entry: CountRow) => [
+      s.stats.distribution.bin(entry.observed, sharePercent(eligible === 0 ? 0 : entry.observed / eligible)),
+      s.stats.distribution.expected(entry.expected.toFixed(1)),
+    ],
+    [s, eligible],
+  );
+  if (row === null) {
+    return (
+      <Section title={t.heading}>
+        <p className="empty">{t.empty}</p>
+      </Section>
+    );
+  }
+  const ratio = dispersion(row);
+  const few = isFew(eligible);
+  const picker = (
+    <Select label={t.item} value={row.item} options={byItem.map((entry) => ({ value: entry.item, label: entry.item }))} onChange={(item) => store.setDistItem(item)} />
+  );
+  return (
+    <Section title={t.heading} aside={picker}>
+      <div className="distribution">
+        <div className="chart">
+          <CountChart rows={rows} paint={paint} label={`${t.heading}: ${row.item}`} describe={describe} />
+          <p className="note">{t.legend}</p>
+        </div>
+        <dl className={few ? "figures few" : "figures"} data-testid="distribution">
+          <dt>{t.observations}</dt>
+          <dd>{eligible}</dd>
+          <dt>{t.mean}</dt>
+          <dd>{row.averagePerObservation.toFixed(2)}</dd>
+          <dt>{t.variance}</dt>
+          <dd>{averageText(row.variance)}</dd>
+          <dt>{t.dispersion}</dt>
+          <dd>{averageText(ratio)}</dd>
+        </dl>
+      </div>
+      <div className="sr-only">
+        <table>
+          <caption>{`${t.heading}: ${row.item}`}</caption>
+          <thead>
+            <tr>
+              <td />
+              <th scope="col">{t.observations}</th>
+              <th scope="col">{t.poisson}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((entry) => (
+              <tr key={entry.label}>
+                <th scope="row">{entry.label}</th>
+                <td>{entry.observed}</td>
+                <td>{entry.expected.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {few && <p className="note">{s.stats.headline.few}</p>}
+      <p className="note">{t.note}</p>
     </Section>
   );
 }

@@ -6,9 +6,10 @@ import { EMPTY_FORM, type StatsForm } from "./statsForm.ts";
 /**
  * The statistics view as the page's own address, so a finding can be linked
  * and opens as it was seen: the applied filters, the comparison, the level
- * grid's group, the search and the sort. Only what differs from the default
- * is written. Fields keep the names and forms the page shows (dates as
- * YYYY-MM-DD), unlike the API query, which `formQuery` builds.
+ * grid's group, the item whose counts are shown, the search and the sort.
+ * Only what differs from the default is written. Fields keep the names and
+ * forms the page shows (dates as YYYY-MM-DD), unlike the API query, which
+ * `formQuery` builds.
  */
 
 export interface ViewState {
@@ -16,9 +17,11 @@ export interface ViewState {
   search: string;
   sort: Sort;
   gridGroup: string | null;
+  /** The item whose count distribution is shown; null for the page's default. */
+  item: string | null;
 }
 
-export const DEFAULT_VIEW: ViewState = { form: EMPTY_FORM, search: "", sort: DEFAULT_SORT, gridGroup: null };
+export const DEFAULT_VIEW: ViewState = { form: EMPTY_FORM, search: "", sort: DEFAULT_SORT, gridGroup: null, item: null };
 
 /** Form fields typed as text; the server validates them and explains what it refuses. */
 const RANGE_FIELDS = [
@@ -71,6 +74,7 @@ export function viewQuery(view: ViewState): string {
     if (value !== "") params.set(name, value);
   }
   if (view.gridGroup !== null) params.set("group", view.gridGroup);
+  if (view.item !== null) params.set("item", view.item);
   if (view.search.trim() !== "") params.set("q", view.search.trim());
   if (view.sort.key !== DEFAULT_SORT.key || view.sort.descending !== DEFAULT_SORT.descending) {
     params.set("sort", `${view.sort.descending ? "-" : ""}${view.sort.key}`);
@@ -95,6 +99,7 @@ export function viewFromQuery(query: string): ViewState {
     search: params.get("q") ?? "",
     sort: SORT_KEYS.includes(key) ? { key: key as SortKey, descending } : DEFAULT_SORT,
     gridGroup: params.get("group") || null,
+    item: params.get("item") || null,
   };
 }
 

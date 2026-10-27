@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ItemTotal } from "../src/domain/statistics.ts";
-import { averageText, barOf, barTotals, chance, groupLabel, isFew, levelShares, percent, sharePercent, whenPresent } from "../src/web/dashboard.ts";
+import { averageText, barOf, countLabel, dispersion, poissonExpected, barTotals, chance, groupLabel, isFew, levelShares, percent, sharePercent, whenPresent } from "../src/web/dashboard.ts";
 import { en } from "../src/web/i18n/en.ts";
 
 const row = (item: string, quantity: number, observations: number): ItemTotal => ({
@@ -12,6 +12,8 @@ const row = (item: string, quantity: number, observations: number): ItemTotal =>
   levels: null,
   observations,
   rarities: { common: 0, rare: 0, veryRare: 0 },
+  distribution: [],
+  variance: null,
 });
 
 describe("dashboard figures", () => {
@@ -64,5 +66,28 @@ describe("dashboard figures", () => {
     expect(chance(row("Hypercube", 6, 2), 0)).toBeNull();
     expect(whenPresent(row("Hypercube", 6, 2))).toBe(3);
     expect(whenPresent(row("Hypercube", 0, 0))).toBeNull();
+  });
+});
+
+describe("count distributions", () => {
+  it("expect Poisson counts that sum to the observations, the tail in the last bin", () => {
+    const expected = poissonExpected(2, 100);
+    expect(expected).toHaveLength(11);
+    expect(expected[0]).toBeCloseTo(100 * Math.exp(-2), 10);
+    expect(expected[2]).toBeCloseTo(100 * 2 * Math.exp(-2), 10);
+    expect(expected.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 10);
+    expect(poissonExpected(0, 5)).toEqual([5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(poissonExpected(1, 0)).toEqual([]);
+  });
+
+  it("divide variance by the mean, and say nothing without either", () => {
+    expect(dispersion({ ...row("Portal Shield", 5, 2), averagePerObservation: 0.5, variance: 0.75 })).toBe(1.5);
+    expect(dispersion({ ...row("Portal Shield", 0, 0), variance: 0 })).toBeNull();
+    expect(dispersion(row("Portal Shield", 5, 2))).toBeNull();
+  });
+
+  it("label the last bin as that many or more", () => {
+    expect(countLabel(3)).toBe("3");
+    expect(countLabel(10)).toBe("10+");
   });
 });

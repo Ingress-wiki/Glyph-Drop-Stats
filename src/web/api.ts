@@ -1,4 +1,4 @@
-import { COVERAGES, ITEM_EXCLUSIONS, SPLITS, UNPLACED_REASONS, type ItemTotal, type Statistics, type Summary } from "../domain/statistics.ts";
+import { COUNT_CAP, COVERAGES, ITEM_EXCLUSIONS, SPLITS, UNPLACED_REASONS, type ItemTotal, type Statistics, type Summary } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import type { Preview } from "../domain/preview.ts";
 import { OUTCOMES } from "../domain/versions.ts";
@@ -212,9 +212,13 @@ const isLevels = (value: unknown): value is number[] => Array.isArray(value) && 
 
 function isItemTotal(value: unknown): value is ItemTotal {
   if (!isObject(value)) return false;
-  const { item, quantity, averagePerObservation, multiplied, multipliedUnknown, levels, observations, rarities } = value;
+  const { item, quantity, averagePerObservation, multiplied, multipliedUnknown, levels, observations, rarities, distribution, variance } = value;
   return (
     typeof item === "string" &&
+    Array.isArray(distribution) &&
+    distribution.length === COUNT_CAP + 1 &&
+    distribution.every(isCount) &&
+    (variance === null || isAverage(variance)) &&
     isCount(quantity) &&
     isAverage(averagePerObservation) &&
     isCount(multiplied) &&

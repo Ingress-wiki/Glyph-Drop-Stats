@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { barX, cell, defineChart, text } from "@tanstack/charts";
+import { barX, barY, cell, defineChart, dot, lineY, text } from "@tanstack/charts";
 import { Chart } from "@tanstack/charts/react";
 import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
@@ -180,4 +180,75 @@ export function LevelHeatmap({
     });
   }, [cells, rows, paint, describe]);
   return <Chart definition={definition} ariaLabel={label} height={(rows.length + 1) * Math.round(paint.text * 2.2)} initialWidth={480} />;
+}
+
+export interface CountRow {
+  /** The count, as its axis shows it: "0" … "9", "10+". */
+  label: string;
+  /** Eligible observations with that many. */
+  observed: number;
+  /** What a Poisson count with the same mean would give. */
+  expected: number;
+}
+
+/**
+ * An item's count distribution: a bar of observations at each count, and
+ * the Poisson expectation for the same mean as a line of dots over them.
+ * Hovering a count shows both.
+ */
+export function CountChart({
+  rows,
+  paint,
+  label,
+  describe,
+}: {
+  rows: readonly CountRow[];
+  paint: Paint;
+  label: string;
+  /** The tooltip's lines for a count: the observations, then the expectation. */
+  describe: (row: CountRow) => readonly string[];
+}) {
+  const definition = useMemo(
+    () =>
+      defineChart({
+        marks: [
+          barY(rows, {
+            x: "label",
+            y: "observed",
+            inset: 3,
+            fill: paint.shades[3],
+            states: [{ when: { focus: "x" }, style: outlined(paint) }],
+          }),
+          lineY(rows, { x: "label", y: "expected", stroke: paint.fg, strokeWidth: 1.5 }),
+          dot(rows, { x: "label", y: "expected", r: 3.5, fill: paint.fg }),
+        ],
+        scales: {
+          x: {
+            scale: () =>
+              scaleBand<string>()
+                .domain(rows.map((row) => row.label))
+                .padding(0.12),
+            axis: { ticks: { size: 0 }, tickLabels: { fontSize: paint.text } },
+          },
+          y: {
+            scale: scaleLinear,
+            nice: true,
+            grid: { stroke: paint.dim, strokeOpacity: 0.5 },
+            axis: { ticks: { size: 0 }, tickLabels: { fontSize: paint.text }, line: false },
+          },
+        },
+        // A column, wherever it is pointed at, shows its count's observed and expected numbers.
+        focus: "nearest-x",
+        focusRing: false,
+        tooltip: {
+          use: tooltip,
+          content: (points) => {
+            const row = points[0]?.datum;
+            return row ? { title: row.label, rows: describe(row).map(note) } : { rows: [] };
+          },
+        },
+      }),
+    [rows, paint, describe],
+  );
+  return <Chart definition={definition} ariaLabel={label} height={Math.round(paint.text * 16)} initialWidth={640} />;
 }

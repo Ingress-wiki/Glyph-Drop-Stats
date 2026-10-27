@@ -1,4 +1,4 @@
-import { SMALL_SAMPLE, UNKNOWN_GROUP, type ItemTotal, type Share, type Split } from "../domain/statistics.ts";
+import { COUNT_CAP, SMALL_SAMPLE, UNKNOWN_GROUP, type ItemTotal, type Share, type Split } from "../domain/statistics.ts";
 import type { Messages } from "./i18n/en.ts";
 
 /**
@@ -99,3 +99,34 @@ export function chance(row: ItemTotal, eligible: number): number | null {
 export function whenPresent(row: ItemTotal): number | null {
   return row.observations === 0 ? null : row.quantity / row.observations;
 }
+
+/**
+ * How many of `observations` a Poisson distribution with this `mean` would
+ * put at each count, binned as `ItemTotal.distribution` is: the last bin is
+ * everything from `COUNT_CAP` up. Empty without observations.
+ */
+export function poissonExpected(mean: number, observations: number): number[] {
+  if (observations === 0) return [];
+  const expected: number[] = [];
+  let probability = Math.exp(-mean);
+  let below = 0;
+  for (let k = 0; k < COUNT_CAP; k++) {
+    expected.push(probability * observations);
+    below += probability;
+    probability *= mean / (k + 1);
+  }
+  expected.push(Math.max(0, 1 - below) * observations);
+  return expected;
+}
+
+/**
+ * Variance ÷ mean: 1 for a Poisson count, above 1 for counts more spread
+ * out, below 1 for more even ones. Null when either is unknown or the mean
+ * is 0.
+ */
+export function dispersion(row: ItemTotal): number | null {
+  return row.variance === null || row.averagePerObservation === 0 ? null : row.variance / row.averagePerObservation;
+}
+
+/** A count's label: "10+" for the last bin. */
+export const countLabel = (k: number): string => (k === COUNT_CAP ? `${k}+` : String(k));
