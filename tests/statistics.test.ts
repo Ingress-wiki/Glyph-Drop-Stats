@@ -236,7 +236,7 @@ describe("query parameters", () => {
     expect(codes("localHourFrom=5&localHourTo=24")).toEqual(["localHourTo must be an hour from 0 to 23."]);
     expect(codes("panels=all")).toEqual(["panels must be portal, bonus or both."]);
     expect(codes("alignment=neutral")).toEqual(["alignment must be same_faction, enemy or machina."]);
-    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand or keyCommand."]);
+    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand or panelEffect."]);
   });
 });
 
@@ -245,14 +245,14 @@ describe("query parameters", () => {
  * expected value below is worked out by hand from this table (portal panel
  * only, each read in full):
  *
- * | id | kind | alignment    | portal level        | speed   | app        | items                                              |
- * | -- | ---- | ------------ | ------------------- | ------- | ---------- | -------------------------------------------------- |
- * | a  | hack | enemy        | 6 high              | complex | 0.1.0 (74) | Resonator L6 ×2, Portal Shield rare ×1, Portal Key ×1 |
- * | b  | hack | enemy        | 6 low, conflict     | complex | 0.1.0 (74) | Resonator L5 ×1                                    |
- * | c  | hack | machina      | 3 medium            | simple  | 0.1.0 (74) | Portal Shield rarity unread ×1, XMP Burster L3 ×1  |
- * | d  | hack | —            | 7 high              | complex | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
- * | e  | drop | —            | —                   | —       | 0.1.0 (74) | Power Cube L8 ×1                                   |
- * | f  | hack | same_faction | 2 low               | complex | 0.1.0 (10) | Resonator L2 ×1, Hypercube ×1, Resonator L3 ×1     |
+ * | id | kind | alignment    | portal level        | speed   | effect     | app        | items                                              |
+ * | -- | ---- | ------------ | ------------------- | ------- | ---------- | ---------- | -------------------------------------------------- |
+ * | a  | hack | enemy        | 6 high              | complex | ITO EN (+) | 0.1.0 (74) | Resonator L6 ×2, Portal Shield rare ×1, Portal Key ×1 |
+ * | b  | hack | enemy        | 6 low, conflict     | complex | —          | 0.1.0 (74) | Resonator L5 ×1                                    |
+ * | c  | hack | machina      | 3 medium            | simple  | ITO EN (-) | 0.1.0 (74) | Portal Shield rarity unread ×1, XMP Burster L3 ×1  |
+ * | d  | hack | —            | 7 high              | complex | —          | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
+ * | e  | drop | —            | —                   | —       | —          | 0.1.0 (74) | Power Cube L8 ×1                                   |
+ * | f  | hack | same_faction | 2 low               | complex | —          | 0.1.0 (10) | Resonator L2 ×1, Hypercube ×1, Resonator L3 ×1     |
  */
 describe("alignment, trusted levels, shares and splits", () => {
   const ALIGNED = [...COLUMN_NAMES, "portal_alignment"];
@@ -276,6 +276,7 @@ describe("alignment, trusted levels, shares and splits", () => {
     record_id: hackId(31),
     ...one,
     ...level("6", "high"),
+    panel_effects: "ITO EN (+)",
   });
   const b = hackRecord({
     record_id: hackId(32),
@@ -287,6 +288,7 @@ describe("alignment, trusted levels, shares and splits", () => {
     ...one,
     ...level("3", "medium"),
     speed_command: "simple",
+    panel_effects: "ITO EN (-)",
   });
   const d = hackRecord({
     record_id: hackId(34),
@@ -442,6 +444,17 @@ describe("alignment, trusted levels, shares and splits", () => {
       ["4", 5],
       ["unknown", 1],
     ]);
+  });
+
+  it("groups by the panel effect the app read, readings without one first", () => {
+    const groups = run({ split: "panelEffect" }).groups;
+    expect(groups.map((group) => [group.key, group.summary.records])).toEqual([
+      ["none", 4],
+      ["ITO EN (+)", 1],
+      ["ITO EN (-)", 1],
+    ]);
+    // a alone: Resonator ×2, Portal Shield ×1, Portal Key ×1.
+    expect(groups[1].summary).toMatchObject({ eligible: 1, totalQuantity: 4, averagePerObservation: 4 });
   });
 
   it("filters by alignment, setting aside records without one", () => {

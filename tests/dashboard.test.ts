@@ -39,6 +39,8 @@ describe("dashboard figures", () => {
     expect(groupLabel(en, "portalLevel", "8")).toBe("P8");
     expect(groupLabel(en, "glyphCount", "1")).toBe("1 Glyph");
     expect(groupLabel(en, "keyCommand", "unknown")).toBe("Unknown");
+    expect(groupLabel(en, "panelEffect", "none")).toBe("No effect shown");
+    expect(groupLabel(en, "panelEffect", "ITO EN (-)")).toBe("ITO EN (−)");
   });
 
   it("sorts items into bars and averages each bar over eligible observations", () => {

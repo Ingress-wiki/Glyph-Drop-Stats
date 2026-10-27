@@ -80,6 +80,7 @@ export const ko: Messages = {
         glyphCount: "Glyph 수별",
         speedCommand: "속도 명령별",
         keyCommand: "키 명령별",
+        panelEffect: "패널 효과별",
       },
       columns: {
         records: "기록",
@@ -104,6 +105,7 @@ export const ko: Messages = {
         noKey: "키 없음",
         keysOnly: "키만",
       },
+      panelEffects: { none: "효과 표시 없음", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
       unknown: "알 수 없음",
       few: (min: number) => `흐린 행은 집계 대상 관측이 ${min}건 미만입니다.`,
       notes: {
@@ -113,6 +115,7 @@ export const ko: Messages = {
         glyphCount: "드롭에는 Glyph 수가 없습니다.",
         speedCommand: "앱이 확정을 확인한 명령만 셉니다.",
         keyCommand: "앱이 확정을 확인한 명령만 셉니다.",
+        panelEffect: "ITO EN (+)와 (−)는 앱이 패널에서 읽은 그대로입니다. '효과 표시 없음'에는 효과를 기록하지 않는 이전 빌드의 읽기도 포함됩니다.",
       },
       empty: "아직 비교할 데이터가 없습니다.",
     },
@@ -463,7 +466,7 @@ export const ko: Messages = {
     "filter.rangeOrder": "{first} 값은 {second} 값보다 크면 안 됩니다.",
     "filter.kind": "종류는 해킹 또는 드롭이어야 합니다.",
     "filter.alignment": "alignment는 same_faction, enemy, machina 중 하나여야 합니다.",
-    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand 중 하나여야 합니다.",
+    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect 중 하나여야 합니다.",
     "filter.panels": "패널은 포탈, 보너스, 양쪽 중 하나여야 합니다.",
   },
 };

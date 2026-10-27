@@ -33,6 +33,8 @@ export function groupLabel(s: Messages, split: Split, key: string): string {
       return g.speedCommands[key as keyof typeof g.speedCommands] ?? key;
     case "keyCommand":
       return g.keyCommands[key as keyof typeof g.keyCommands] ?? key;
+    case "panelEffect":
+      return g.panelEffects[key as keyof typeof g.panelEffects] ?? key;
   }
 }
 

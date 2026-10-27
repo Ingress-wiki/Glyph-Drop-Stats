@@ -80,6 +80,7 @@ export const zhHans: Messages = {
         glyphCount: "按 Glyph 数量",
         speedCommand: "按速度指令",
         keyCommand: "按钥匙指令",
+        panelEffect: "按面板效果",
       },
       columns: {
         records: "记录",
@@ -104,6 +105,7 @@ export const zhHans: Messages = {
         noKey: "不要钥匙",
         keysOnly: "只要钥匙",
       },
+      panelEffects: { none: "未显示效果", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
       unknown: "未知",
       few: (min: number) => `颜色较暗的行合格观测少于 ${min} 次。`,
       notes: {
@@ -113,6 +115,7 @@ export const zhHans: Messages = {
         glyphCount: "掉落没有 Glyph 数量。",
         speedCommand: "只计应用确认看到的指令。",
         keyCommand: "只计应用确认看到的指令。",
+        panelEffect: "ITO EN (+) 和 (−) 以应用在面板上读到的为准。“未显示效果”也包括不记录效果的旧版本的读数。",
       },
       empty: "暂无可对比的数据。",
     },
@@ -458,7 +461,7 @@ export const zhHans: Messages = {
     "filter.rangeOrder": "{first}不能高于{second}。",
     "filter.kind": "类型必须是 Hack 或掉落。",
     "filter.alignment": "alignment 必须是 same_faction、enemy 或 machina。",
-    "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand 或 keyCommand。",
+    "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand、keyCommand 或 panelEffect。",
     "filter.panels": "面板必须是能量塔、奖励或两者。",
   },
 };

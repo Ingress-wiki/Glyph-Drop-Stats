@@ -137,9 +137,15 @@ Over the eligible observations of the matching records:
   everything else.
 
 The comparison groups the matching records by **portal alignment** (the
-default), exact reliable portal level, Glyph count, speed command or key
-command, each group with the same figures. Records without the value form
-an "unknown" group, shown last. The level grid can show every record or
+default), exact reliable portal level, Glyph count, speed command, key
+command or **panel effect**, each group with the same figures. Records
+without the value form an "unknown" group, shown last.
+
+**Panel effect** is the ITO EN (+) or (−) the app read on the record's
+panels. The export leaves `panel_effects` blank both when no effect was
+shown and in builds that didn't record effects, so readings without an
+effect form one group, "No effect shown", that holds both. A record with no
+reading, or whose panels showed different effects, is unknown. The level grid can show every record or
 one group.
 
 **Few observations.** A figure resting on fewer than 30 eligible

@@ -1,5 +1,5 @@
 import { isListedItem } from "./cells.ts";
-import { ITEMS_WITH_RARITY, KEY_COMMANDS, PORTAL_ALIGNMENTS, SPEED_COMMANDS } from "./format.ts";
+import { ITEMS_WITH_RARITY, KEY_COMMANDS, PANEL_EFFECTS, PORTAL_ALIGNMENTS, SPEED_COMMANDS } from "./format.ts";
 import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlignment, ReadStatus } from "./record.ts";
 
 /**
@@ -14,11 +14,18 @@ import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlign
 export type PanelSelection = "portal" | "bonus" | "both";
 
 /** What the comparison groups records by. */
-export const SPLITS = ["alignment", "portalLevel", "glyphCount", "speedCommand", "keyCommand"] as const;
+export const SPLITS = ["alignment", "portalLevel", "glyphCount", "speedCommand", "keyCommand", "panelEffect"] as const;
 export type Split = (typeof SPLITS)[number];
 
 /** A group's key when its records don't have the split's value (drops, older builds, unreliable levels). */
 export const UNKNOWN_GROUP = "unknown";
+
+/**
+ * The panel-effect group of a reading whose panels showed none. The export
+ * leaves `panel_effects` blank both for no effect and for builds that didn't
+ * record effects, so this group holds both.
+ */
+export const NO_EFFECT_GROUP = "none";
 
 /**
  * Below this many eligible observations a figure is marked as resting on
@@ -324,7 +331,19 @@ const GROUP_ORDER: Record<Split, readonly string[]> = {
   glyphCount: Array.from({ length: 11 }, (_, n) => String(n)),
   speedCommand: SPEED_COMMANDS,
   keyCommand: KEY_COMMANDS,
+  panelEffect: [NO_EFFECT_GROUP, ...PANEL_EFFECTS],
 };
+
+/**
+ * The one effect a reading's panels showed, or none. A record with no
+ * reading, or whose panels disagree, has no single effect.
+ */
+function panelEffect(record: ObservationRecord): string | null {
+  if (record.reading === null || record.reading.panels.length === 0) return null;
+  const effects = new Set(record.reading.panels.flatMap((panel) => panel.effects ?? []));
+  if (effects.size === 0) return NO_EFFECT_GROUP;
+  return effects.size === 1 ? [...effects][0] : null;
+}
 
 /** Which group of `split` a record belongs to. */
 export function groupKey(record: ObservationRecord, split: Split): string {
@@ -341,6 +360,8 @@ export function groupKey(record: ObservationRecord, split: Split): string {
       return known(hack?.commands?.speed);
     case "keyCommand":
       return known(hack?.commands?.key);
+    case "panelEffect":
+      return known(panelEffect(record));
   }
 }
 

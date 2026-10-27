@@ -93,6 +93,7 @@ export const en = {
         glyphCount: "By Glyph count",
         speedCommand: "By speed command",
         keyCommand: "By key command",
+        panelEffect: "By panel effect",
       },
       columns: {
         records: "Records",
@@ -114,6 +115,7 @@ export const en = {
         noKey: "No key",
         keysOnly: "Keys only",
       },
+      panelEffects: { none: "No effect shown", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
       unknown: "Unknown",
       few: (min: number) => `Dimmed rows rest on fewer than ${min} eligible observations.`,
       notes: {
@@ -123,6 +125,7 @@ export const en = {
         glyphCount: "Drops have no Glyph count.",
         speedCommand: "A command counts only when the app saw it confirmed.",
         keyCommand: "A command counts only when the app saw it confirmed.",
+        panelEffect: "ITO EN (+) and (−) as the app read them on the panel. “No effect shown” also holds readings from builds that didn't record effects.",
       },
       empty: "Nothing to compare yet.",
     },

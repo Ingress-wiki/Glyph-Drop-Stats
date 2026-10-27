@@ -80,6 +80,7 @@ export const zhHant: Messages = {
         glyphCount: "依 Glyph 數量",
         speedCommand: "依速度指令",
         keyCommand: "依鑰匙指令",
+        panelEffect: "依面板效果",
       },
       columns: {
         records: "記錄",
@@ -104,6 +105,7 @@ export const zhHant: Messages = {
         noKey: "不要鑰匙",
         keysOnly: "只要鑰匙",
       },
+      panelEffects: { none: "未顯示效果", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
       unknown: "未知",
       few: (min: number) => `顏色較暗的列合格觀測少於 ${min} 次。`,
       notes: {
@@ -113,6 +115,7 @@ export const zhHant: Messages = {
         glyphCount: "掉落沒有 Glyph 數量。",
         speedCommand: "只計 App 確認看到的指令。",
         keyCommand: "只計 App 確認看到的指令。",
+        panelEffect: "ITO EN (+) 與 (−) 以 App 在面板上讀到的為準。「未顯示效果」也包含不記錄效果的舊版本讀數。",
       },
       empty: "目前沒有可比較的資料。",
     },
@@ -458,7 +461,7 @@ export const zhHant: Messages = {
     "filter.rangeOrder": "{first} 不能大於 {second}。",
     "filter.kind": "類型必須是 hack 或 drop。",
     "filter.alignment": "alignment 必須是 same_faction、enemy 或 machina。",
-    "filter.split": "split 必須是 alignment、portalLevel、glyphCount、speedCommand 或 keyCommand。",
+    "filter.split": "split 必須是 alignment、portalLevel、glyphCount、speedCommand、keyCommand 或 panelEffect。",
     "filter.panels": "面板必須是 portal、bonus 或 both。",
   },
 };

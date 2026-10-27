@@ -82,6 +82,7 @@ export const ja: Messages = {
         glyphCount: "Glyph 数別",
         speedCommand: "スピードコマンド別",
         keyCommand: "キーコマンド別",
+        panelEffect: "パネル効果別",
       },
       columns: {
         records: "記録",
@@ -106,6 +107,7 @@ export const ja: Messages = {
         noKey: "キーなし",
         keysOnly: "キーのみ",
       },
+      panelEffects: { none: "効果表示なし", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
       unknown: "不明",
       few: (min: number) => `暗い行は対象の観測が ${min} 件未満です。`,
       notes: {
@@ -115,6 +117,7 @@ export const ja: Messages = {
         glyphCount: "ドロップには Glyph 数がありません。",
         speedCommand: "アプリが確定を確認したコマンドだけを数えます。",
         keyCommand: "アプリが確定を確認したコマンドだけを数えます。",
+        panelEffect: "ITO EN (+) と (−) は、アプリがパネル上で読み取ったものです。「効果表示なし」には、効果を記録しない古いビルドの読み取りも含まれます。",
       },
       empty: "まだ比較できるデータがありません。",
     },
@@ -464,7 +467,7 @@ export const ja: Messages = {
     "filter.rangeOrder": "{first} を {second} より大きくすることはできません。",
     "filter.kind": "種類は hack または drop で指定してください。",
     "filter.alignment": "alignment は same_faction、enemy、machina のいずれかで指定してください。",
-    "filter.split": "split は alignment、portalLevel、glyphCount、speedCommand、keyCommand のいずれかで指定してください。",
+    "filter.split": "split は alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect のいずれかで指定してください。",
     "filter.panels": "パネルは portal、bonus、both のいずれかで指定してください。",
   },
 };
