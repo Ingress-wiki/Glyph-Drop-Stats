@@ -85,6 +85,9 @@ function Toolbar({ store, state, s }: { store: Store; state: AppState; s: Messag
       <button type="button" aria-keyshortcuts="F4" title={s.stats.aboutHint} onClick={() => store.setGuideOpen(true)}>
         {s.stats.about}
       </button>
+      <button type="button" title={s.stats.copyLinkHint} onClick={() => void store.copyLink(window.location.href)}>
+        {s.stats.copyLink}
+      </button>
       <button type="button" title={s.stats.tsvHint} disabled={outcome?.kind !== "ok"} onClick={() => store.downloadTsv()}>
         {s.stats.tsv}
       </button>

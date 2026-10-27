@@ -12,6 +12,8 @@ import type {
 import { announcement } from "../src/web/app/announce.ts";
 import { DISCLAIMER_KEY, Store, type StoreDeps } from "../src/web/app/store.ts";
 import { LOCALE_KEY, type Locale } from "../src/web/i18n/index.ts";
+import { EMPTY_FORM } from "../src/web/statsForm.ts";
+import { viewFromQuery } from "../src/web/viewLink.ts";
 
 /** A promise the test settles by hand. */
 function deferred<T>() {
@@ -52,7 +54,7 @@ function setup(overrides: Partial<StoreDeps> = {}, locale: Locale = "en") {
     download: vi.fn(),
     copy: vi.fn(async () => {}),
     storage: { get: (key) => saved.get(key) ?? null, set: (key, value) => void saved.set(key, value) },
-    setHash: vi.fn(),
+    setAddress: vi.fn(),
     origin: "https://stats.test",
     now: () => new Date(Date.UTC(2026, 9, 6)),
     ...overrides,
@@ -218,7 +220,8 @@ describe("statistics", () => {
     store.setView("submit");
     store.setView("statistics");
     expect(deps.fetchStatistics).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(deps.setHash).mock.calls.map((call) => call[0])).toEqual(["statistics", "submit", "statistics"]);
+    // The test store opens on the submit view: its address is "#submit".
+    expect(vi.mocked(deps.setAddress).mock.calls.map((call) => call[0])).toEqual(["", "#submit", ""]);
   });
 
   it("applies pickers at once and ranges only on apply", async () => {
@@ -233,6 +236,44 @@ describe("statistics", () => {
     store.clearFilters();
     expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=both");
     expect(store.state.statistics.form.portalLevelMin).toBe("");
+  });
+
+  it("records the applied view in the address, not ranges still being typed", () => {
+    const { store, deps } = setup();
+    store.setView("statistics");
+    const recorded = () => vi.mocked(deps.setAddress).mock.calls.at(-1)?.[0];
+    store.choose({ split: "panelEffect" });
+    expect(recorded()).toBe("?split=panelEffect");
+    store.setFormField("portalLevelMin", "6");
+    store.setFormField("portalLevelMax", "8");
+    expect(recorded()).toBe("?split=panelEffect");
+    store.applyFilters();
+    expect(recorded()).toBe("?split=panelEffect&portalLevelMin=6&portalLevelMax=8");
+    store.setSearch("shield");
+    store.sortBy("item");
+    expect(recorded()).toBe("?split=panelEffect&portalLevelMin=6&portalLevelMax=8&q=shield&sort=item");
+  });
+
+  it("opens a linked view as it was seen, with its filters shown", async () => {
+    const saved = new Map<string, string>();
+    const { deps } = setup();
+    const linked = viewFromQuery("split=glyphCount&portalLevelMin=6&portalLevelMax=6&q=res&group=4");
+    const store = new Store({ ...deps, storage: { get: (key) => saved.get(key) ?? null, set: () => {} } }, "statistics", "en", linked);
+    expect(store.state.statistics).toMatchObject({ search: "res", gridGroup: "4", filtersOpen: true });
+    await store.loadStatistics();
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("split=glyphCount&portalLevelMin=6&portalLevelMax=6");
+    // Already the page's address: nothing to record.
+    expect(deps.setAddress).not.toHaveBeenCalled();
+  });
+
+  it("copies a link to the view and says so", async () => {
+    const { store, deps } = setup();
+    await store.copyLink("https://stats.test/?split=panelEffect");
+    expect(deps.copy).toHaveBeenCalledWith("https://stats.test/?split=panelEffect");
+    expect(store.state.notice).toEqual({ id: "linkCopied" });
+    vi.mocked(deps.copy).mockRejectedValueOnce(new Error("refused"));
+    await store.copyLink("https://stats.test/");
+    expect(store.state.notice).toEqual({ id: "linkCopyFailed" });
   });
 
   it("keeps the alignment and split through Clear, and starts a new split's grid from every record", () => {
@@ -259,8 +300,8 @@ describe("statistics", () => {
     const answers = [deferred<StatisticsOutcome>(), deferred<StatisticsOutcome>()];
     let call = 0;
     const { store } = setup({ fetchStatistics: () => answers[call++].promise });
-    const first = store.loadStatistics("kind=hack");
-    const second = store.loadStatistics("kind=drop");
+    const first = store.loadStatistics({ ...EMPTY_FORM, kind: "hack" });
+    const second = store.loadStatistics({ ...EMPTY_FORM, kind: "drop" });
     answers[1].resolve({ kind: "refused", issues: [{ code: "x", message: "newer" }] });
     answers[0].resolve({ kind: "failed", problem: { kind: "network", detail: "older" } });
     await Promise.all([first, second]);
@@ -277,7 +318,7 @@ describe("statistics", () => {
     expect(store.state.statistics.search).toBe("mod");
     store.downloadTsv();
     expect(deps.download).not.toHaveBeenCalled();
-    await store.loadStatistics("");
+    await store.loadStatistics();
     store.downloadTsv();
     expect(vi.mocked(deps.download).mock.calls[0][0]).toBe("glyph-drop-stats-items.tsv");
   });

@@ -46,6 +46,8 @@ export const ja: Messages = {
     aboutHint: "数値の見方（F4）",
     tsv: "TSV",
     tsvHint: "アイテム表をタブ区切り形式でダウンロード",
+    copyLink: "リンクをコピー",
+    copyLinkHint: "この表示を開くリンクをコピー（フィルター・比較・検索・並べ替え）",
     apply: "適用",
     clear: "クリア",
     ranges: {
@@ -319,6 +321,8 @@ export const ja: Messages = {
   notice: {
     receiptCopied: "レシートをコピーしました",
     copyFailed: "コピーできませんでした。代わりにレシートをダウンロードしてください",
+    linkCopied: "リンクをコピーしました",
+    linkCopyFailed: "コピーできませんでした。アドレスバーのリンクを使ってください",
   },
 
   announce: {

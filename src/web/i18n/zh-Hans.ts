@@ -46,6 +46,8 @@ export const zhHans: Messages = {
     aboutHint: "如何解读这些数字（F4）",
     tsv: "TSV",
     tsvHint: "将物品表下载为制表符分隔值文件",
+    copyLink: "复制链接",
+    copyLinkHint: "复制可打开此视图的链接：筛选、比较、搜索和排序",
     apply: "应用",
     clear: "清除",
     ranges: {
@@ -317,6 +319,8 @@ export const zhHans: Messages = {
   notice: {
     receiptCopied: "回执已复制",
     copyFailed: "无法复制：请改为下载回执",
+    linkCopied: "链接已复制",
+    linkCopyFailed: "无法复制：请改用地址栏中的链接",
   },
 
   announce: {

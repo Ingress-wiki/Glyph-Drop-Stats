@@ -57,6 +57,8 @@ export const en = {
     aboutHint: "How to read these numbers (F4)",
     tsv: "TSV",
     tsvHint: "Download the item table as tab-separated values",
+    copyLink: "Copy link",
+    copyLinkHint: "Copy a link that opens this view: filters, comparison, search and sorting",
     apply: "Apply",
     clear: "Clear",
     ranges: {
@@ -329,6 +331,8 @@ export const en = {
   notice: {
     receiptCopied: "Receipt copied",
     copyFailed: "Couldn't copy: download the receipt instead",
+    linkCopied: "Link copied",
+    linkCopyFailed: "Couldn't copy: use the address bar instead",
   },
 
   announce: {

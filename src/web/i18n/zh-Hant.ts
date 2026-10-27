@@ -46,6 +46,8 @@ export const zhHant: Messages = {
     aboutHint: "如何解讀這些數字（F4）",
     tsv: "TSV",
     tsvHint: "以 Tab 分隔值格式下載物品表",
+    copyLink: "複製連結",
+    copyLinkHint: "複製可開啟此檢視的連結：篩選、比較、搜尋與排序",
     apply: "套用",
     clear: "清除",
     ranges: {
@@ -317,6 +319,8 @@ export const zhHant: Messages = {
   notice: {
     receiptCopied: "已複製憑證",
     copyFailed: "無法複製：請改為下載憑證",
+    linkCopied: "連結已複製",
+    linkCopyFailed: "無法複製：請改用網址列中的連結",
   },
 
   announce: {

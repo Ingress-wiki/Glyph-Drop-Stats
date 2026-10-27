@@ -5,6 +5,7 @@ import { confirmUpload, fetchConfig, fetchStatistics, previewFile, submissionSta
 import { App } from "./App.tsx";
 import { Store, type View } from "./app/store.ts";
 import { detectLocale, isLocale, LOCALE_KEY, type Locale } from "./i18n/index.ts";
+import { viewFromQuery } from "./viewLink.ts";
 import "./index.css";
 
 const viewFromHash = (): View => (window.location.hash === "#submit" ? "submit" : "statistics");
@@ -85,13 +86,14 @@ const store = new Store(
     download,
     copy: copyText,
     storage,
-    setHash: (view) =>
-      window.history.replaceState(null, "", view === "submit" ? "#submit" : window.location.pathname + window.location.search),
+    setAddress: (address) => window.history.replaceState(null, "", window.location.pathname + address),
     origin: window.location.origin,
     now: () => new Date(),
   },
   viewFromHash(),
   initialLocale(),
+  // A linked view opens as it was seen.
+  viewFromQuery(window.location.search),
 );
 
 // A file dropped anywhere on the page is checked in the submit view.
@@ -138,4 +140,4 @@ createRoot(root).render(
   </StrictMode>,
 );
 void store.loadConfig();
-if (store.state.view === "statistics") void store.loadStatistics("");
+if (store.state.view === "statistics") void store.loadStatistics();

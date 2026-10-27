@@ -99,6 +99,12 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     const order = (await itemNames(page)).join(",");
     check("sorting by item", order === "Power Cube,Resonator,XMP Burster", order);
     check("the sorted column says so", (await page.getByRole("columnheader", { name: "Item" }).getAttribute("aria-sort")) === "ascending");
+    check("the address records the view", new URL(page.url()).search === "?sort=item", page.url());
+    await page.getByRole("button", { name: "Copy link" }).click();
+    check("COPY LINK copies the view's address", await clipboardBecomes(page, page.url()), await clipboard(page));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("[data-testid=headline]").waitFor();
+    check("a reload keeps the view", (await itemNames(page)).join(",") === "Power Cube,Resonator,XMP Burster");
 
     const [tsvDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "TSV" }).click()]);
     const tsv = readFileSync(await tsvDownload.path(), "utf8");

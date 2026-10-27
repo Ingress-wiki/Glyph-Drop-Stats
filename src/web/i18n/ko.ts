@@ -46,6 +46,8 @@ export const ko: Messages = {
     aboutHint: "숫자를 읽는 방법 (F4)",
     tsv: "TSV",
     tsvHint: "아이템 표를 탭으로 구분된 값 (TSV)으로 다운로드",
+    copyLink: "링크 복사",
+    copyLinkHint: "이 보기를 여는 링크 복사: 필터, 비교, 검색, 정렬",
     apply: "적용",
     clear: "초기화",
     ranges: {
@@ -318,6 +320,8 @@ export const ko: Messages = {
   notice: {
     receiptCopied: "영수증을 복사했습니다",
     copyFailed: "복사하지 못했습니다. 대신 영수증을 다운로드하세요",
+    linkCopied: "링크를 복사했습니다",
+    linkCopyFailed: "복사하지 못했습니다. 주소 표시줄의 링크를 사용하세요",
   },
 
   announce: {

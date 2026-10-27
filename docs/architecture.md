@@ -26,7 +26,8 @@ pale-to-full yellow ramp for "more", light and dark following the system.
 | `src/web/charts.tsx` | The charts, drawn with [TanStack Charts](https://tanstack.com/charts) as SVG: bars for comparisons and for what an observation gives, a heatmap for the level grid. |
 | `src/web/dashboard.ts` | What the statistics page derives from an answer (shares, bars, group names, the few-observations mark). Unit-tested. |
 | `src/web/app/announce.ts` | What the live region says after each change. Unit-tested. |
-| `src/web/main.tsx` | Wiring: the store's network, storage and clipboard, dropped files, shortcuts. |
+| `src/web/viewLink.ts` | The statistics view as the page's address, and back. Unit-tested. |
+| `src/web/main.tsx` | Wiring: the store's network, storage, clipboard and address, dropped files, shortcuts. |
 
 - **Accessibility:**
   - Native controls, real tables with sortable column headers
@@ -49,6 +50,14 @@ pale-to-full yellow ramp for "more", light and dark following the system.
     cell's "L4: 123 of 464 levelled items (27%)".
   - Paint comes from the stylesheet's tokens, read again when the colour
     scheme changes.
+- **Links:** the address records the statistics view as shown
+  (`src/web/viewLink.ts`): the applied filters, the panel, kind and
+  alignment, the comparison split, the level grid's group, the search and
+  the sort, only where they differ from the default, and `#submit` for the
+  submit view. Ranges still being typed don't change it until applied.
+  Opening such an address shows the same view, with the filter panel open
+  when it holds ranges. Choices not on their list are ignored; ranges go to
+  the server, which explains what it refuses. COPY LINK copies it.
 - **Phones:** wide tables scroll sideways in their own box; the page itself
   never does.
 - **Copying:** COPY uses the clipboard API where the browser allows it
