@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -25,8 +23,6 @@ jobs:
         run: npm run db:migrate:local
       - run: npm run typecheck
       - run: npm run lint
-      - name: synth-ui's submodule matches the installed packages
-        run: npm run check:synth-ui
       - run: npm test
       - run: npm run build
 
@@ -41,15 +37,14 @@ jobs:
       - run: npm ci
       - name: Install Playwright's Firefox
         run: npx playwright-core install --with-deps firefox
-      # Builds, starts the Worker on a throwaway local D1 and drives it in the runner's Chrome.
-      # A virtual display: Firefox needs a window for software WebGL.
-      - run: xvfb-run -a npm run test:browser
+      # Builds, starts the Worker on a throwaway local D1 and drives it in the runner's Chrome and Firefox.
+      - run: npm run test:browser
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/screens
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: language-screenshots
+          name: screenshots
           path: ${{ runner.temp }}/screens
           if-no-files-found: ignore
 

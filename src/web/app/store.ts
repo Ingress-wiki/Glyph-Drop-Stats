@@ -14,17 +14,15 @@ import {
 } from "../api.ts";
 import type { Messages } from "../i18n/en.ts";
 import { LOCALE_KEY, messages, type Locale } from "../i18n/index.ts";
-import { CJK_SIZE_KEY, DEFAULT_CJK_SIZE, isCjkSize, type CjkSize } from "../textSize.ts";
 import { DEFAULT_SORT, itemsTsv, type Sort, type SortKey } from "../itemTable.ts";
 import { LatestOnly, STALE } from "../latest.ts";
 import { EMPTY_FORM, formQuery, type StatsForm } from "../statsForm.ts";
 
 /**
- * Everything the page shows and every action on it, with no drawing. The
- * canvas reads `state` each frame and calls the actions; the accessible
- * mirror renders the same state as text. Keeping the rules here (which
- * answer may update the page, which file a receipt belongs to) lets them be
- * tested without a browser.
+ * Everything the page shows and every action on it, with no rendering. The
+ * React components read `state` and call the actions. Keeping the rules here
+ * (which answer may update the page, which file a receipt belongs to) lets
+ * them be tested without a browser.
  */
 
 export type View = "statistics" | "submit";
@@ -82,17 +80,8 @@ export interface AppState {
   submit: SubmitPhase;
   status: StatusState;
   statistics: StatisticsState;
-  crt: boolean;
-  /** Text in the system's font instead of the pixel faces. */
-  smoothText: boolean;
-  /** The page shown as plain HTML instead of the canvas: text can be selected, copied and found. */
-  textView: boolean;
   /** The page's language. */
   locale: Locale;
-  /** The pixel size Chinese, Japanese and Korean text is drawn at. */
-  cjkSize: CjkSize;
-  /** The language picker is open. */
-  languageOpen: boolean;
   /**
    * Whether this deployment accepts submissions; null until known (or if it
    * couldn't be read, when the server's refusal still says so).
@@ -123,16 +112,6 @@ export interface StoreDeps {
 }
 
 export const DISCLAIMER_KEY = "glyph-drop-stats:disclaimer-seen";
-export const CRT_KEY = "glyph-drop-stats:crt";
-export const TEXT_VIEW_KEY = "glyph-drop-stats:text-view";
-export const SMOOTH_TEXT_KEY = "glyph-drop-stats:smooth-text";
-
-
-
-function storedCjkSize(value: string | null): CjkSize {
-  const size = Number(value);
-  return value !== null && isCjkSize(size) ? size : DEFAULT_CJK_SIZE;
-}
 
 export class Store {
   state: AppState;
@@ -164,12 +143,7 @@ export class Store {
         gridGroup: null,
         sampleOpen: false,
       },
-      crt: deps.storage.get(CRT_KEY) !== "off",
-      smoothText: deps.storage.get(SMOOTH_TEXT_KEY) === "on",
       locale,
-      cjkSize: storedCjkSize(deps.storage.get(CJK_SIZE_KEY)),
-      languageOpen: false,
-      textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
       submissionsOpen: null,
       testPeriod: false,
       notice: null,
@@ -210,16 +184,7 @@ export class Store {
 
   setLocale(locale: Locale): void {
     this.deps.storage.set(LOCALE_KEY, locale);
-    this.update({ locale, languageOpen: false });
-  }
-
-  setCjkSize(cjkSize: CjkSize): void {
-    this.deps.storage.set(CJK_SIZE_KEY, String(cjkSize));
-    this.update({ cjkSize });
-  }
-
-  setLanguageOpen(languageOpen: boolean): void {
-    this.update({ languageOpen });
+    this.update({ locale });
   }
 
   // Views
@@ -231,33 +196,14 @@ export class Store {
     if (view === "statistics") void this.loadStatistics(formQuery(this.state.statistics.form));
   }
 
-  toggleCrt(): void {
-    const crt = !this.state.crt;
-    this.deps.storage.set(CRT_KEY, crt ? "on" : "off");
-    this.update({ crt });
-  }
-
-  toggleSmoothText(): void {
-    const smoothText = !this.state.smoothText;
-    this.deps.storage.set(SMOOTH_TEXT_KEY, smoothText ? "on" : "off");
-    this.update({ smoothText });
-  }
-
   /**
-   * A dialog the canvas shows over the page: the language picker, the
-   * first-visit note, the guide or the withdrawal confirmation. Page
-   * shortcuts wait until it closes.
+   * A modal dialog over the page: the first-visit note, the guide or the
+   * withdrawal confirmation. Page shortcuts wait until it closes.
    */
   dialogOpen(): boolean {
-    const { view, statistics, status, languageOpen } = this.state;
-    if (languageOpen) return true;
+    const { view, statistics, status } = this.state;
     if (view === "statistics") return statistics.disclaimerOpen || statistics.guideOpen;
     return status.withdrawal.step === "confirming" || status.withdrawal.step === "uncertain" || status.withdrawal.step === "sending";
-  }
-
-  setTextView(textView: boolean): void {
-    this.deps.storage.set(TEXT_VIEW_KEY, textView ? "on" : "off");
-    this.update({ textView });
   }
 
   // Statistics

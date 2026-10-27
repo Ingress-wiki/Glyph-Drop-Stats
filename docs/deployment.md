@@ -29,28 +29,6 @@ npx wrangler dev -c dist/glyph_drop_stats/wrangler.json
 
 Stop either server with Ctrl-C.
 
-## synth-ui
-
-The app installs synth-ui's prebuilt packages from npm, pinned exactly
-(`@synth-ui/core`, `widgets`, `backend` at 0.1.0): its renderer is Rust
-compiled to WebAssembly, so building it here would need a Rust toolchain
-everywhere. `vendor/synth-ui` is a git submodule pinned to the commit
-that release was published from, to read and diff, never built.
-`npm run check:synth-ui` (also in CI) fails if the two drift: different
-versions, a loose pin, or any source file that differs.
-
-To update, after reading what changed (`git -C vendor/synth-ui log` and
-`diff` between the old and new commit):
-
-```sh
-git -C vendor/synth-ui fetch
-git -C vendor/synth-ui checkout <commit the new release was published from>
-npm install -E @synth-ui/core@X.Y.Z @synth-ui/widgets@X.Y.Z @synth-ui/backend@X.Y.Z
-npm run check:synth-ui
-npm run test:browser   # the text layer reads synth-ui internals
-git add vendor/synth-ui package.json package-lock.json
-```
-
 ## Plan
 
 Validation of a real export takes about 10 ms, and of a maximum-size export
@@ -116,8 +94,9 @@ what checking a typical export takes, so larger files can fail with error
 `.github/workflows/ci.yml` runs on every push and pull request:
 
 - **check:** typecheck, lint, unit and D1 tests, build;
-- **browser:** `npm run test:browser` in the runner's Chrome (WebGL2 through
-  SwiftShader), with each language's screenshot uploaded as an artifact;
+- **browser:** `npm run test:browser` in the runner's Chrome and
+  Playwright's Firefox, with screenshots of each page and language uploaded
+  as an artifact;
 - **deploy:** on `main` only, after both pass (or by running the workflow
   by hand): applies new D1 migrations to production, deploys, and checks
   the live site. It runs in the GitHub `production` environment; add

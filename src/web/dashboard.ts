@@ -82,6 +82,12 @@ export function levelShares(row: readonly number[]): number[] | null {
   return total === 0 ? null : row.map((n) => n / total);
 }
 
+/** A share as a whole percentage, without the sign; one that rounds to nothing but isn't, as "<1". */
+export function sharePercent(share: number): string {
+  const whole = Math.round(share * 100);
+  return whole === 0 && share > 0 ? "<1" : String(whole);
+}
+
 /** Of eligible observations, the share with this item; null without any. */
 export function chance(row: ItemTotal, eligible: number): number | null {
   return eligible === 0 ? null : row.observations / eligible;

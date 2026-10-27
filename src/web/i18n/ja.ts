@@ -2,58 +2,30 @@ import type { Messages } from "./en.ts";
 
 /** Japanese. Drafted from the English (en.ts); awaiting review by a native speaker. */
 export const ja: Messages = {
-  language: { name: "日本語", code: "日本語" },
+  language: { name: "日本語" },
 
   app: {
     title: "Glyph Drop Stats",
     statistics: "統計",
     submit: "提出",
-    crtOn: "CRT オン",
-    crtOff: "CRT オフ",
-    crtHint: "走査線とグロー（F8）",
-    fontPixel: "ドットフォント",
-    fontSmooth: "通常フォント",
-    fontHint: "ドットフォントとシステムのフォントを切り替えます",
     source: "GitHub のソースコード",
-    textView: "テキスト表示",
-    textViewHint: "すべてを選択・コピー・検索できるテキストで表示（F9）",
-    menu: "メニュー",
-    menuHint: "GitHub、フォント、CRT、テキスト表示",
     language: "言語",
-    languageHint: "ページの言語を選択",
-    textSize: "文字サイズ",
-    textSizeHint: "中国語・日本語・韓国語のドット文字の大きさ",
     testPeriod:
       "テスト期間：提出はテストのためだけに受け付けています。今提出されたデータとそこから作られた統計は、サイトの一般公開前にすべて削除されます。それより早く消去することもあります。",
-    statusLine: "F1 統計 · F2 提出 · F8 CRT · F9 テキスト表示",
-    canvasLabel: "Glyph Drop Stats。ここに表示される内容のテキスト版は、キャンバスの後にあります。",
-    keyboardHelp:
-      "キーボード操作：Tab でコントロール間を移動し、Enter または Space でフォーカス中のコントロールを実行します。F1 で統計、F2 で提出、F3 でフィルター、F4 で数値の見方を表示し、F8 で CRT 効果を切り替え、F9 でこのテキスト表示を開きます。",
-    fallback:
-      "このブラウザーではインターフェースを描画できません。WebGPU または WebGL2 が必要です。表示される内容はすべて下にテキストで示します。書き出しファイルを提出するには、最新のブラウザーを使用してください。",
-    backToCanvas: "キャンバス表示に戻る（F9）",
-    textViewNote: "テキスト表示：以下の内容はすべて選択・コピー・検索できます。",
+    keyboardHelp: "ショートカット：F1 統計 · F2 提出 · F3 フィルター · F4 数値の見方",
     close: "閉じる",
+    views: "表示",
   },
 
   a11y: {
-    button: (label: string) => `${label}、ボタン`,
-    textField: (label: string) => `${label}、テキスト入力欄`,
-    selectable: (label: string) => `${label}、選択可能なテキスト`,
-    checkbox: (label: string, checked: boolean) => `${label}、${checked ? "チェックあり" : "チェックなし"}`,
-    view: (label: string, current: boolean) => `${label}画面${current ? "、表示中" : ""}`,
-    sortBy: (column: string, direction: "ascending" | "descending" | null) =>
-      `${column}で並べ替え${direction === null ? "" : direction === "ascending" ? "、昇順" : "、降順"}`,
     showCategory: (category: string) => `「${category}」のアイテムを表示`,
     searchItems: "アイテムを検索",
     receiptField: "レシート",
-    crt: (on: boolean) => `CRT 効果 ${on ? "オン" : "オフ"}`,
     filterFrom: (label: string) => `${label}（から）`,
     filterTo: (label: string) => `${label}（まで）`,
   },
 
   stats: {
-    heading: "統計",
     loading: "読み込み中…",
     loadFailed: (problem: string) => `統計を読み込めませんでした：${problem}`,
     search: "検索またはタグをクリック",
@@ -151,6 +123,7 @@ export const ja: Messages = {
       all: "すべて",
       note: "各行は 1 つのポータルレベルで出たレベル付きアイテム（Resonator、XMP Burster、Ultra Strike、Power Cube）を、アイテムレベル別の割合（%）に分けたものです。アプリが確信したポータルレベルだけを使います。",
       row: (level: number, observations: number) => `P${level} n=${observations}`,
+      cell: (level: string, items: number, total: number, percent: string) => `${level}：レベル付きアイテム ${total} 個中 ${items} 個（${percent}%）`,
       empty: "ポータルレベルが確かな対象の観測はまだありません。",
       mirrorCaption: (group: string) => `ポータルレベルごとのアイテムレベルの割合：${group}`,
     },
@@ -177,7 +150,6 @@ export const ja: Messages = {
       perObservation: (eligible: number) => `観測あたり n=${eligible}`,
       chance: "確率",
       whenPresent: "出た時",
-      sort: (by: string) => `並べ替え：${by}`,
       multiplied: "倍増",
       colourUnread: "色 ?",
       noEligible: "このフィルターに合う対象の観測はありません。",
@@ -189,25 +161,6 @@ export const ja: Messages = {
     caption: (hacks: number, drops: number, panel: string, updating: boolean) =>
       `ハック ${hacks} 回 · ドロップグループ ${drops} 件 · ${panel}のアイテム${updating ? " · 更新中…" : ""}`,
     mirrorCaption: (panel: string, eligible: number) => `${panel}のアイテム（対象の観測 ${eligible} 件）`,
-    mirrorHeadline: {
-      records: "記録",
-      eligible: "対象の観測",
-      perObservation: "1 観測あたり",
-      rare: "Rare か Very Rare を含む観測",
-      key: "Portal Key を含む観測",
-    },
-    mirrorColumns: {
-      item: "アイテム",
-      quantity: "数量",
-      perObservation: "1 観測あたり",
-      chance: "1 観測あたりの確率",
-      whenPresent: "出た時の平均",
-      multiplied: "倍増",
-      colourUnread: "色不明",
-    },
-    noLevels: "レベルなし",
-    noneMirror: "なし。",
-    averageNone: "なし",
   },
 
   panels: { portal: "ポータルパネル", bonus: "ボーナスパネル", both: "ポータルパネルとボーナスパネル" },
@@ -272,7 +225,7 @@ export const ja: Messages = {
   },
 
   notices:
-    "コードは MIT ライセンスです。描画には synth-ui（MIT、© Cyandev）を使用しています。文字には X.org misc-fixed 5×7 フォント（パブリックドメイン）と Fusion Pixel Font（SIL OFL 1.1）を使用しています。ライセンス全文：/licenses/。Niantic および Ingress とは無関係です。アイテム名はその権利者に帰属します。",
+    "コードは MIT ライセンスです。フォント：Departure Mono、IBM Plex Mono、Inter（SIL OFL 1.1）。ライセンス全文：/licenses/。Niantic および Ingress とは無関係です。アイテム名はその権利者に帰属します。",
 
   submit: {
     heading: "提出",
@@ -284,7 +237,6 @@ export const ja: Messages = {
     checking: "確認中…",
     noFile: "ファイルが選択されていません。ページにドロップすることもできます。",
     fileName: (name: string) => `ファイル：${name}`,
-    noFileMirror: "ファイルが選択されていません。",
     checkFailed: (problem: string) => `ファイルを確認できませんでした：${problem}`,
     cantUse: "このファイルは使用できません",
     summary: "概要",
@@ -312,13 +264,11 @@ export const ja: Messages = {
     createReceipt: "レシートを発行",
     receiptHeading: "あなたのレシートです。他人に見せないでください。",
     yourReceipt: "あなたのレシート",
-    receiptMirror: (secret: string) => `あなたのレシート：${secret}`,
     download: "ダウンロード",
     downloadHint: "レシートをテキストファイルとして保存",
     copy: "コピー",
     copyHint: "レシートを大文字・小文字まで正確にコピー",
     saved: "レシートを保存しました",
-    savedMirror: (saved: boolean) => (saved ? "レシートを保存済みにしました。" : "レシートを保存してから、保存したことを確認してください。"),
     send: (n: number) => `${n} 件の記録を提出`,
     sending: "提出中…",
     sendFailed: (problem: string) => `提出を確認できませんでした（${problem}）。提出は完了している可能性があります。`,
@@ -341,8 +291,6 @@ export const ja: Messages = {
     withdrawnAt: (when: string) => `${when} に取り下げ`,
     line: (state: string, submitted: string, rows: number, rejected: number) =>
       `${state}、${submitted} に提出。${rows} 行。使用できない記録 ${rejected} 件は保存されていません。`,
-    mirrorLine: (active: boolean, rows: number, rejected: number) =>
-      `${active ? "有効" : "取り下げ済み"}。${rows} 行。使用できない記録 ${rejected} 件は保存されていません。`,
     failed: (problem: string) => `確認できませんでした：${problem}`,
     withdraw: "この提出を取り下げる",
     withdrawing: "取り下げ中…",

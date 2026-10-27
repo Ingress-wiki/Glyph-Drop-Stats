@@ -2,58 +2,30 @@ import type { Messages } from "./en.ts";
 
 /** Traditional Chinese. Drafted from the English (en.ts); awaiting review by a native speaker. */
 export const zhHant: Messages = {
-  language: { name: "繁體中文", code: "繁中" },
+  language: { name: "繁體中文" },
 
   app: {
     title: "Glyph Drop Stats",
     statistics: "統計",
     submit: "提交",
-    crtOn: "CRT 開",
-    crtOff: "CRT 關",
-    crtHint: "掃描線與光暈效果（F8）",
-    fontPixel: "像素字型",
-    fontSmooth: "平滑字型",
-    fontHint: "在像素字型與系統字型之間切換",
     source: "GitHub 上的原始碼",
-    textView: "文字檢視",
-    textViewHint: "以可選取、複製和搜尋的文字顯示所有內容（F9）",
-    menu: "選單",
-    menuHint: "GitHub、字型、CRT 和文字檢視",
     language: "語言",
-    languageHint: "選擇頁面語言",
-    textSize: "字級",
-    textSizeHint: "中日韓像素文字的大小",
     testPeriod:
       "測試期：提交僅供測試。現在提交的所有資料及由此得出的統計，都會在網站正式公開前刪除，也可能提前清除。",
-    statusLine: "F1 統計 · F2 提交 · F8 CRT · F9 文字檢視",
-    canvasLabel: "Glyph Drop Stats。畫布之後附有此處所有內容的文字版本。",
-    keyboardHelp:
-      "鍵盤操作：Tab 在控制項之間移動，Enter 或空白鍵啟用目前聚焦的控制項。F1 顯示統計，F2 顯示提交，F3 顯示篩選條件，F4 顯示數字解讀說明，F8 切換 CRT 效果，F9 顯示此文字檢視。",
-    fallback:
-      "此瀏覽器無法繪製介面：需要 WebGPU 或 WebGL2。原本會顯示的所有內容都以文字列在下方。如要提交匯出檔，請使用最新版本的瀏覽器。",
-    backToCanvas: "返回畫布檢視（F9）",
-    textViewNote: "文字檢視：下方任何內容都可以選取、複製或搜尋。",
+    keyboardHelp: "快速鍵：F1 統計 · F2 提交 · F3 篩選 · F4 數字解讀說明",
     close: "關閉",
+    views: "檢視",
   },
 
   a11y: {
-    button: (label: string) => `${label}，按鈕`,
-    textField: (label: string) => `${label}，文字欄位`,
-    selectable: (label: string) => `${label}，可選取的文字`,
-    checkbox: (label: string, checked: boolean) => `${label}，${checked ? "已勾選" : "未勾選"}`,
-    view: (label: string, current: boolean) => `${label}檢視${current ? "，目前顯示中" : ""}`,
-    sortBy: (column: string, direction: "ascending" | "descending" | null) =>
-      `依${column}排序${direction === "ascending" ? "，遞增" : direction === "descending" ? "，遞減" : ""}`,
     showCategory: (category: string) => `顯示${category}物品`,
     searchItems: "搜尋物品",
     receiptField: "憑證",
-    crt: (on: boolean) => `CRT 效果${on ? "開啟" : "關閉"}`,
     filterFrom: (label: string) => `${label}（起）`,
     filterTo: (label: string) => `${label}（迄）`,
   },
 
   stats: {
-    heading: "統計",
     loading: "載入中…",
     loadFailed: (problem: string) => `無法載入統計：${problem}`,
     search: "搜尋或點選標籤",
@@ -149,6 +121,7 @@ export const zhHant: Messages = {
       all: "全部",
       note: "每一列把一個能量塔等級的有等級物品（Resonator、XMP Burster、Ultra Strike、Power Cube）依物品等級拆分，單位為百分比。只計 App 確定的精確能量塔等級。",
       row: (level: number, observations: number) => `P${level} n=${observations}`,
+      cell: (level: string, items: number, total: number, percent: string) => `${level}：${total} 件有等級物品中的 ${items} 件（${percent}%）`,
       empty: "還沒有能量塔等級可信的合格觀測。",
       mirrorCaption: (group: string) => `各能量塔等級的有等級物品依物品等級的占比：${group}`,
     },
@@ -175,7 +148,6 @@ export const zhHant: Messages = {
       perObservation: (eligible: number) => `每觀測 n=${eligible}`,
       chance: "機率",
       whenPresent: "有時平均",
-      sort: (by: string) => `排序：${by}`,
       multiplied: "倍增",
       colourUnread: "顏色？",
       noEligible: "沒有符合這些篩選條件的合格觀測。",
@@ -187,25 +159,6 @@ export const zhHant: Messages = {
     caption: (hacks: number, drops: number, panel: string, updating: boolean) =>
       `${hacks} 次 Hack · ${drops} 組掉落 · 物品來自${panel}${updating ? " · 更新中…" : ""}`,
     mirrorCaption: (panel: string, eligible: number) => `物品來自${panel}，共 ${eligible} 次合格觀測`,
-    mirrorHeadline: {
-      records: "記錄",
-      eligible: "合格觀測",
-      perObservation: "每次觀測",
-      rare: "含 Rare 或 Very Rare 物品",
-      key: "含 Portal Key",
-    },
-    mirrorColumns: {
-      item: "物品",
-      quantity: "數量",
-      perObservation: "每次觀測",
-      chance: "每次觀測的機率",
-      whenPresent: "出現時的平均數",
-      multiplied: "倍增",
-      colourUnread: "顏色未讀出",
-    },
-    noLevels: "無等級",
-    noneMirror: "無。",
-    averageNone: "無",
   },
 
   panels: { portal: "能量塔面板", bonus: "獎勵面板", both: "能量塔與獎勵面板" },
@@ -270,7 +223,7 @@ export const zhHant: Messages = {
   },
 
   notices:
-    "程式碼以 MIT 授權條款釋出。介面以 synth-ui 繪製（MIT，© Cyandev）。文字使用 X.org misc-fixed 5×7 字型（公有領域）及 Fusion Pixel Font（SIL OFL 1.1）。授權條款全文：/licenses/。本站與 Niantic 或 Ingress 無關；物品名稱歸其所有。",
+    "程式碼以 MIT 授權條款釋出。字型：Departure Mono、IBM Plex Mono 及 Inter（SIL OFL 1.1）。授權條款全文：/licenses/。本站與 Niantic 或 Ingress 無關；物品名稱歸其所有。",
 
   submit: {
     heading: "提交",
@@ -282,7 +235,6 @@ export const zhHant: Messages = {
     checking: "檢查中…",
     noFile: "尚未選擇檔案。也可以將檔案拖放到頁面上。",
     fileName: (name: string) => `檔案：${name}`,
-    noFileMirror: "尚未選擇檔案。",
     checkFailed: (problem: string) => `無法檢查檔案：${problem}`,
     cantUse: "無法使用此檔案",
     summary: "摘要",
@@ -310,13 +262,11 @@ export const zhHant: Messages = {
     createReceipt: "建立我的憑證",
     receiptHeading: "你的憑證。請妥善保密。",
     yourReceipt: "你的憑證",
-    receiptMirror: (secret: string) => `你的憑證：${secret}`,
     download: "下載",
     downloadHint: "將憑證儲存為文字檔",
     copy: "複製",
     copyHint: "完整複製憑證，包括大小寫",
     saved: "我已儲存憑證",
-    savedMirror: (saved: boolean) => (saved ? "憑證已標記為已儲存。" : "請先儲存你的憑證，然後確認。"),
     send: (n: number) => `提交 ${n} 筆記錄`,
     sending: "提交中…",
     sendFailed: (problem: string) => `無法確認提交結果（${problem}）。提交可能已經完成。`,
@@ -339,8 +289,6 @@ export const zhHant: Messages = {
     withdrawnAt: (when: string) => `已於 ${when} 撤回`,
     line: (state: string, submitted: string, rows: number, rejected: number) =>
       `${state}，提交於 ${submitted}。共 ${rows} 列；${rejected} 筆無法使用的記錄未儲存。`,
-    mirrorLine: (active: boolean, rows: number, rejected: number) =>
-      `${active ? "有效" : "已撤回"}；${rows} 列；${rejected} 筆無法使用的記錄未儲存。`,
     failed: (problem: string) => `無法查詢：${problem}`,
     withdraw: "撤回此提交",
     withdrawing: "撤回中…",

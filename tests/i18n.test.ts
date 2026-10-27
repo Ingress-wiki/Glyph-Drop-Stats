@@ -1,10 +1,7 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ISSUE_MESSAGES, placeholders, type IssueKey } from "../src/domain/issueMessages.ts";
-import { FONTS, fontRoles } from "../src/web/canvas/theme.ts";
 import { en } from "../src/web/i18n/en.ts";
 import { detectLocale, issueText, LOCALES, messages, problemText, type Locale } from "../src/web/i18n/index.ts";
-import { CJK_SIZES } from "../src/web/textSize.ts";
 
 const TRANSLATED = LOCALES.filter((locale): locale is Exclude<Locale, "en"> => locale !== "en");
 
@@ -86,29 +83,6 @@ describe("catalogues", () => {
 
   it("every catalogue names its language in its own script", () => {
     expect(LOCALES.map((locale) => messages(locale).language.name)).toEqual(["English", "简体中文", "繁體中文", "日本語", "한국어"]);
-  });
-});
-
-describe("pixel faces", () => {
-  const faces = TRANSLATED.flatMap((locale) => CJK_SIZES.map((size) => [locale, size] as const));
-  const glyphsOf = (locale: Locale, size: (typeof CJK_SIZES)[number]) => {
-    const face = FONTS[fontRoles(locale, size).caps];
-    if (face?.kind !== "bitmap") throw new Error(`no bitmap face for ${locale} at ${size}px`);
-    return face.glyphs;
-  };
-
-  it.each(faces)("%s's %ipx face has every character its catalogue uses", (locale, size) => {
-    const source = readFileSync(new URL(`../src/web/i18n/${locale}.ts`, import.meta.url), "utf8");
-    const used = new Set([...source].filter((c) => c.codePointAt(0)! > 0x7e && !/\s/.test(c)));
-    const glyphs = glyphsOf(locale, size);
-    const missing = [...used].filter((c) => !(c in glyphs));
-    // Run `node scripts/cjk-faces.mjs <dir with the Fusion Pixel releases>` after changing a translation.
-    expect(missing).toEqual([]);
-  });
-
-  it.each(faces)("%s's %ipx face draws ASCII, for receipts, numbers and item names", (locale, size) => {
-    const glyphs = glyphsOf(locale, size);
-    for (let code = 0x20; code < 0x7f; code++) expect(String.fromCharCode(code) in glyphs).toBe(true);
   });
 });
 

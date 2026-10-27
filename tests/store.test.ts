@@ -9,9 +9,9 @@ import type {
   StatusOutcome,
   WithdrawOutcome,
 } from "../src/web/api.ts";
-import { CRT_KEY, DISCLAIMER_KEY, SMOOTH_TEXT_KEY, Store, TEXT_VIEW_KEY, type StoreDeps } from "../src/web/app/store.ts";
+import { announcement } from "../src/web/app/announce.ts";
+import { DISCLAIMER_KEY, Store, type StoreDeps } from "../src/web/app/store.ts";
 import { LOCALE_KEY, type Locale } from "../src/web/i18n/index.ts";
-import { CJK_SIZE_KEY } from "../src/web/textSize.ts";
 
 /** A promise the test settles by hand. */
 function deferred<T>() {
@@ -312,53 +312,16 @@ describe("per-viewer preferences", () => {
     expect(first.saved.get(DISCLAIMER_KEY)).toBe("1");
     expect(first.store.state.statistics.disclaimerOpen).toBe(false);
   });
-
-  it("remembers the text view", () => {
-    const first = setup();
-    expect(first.store.state.textView).toBe(false);
-    first.store.setTextView(true);
-    expect(first.saved.get(TEXT_VIEW_KEY)).toBe("on");
-    expect(first.store.state.textView).toBe(true);
-  });
-
-  it("remembers the CRT switch", () => {
-    const { store, saved } = setup();
-    expect(store.state.crt).toBe(true);
-    store.toggleCrt();
-    expect(saved.get(CRT_KEY)).toBe("off");
-    expect(store.state.crt).toBe(false);
-  });
-
-  it("draws CJK text at 10px unless another size was chosen, and remembers the choice", () => {
-    const { store, saved } = setup();
-    expect(store.state.cjkSize).toBe(10);
-    store.setCjkSize(12);
-    expect(store.state.cjkSize).toBe(12);
-    expect(saved.get(CJK_SIZE_KEY)).toBe("12");
-    saved.set(CJK_SIZE_KEY, "7");
-    expect(setup({ storage: { get: (key) => saved.get(key) ?? null, set: () => {} } }).store.state.cjkSize).toBe(10);
-  });
-
-  it("remembers the font switch, starting with the pixel font", () => {
-    const { store, saved } = setup();
-    expect(store.state.smoothText).toBe(false);
-    store.toggleSmoothText();
-    expect(saved.get(SMOOTH_TEXT_KEY)).toBe("on");
-    expect(store.state.smoothText).toBe(true);
-  });
 });
 
 describe("language", () => {
   it("starts in the given language, switches, and remembers the choice", () => {
     const { store, saved } = setup({}, "ja");
     expect(store.state.locale).toBe("ja");
-    store.setLanguageOpen(true);
-    expect(store.dialogOpen()).toBe(true);
     store.setLocale("ko");
-    expect(store.state).toMatchObject({ locale: "ko", languageOpen: false });
+    expect(store.state.locale).toBe("ko");
     expect(store.strings.language.name).toBe("한국어");
     expect(saved.get(LOCALE_KEY)).toBe("ko");
-    expect(store.dialogOpen()).toBe(false);
   });
 
   it("writes the receipt file in the page's language", async () => {
@@ -398,5 +361,38 @@ describe("a deployment in a test period", () => {
     expect(store.state.testPeriod).toBe(true);
     store.createReceipt();
     expect(store.state.submit.step).toBe("receipt");
+  });
+});
+
+describe("announcements", () => {
+  /** What the live region says for each change `act` makes. */
+  async function said(store: Store, act: () => unknown): Promise<string | null> {
+    const before = store.state;
+    await act();
+    return announcement(before, store.state);
+  }
+
+  it("says what a check, a receipt and a confirmation did", async () => {
+    const preview = { ok: true, rowCount: 7, records: { valid: 6, rejected: 1 } } as unknown as Preview;
+    const { store } = setup({ previewFile: vi.fn(async (): Promise<PreviewOutcome> => ({ kind: "ok", preview })) });
+    store.chooseFile(fileA);
+    expect(await said(store, () => store.checkFile())).toBe("Checked: 6 valid records, 1 unusable.");
+    expect(await said(store, () => store.createReceipt())).toBe(`Receipt created: gds1_${"a".repeat(43)}`);
+    store.setSaved(true);
+    expect(await said(store, () => store.send())).toBe("Submitted");
+  });
+
+  it("says a copied receipt every time, and names a new view or language", async () => {
+    const { store } = await checkedStore();
+    store.createReceipt();
+    expect(await said(store, () => store.copyReceipt())).toBe("Receipt copied");
+    expect(await said(store, () => store.copyReceipt())).toBe("Receipt copied");
+    expect(await said(store, () => store.setView("statistics"))).toBe("Statistics");
+    expect(await said(store, () => store.setLocale("ko"))).toBe("한국어");
+  });
+
+  it("stays quiet when nothing worth saying changed", async () => {
+    const { store } = setup();
+    expect(await said(store, () => store.setSearch("res"))).toBeNull();
   });
 });

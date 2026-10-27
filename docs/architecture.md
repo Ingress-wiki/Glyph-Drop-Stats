@@ -14,82 +14,48 @@ the server returns.
 
 ## The web page
 
-The interface is drawn into one `<canvas>` by [synth-ui](https://github.com/unixzii/synth-ui):
-immediate-mode, at 2.4 CSS pixels per virtual pixel (120%), with an optional CRT
-effect (F8). WebGPU is used where there is one, WebGL2 otherwise.
+The page is plain HTML rendered with React, in a PlasticList-inspired style
+(`src/web/index.css`): lines and type do the layout, one yellow accent, a
+pale-to-full yellow ramp for "more", light and dark following the system.
 
 | Path | Role |
 | --- | --- |
-| `src/web/app/store.ts` | All page state and actions, with no drawing. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
-| `src/web/canvas/` | Draws the state each frame, and calls the store's actions. |
-| `src/web/canvas/textLayer.ts` | Mirrors visible bitmap glyphs as transparent native text for selection and copying, and shows it in the system font when the font switch says so. It records synth-ui's backend `text()` calls during each frame and reads `UI.hits`, `UI.clips`, `UI.width` and `UI.height`, which synth-ui marks `@internal`, so synth-ui is pinned to exactly 0.1.0, with its source in the `vendor/synth-ui` submodule: check the text layer (`npm run test:browser`) before upgrading it (see [deployment](deployment.md#synth-ui)). |
-| `src/web/dashboard.ts` | What the statistics page derives from an answer (shares, bars, group names, the few-observations mark), shared by the canvas and the mirror so both say the same. Unit-tested. |
-| `src/web/touchScroll.ts` | Scrolling with a finger. synth-ui reads only mouse-like pointer events and the wheel, and its canvas sets `touch-action: none`, so a touch that moves becomes wheel events on one axis, then a glide; its press is released off screen so nothing activates. A touch that doesn't move stays a tap. |
-| `src/web/app/mirror.ts` | The same state as plain HTML, visually hidden. |
-| `src/web/main.ts` | Wiring: the store's network, storage and clipboard, the file input, and the view host. |
+| `src/web/app/store.ts` | All page state and actions, with no rendering. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
+| `src/web/App.tsx` | The top bar, the view, the dialogs and the live region. Components read the store with `useSyncExternalStore` and call its actions. |
+| `src/web/Statistics.tsx`, `src/web/Submit.tsx` | The two views. |
+| `src/web/charts.tsx` | The charts, drawn with [TanStack Charts](https://tanstack.com/charts) as SVG: bars for comparisons and for what an observation gives, a heatmap for the level grid. |
+| `src/web/dashboard.ts` | What the statistics page derives from an answer (shares, bars, group names, the few-observations mark). Unit-tested. |
+| `src/web/app/announce.ts` | What the live region says after each change. Unit-tested. |
+| `src/web/main.tsx` | Wiring: the store's network, storage and clipboard, dropped files, shortcuts. |
 
-A canvas has no text for assistive technology or the browser's find, and
-no native controls. So:
-
-- **The accessible mirror** renders everything the canvas shows as
-  semantic HTML, with a live region announcing results and the focused
-  control. If the canvas can't start (no WebGPU or WebGL2), the mirror is
-  shown in its place.
-- **Keyboard:**
-  - Tab moves between controls, and Enter or Space activates the focused
-    one. synth-ui's own buttons don't take focus, so the site draws its own.
-  - F1 shows statistics, F2 submitting, F3 the filters, F4 the guide, F8
-    the CRT effect, F9 the text view.
-  - The shortcuts are handled by the page, not the canvas, so they still
-    work after page text is selected (which takes focus from the canvas).
-  - While a dialog is open (the first-visit note, the guide, the
-    withdrawal confirmation), only F9 works, as synth-ui dialogs keep the
-    keyboard.
-- **Phones and narrow windows:**
-  - A finger scrolls the canvas (`src/web/touchScroll.ts`); on a touch
-    screen the F-key labels and shortcut line aren't shown.
-  - When the switches don't fit beside the title, only the language stays
-    and the rest go in a menu (the three-bar button).
-  - A section too wide for the screen changes form rather than scrolling
-    sideways: the headline becomes a list, the comparison and the item
-    table stack each row's figures, and the level grid shrinks its cells,
-    then becomes a line per portal level. A sideways-scrolling table would
-    take a vertical swipe (synth-ui gives it the vertical wheel too) and
-    stop the page from scrolling.
-- **Selecting and copying:** synth-ui 0.1.0 selects text only inside its
-  editable `textField` (its demo works the same way); labels and prose
-  can't be selected. So a transparent HTML text layer follows the
-  canvas's glyph positions and clipping. Drag or double-click to select
-  visible text, then copy normally; Mod+A selects the visible text. The
-  layer leaves interactive controls with the canvas and preserves text
-  nodes across redraws so hovering doesn't discard a selection. Modal
-  backdrops exclude covered text, and wheel events over text still scroll
-  the canvas.
-  - **Receipts** are drawn in a read-only selectable widget: drag,
-    double-click, Tab or Mod+A selects, and Mod+C copies through synth-ui's
-    copy-event path, which works over plain HTTP.
-  - **The COPY button** uses the clipboard API where the browser allows it
-    (HTTPS, localhost), and a selected off-screen text area elsewhere.
-  - **The text view** (TEXT VIEW, or F9) shows the accessible mirror on
-    screen instead of the canvas, where any text can be selected, copied
-    and searched. The choice is remembered per browser.
-- **Files:** CHOOSE FILE opens a hidden native `<input type="file">`. A
-  file can also be dropped anywhere on the page.
-- **Receipts:** synth-ui's faces are capitals only, and receipts are case
-  sensitive. Receipts and prose therefore use a mixed-case face converted
-  from the public-domain X.org misc-fixed 5×7 font
-  (`scripts/bdf-to-face.mjs`), and COPY puts the exact text on the
-  clipboard.
-
-- **Font switch:** PIXEL FONT / SMOOTH FONT in the top bar, remembered per
-  browser. synth-ui draws bitmap faces only, so smooth text is the text
-  layer made visible in the system font (coloured from the palette, the
-  capitals-only faces kept in capitals) while the canvas skips its glyphs.
-  Each run keeps the pixel text's place: control labels stay centred in
-  it, and a run whose system glyphs would be wider is set smaller to fit.
-  Layout, clipping and scrolling are the canvas's either way.
-- **Source:** GITHUB in the top bar opens the repository; the text view
-  links to it.
+- **Accessibility:**
+  - Native controls, real tables with sortable column headers
+    (`aria-sort`), and native modal dialogs, which keep focus inside,
+    close on Escape and return focus.
+  - A dialog starts on its safest control: "Keep it" in the withdrawal
+    confirmation.
+  - A polite live region announces results (a file checked, a receipt
+    created, statistics loaded, a receipt copied).
+  - Charts carry an accessible name. Their figures are also in tables: the
+    comparison is shown as one, and the level grid has a visually hidden
+    one.
+- **Keyboard:** Tab reaches every control. F1 shows statistics, F2
+  submitting, F3 the filters, F4 the guide. While a dialog is open the
+  shortcuts wait.
+- **Charts:**
+  - Hover or keyboard focus outlines a bar or cell, rather than drawing
+    TanStack's focus ring over its number.
+  - The tooltip says what the value is over: "Items / 252 eligible", or a
+    cell's "L4: 123 of 464 levelled items (27%)".
+  - Paint comes from the stylesheet's tokens, read again when the colour
+    scheme changes.
+- **Phones:** wide tables scroll sideways in their own box; the page itself
+  never does.
+- **Copying:** COPY uses the clipboard API where the browser allows it
+  (HTTPS, localhost), and a selected off-screen text area elsewhere. One
+  click selects the whole receipt for copying by hand.
+- **Files:** CHOOSE FILE wraps a native `<input type="file">`; a file can
+  also be dropped anywhere on the page.
 
 ### Languages
 
@@ -106,25 +72,14 @@ English, Simplified Chinese, Traditional Chinese, Japanese and Korean.
 - **Choosing:** the first visit follows the browser's languages (Chinese
   by script, or by region: Taiwan, Hong Kong and Macau use Traditional).
   The language switch in the top bar overrides it, and the choice is
-  remembered per browser. The accessible mirror, the page's `lang` and the
-  text outside the canvas follow it.
+  remembered per browser.
 - **Server messages:** every issue the API returns carries a stable `key`
   and its `params` beside the English `message`
   (`src/domain/issueMessages.ts`). The page translates by key and falls
   back to the English for a key it doesn't know, so an older page still
   says something useful after the server adds a rule.
-- **Faces:** synth-ui's faces and misc-fixed only cover Latin text. Each
-  other language is drawn in faces cut from Fusion Pixel Font
-  (proportional, SIL OFL 1.1) at 8, 10 and 12px by `scripts/cjk-faces.mjs`,
-  holding ASCII plus exactly the characters that language's catalogue
-  uses: Han characters take different forms in Simplified, Traditional and
-  Japanese, so each has its own. The script must be re-run after changing
-  a translation; a test checks every face. Line heights differ between
-  faces, so layout sizes come from the face's metrics, not constants.
-- **Text size:** the language picker offers 8, 10 or 12px for Chinese,
-  Japanese and Korean, remembered per browser; 10px is the default, as
-  complex Han characters crowd at 8px. synth-ui takes its faces once, when
-  it starts, so all twelve are in the bundle.
+- **Fonts:** the self-hosted fonts cover Latin only. Chinese, Japanese and
+  Korean text uses the visitor's system fonts.
 
 ## Submission lifecycle
 

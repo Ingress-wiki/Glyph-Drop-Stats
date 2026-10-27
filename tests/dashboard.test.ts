@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ItemTotal } from "../src/domain/statistics.ts";
-import { averageText, barOf, barTotals, chance, groupLabel, isFew, levelShares, percent, whenPresent } from "../src/web/dashboard.ts";
+import { averageText, barOf, barTotals, chance, groupLabel, isFew, levelShares, percent, sharePercent, whenPresent } from "../src/web/dashboard.ts";
 import { en } from "../src/web/i18n/en.ts";
 
 const row = (item: string, quantity: number, observations: number): ItemTotal => ({
@@ -25,6 +25,13 @@ describe("dashboard figures", () => {
     expect(percent({ yes: 0, known: 0 })).toBe("—");
     expect(averageText(1.005)).toBe("1.00");
     expect(averageText(null)).toBe("—");
+  });
+
+  it("writes a tiny share that isn't zero as <1, never 0", () => {
+    expect(sharePercent(0)).toBe("0");
+    expect(sharePercent(0.004)).toBe("<1");
+    expect(sharePercent(0.005)).toBe("1");
+    expect(sharePercent(0.274)).toBe("27");
   });
 
   it("names groups in the page's language, unknown included", () => {

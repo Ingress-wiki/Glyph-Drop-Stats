@@ -1,93 +1,165 @@
-/* The canvas has a native text layer for selection and a semantic accessible mirror. */
+/* PlasticList-style: lines and type do the layout. Hard edges, one yellow accent,
+   shades of yellow for "more", three typefaces with one job each. */
+
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/departure-mono/DepartureMono-Regular.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono/ibm-plex-mono-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter/inter-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter/inter-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
 
 :root {
-  color-scheme: dark;
-  --bg: #141210;
-  --text: #cfc8bc;
-  --accent: #e8591a;
+  color-scheme: light dark;
+  /* The fonts cover Latin only; Chinese, Japanese and Korean fall back to the system's fonts. */
+  --font-pixel: "Departure Mono", ui-monospace, monospace;
+  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+  --font-prose: "Inter", system-ui, sans-serif;
+  /* Chart labels, in plain pixels: charts read it once and set it on SVG text. */
+  --chart-text: 13px;
+
+  --bg: #e9e9e9;
+  --fg: #000;
+  --border: var(--fg);
+  --rule: #a3a3a3;
+  --muted: #525252;
+  --dim: #a3a3a3;
+  --surface: #fff;
+  --field: #e9e9e9;
+  --field-hover: #fff;
+  --button: #737373;
+  --button-hover: #525252;
+  --tag-bg: #d4d4d4;
+  --tag-fg: #404040;
+  --bad: #b91c1c;
+  --highlight: #ffe700;
+  /* "More" ramps from pale to full yellow. */
+  --shade-1: #fffbdb;
+  --shade-2: #fff6ad;
+  --shade-3: #fff080;
+  --shade-4: #ffeb4d;
+  --shade-5: #ffe700;
+  --shade-1-fg: #000;
+  --shade-2-fg: #000;
+  --shade-3-fg: #000;
+  --shade-4-fg: #000;
+  --shade-5-fg: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171717;
+    --fg: #e9e9e9;
+    --rule: #525252;
+    --muted: #a3a3a3;
+    --dim: #525252;
+    --surface: #262626;
+    --field: #262626;
+    --field-hover: #404040;
+    --button: #525252;
+    --button-hover: #404040;
+    --tag-bg: #404040;
+    --tag-fg: #d4d4d4;
+    --bad: #f87171;
+    /* On a dark page "more" brightens: dim olive up to full yellow. */
+    --shade-1: #34310f;
+    --shade-2: #575113;
+    --shade-3: #9c8f12;
+    --shade-4: #d4c20f;
+    --shade-1-fg: #e9e9e9;
+    --shade-2-fg: #e9e9e9;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 html,
 body {
   margin: 0;
-  height: 100%;
   background: var(--bg);
-  color: var(--text);
-  font: 16px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--fg);
 }
 
-#screen {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  outline: none;
+body {
+  font: 15px/1.5 var(--font-prose);
 }
 
-#canvas-text {
-  position: fixed;
-  pointer-events: none;
-  /* Like the canvas: a swipe over text scrolls the canvas (touchScroll.ts), not the page. */
-  touch-action: none;
-  overflow: hidden;
-  user-select: text;
-  -webkit-user-select: text;
+::selection {
+  background: var(--highlight);
+  color: #000;
 }
 
-.canvas-text-run {
-  position: absolute;
-  white-space: pre;
-  color: transparent;
-  cursor: text;
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
 }
 
-.canvas-text-run span::selection {
-  color: transparent;
-  background: #e8591a80;
+button:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  background: var(--highlight);
+  color: #000;
 }
 
-/* Smooth font: the same text, shown in the system's font in each glyph's cell. */
-#canvas-text.smooth .canvas-text-run {
-  color: var(--ink);
+a {
+  color: inherit;
 }
 
-#canvas-text.smooth .canvas-text-run.caps {
-  text-transform: uppercase;
+a:hover {
+  background: var(--highlight);
+  color: #000;
 }
 
-#canvas-text.smooth .canvas-text-run::selection {
-  color: #fff;
-  background: #e8591a80;
+code {
+  font-family: var(--font-data);
+  font-size: 14px;
+  font-variant-numeric: slashed-zero tabular-nums;
+  overflow-wrap: anywhere;
 }
 
-#canvas-text.smooth .canvas-text-run span::selection {
-  color: #fff;
-}
-
-/* Present for the canvas's CHOOSE FILE button to open, never shown. */
-.file-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.sr-only,
-.mirror {
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
   margin: -1px;
-  padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-  border: 0;
-}
-
-.fallback-note {
-  display: none;
 }
 
 /* Off-screen, for copying where the clipboard API isn't allowed. */
@@ -97,82 +169,760 @@ body {
   left: -9999px;
 }
 
-.text-view-bar {
-  display: none;
+/* The frame: a 1px line 8px inside the window, above everything. */
+.frame {
+  position: fixed;
+  inset: 8px;
+  border: 1px solid var(--border);
+  box-shadow: 0 0 0 8px var(--bg);
+  pointer-events: none;
+  z-index: 50;
 }
 
-/* Without a canvas, or in the text view, the mirror is the page. */
-.fallback #screen,
-.text-view #screen,
-.fallback #canvas-text,
-.text-view #canvas-text {
-  display: none !important;
+.app {
+  min-height: 100vh;
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
 }
 
-.text-view .text-view-bar {
+main {
+  flex: 1;
+}
+
+/* Top bar */
+
+.topbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin: 16px;
-  padding: 8px 12px;
-  border-left: 3px solid var(--accent);
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  font: 16.5px/1 var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.text-view-bar button {
+.wordmark {
+  margin: 0;
+  padding: 8px 10px 6px;
+  background: var(--highlight);
+  color: #000;
   font: inherit;
-  padding: 4px 10px;
-  border: 1px solid var(--accent);
-  background: #2a2520;
-  color: var(--text);
+}
+
+.tabs {
+  display: flex;
+}
+
+.tabs button {
+  height: auto;
+  padding: 8px 12px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.tabs button[aria-current="page"] {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+
+.tabs button:hover {
+  background: var(--highlight);
+  color: #000;
+}
+
+.switches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 0 8px;
+}
+
+.switches select,
+.switches a {
+  font: 11px/1 var(--font-pixel);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.switches select {
+  height: 24px;
+}
+
+/* Controls */
+
+button {
+  height: 28px;
+  padding: 0 0.6em;
+  border: 0;
+  background: var(--button);
+  color: #fff;
+  font: 16.5px/1 var(--font-pixel);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--fg);
+}
+
+button:hover {
+  background: var(--button-hover);
+}
+
+button:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--fg);
+}
+
+button:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+/* The primary action, or a choice that's on. */
+button.primary,
+button[aria-pressed="true"],
+button[aria-expanded="true"] {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+button.danger {
+  background: var(--bad);
+  color: #fff;
+}
+
+input,
+select {
+  height: 28px;
+  padding: 0 0.4em;
+  border: 1px solid var(--border);
+  background: var(--field);
+  color: var(--fg);
+  font: 16.5px/1 var(--font-pixel);
+}
+
+input {
+  font: 14px/1 var(--font-data);
+}
+
+input:hover,
+select:hover {
+  background: var(--field-hover);
+}
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--fg);
+}
+
+/* A button around a hidden file input. */
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 0.6em;
+  background: var(--button);
+  color: #fff;
+  font: 16.5px/1 var(--font-pixel);
   cursor: pointer;
 }
 
-.text-view-bar button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.file-button:hover {
+  background: var(--button-hover);
 }
 
-/* The canvas's keyboard controls don't exist without it. */
-.fallback .keyboard-help,
-.text-view .keyboard-help {
-  display: none;
+.file-button:focus-within {
+  outline: 2px solid var(--fg);
+  outline-offset: 1px;
+  background: var(--highlight);
+  color: #000;
 }
 
-.fallback .fallback-note {
-  display: block;
-  margin: 16px;
-  padding: 8px 12px;
-  border-left: 3px solid var(--accent);
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
 }
 
-.fallback .mirror,
-.text-view .mirror {
-  position: static;
-  width: auto;
+.toolbar button {
+  box-shadow: none;
+}
+
+.toolbar input[type="search"] {
+  flex: 0 1 22rem;
+  min-width: 0;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.toolbar.bare {
+  padding: 0;
+  border: 0;
+}
+
+.toolbar.bare .receipt-field {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.filter-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 8px 16px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.filter-panel .field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-panel .field > span:first-child {
+  width: 100%;
+  font: 11px/1.2 var(--font-pixel);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.filter-panel input {
+  width: 9.5rem;
+}
+
+.filter-panel .actions,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+/* Small pixel labels, notes and tags */
+
+.label {
+  font: 11px/1.2 var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.note,
+.caption {
+  margin: 6px 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.notice {
+  margin: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--highlight);
+  color: #000;
+}
+
+.error {
+  margin: 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--bad);
+  color: var(--bad);
+}
+
+.warning {
+  padding-left: 8px;
+  border-left: 2px solid var(--highlight);
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 8px;
+  color: var(--muted);
+}
+
+.tag {
+  display: inline-block;
   height: auto;
-  margin: 16px;
-  overflow: visible;
-  clip-path: none;
-  white-space: normal;
+  margin-left: 8px;
+  padding: 2px 4px;
+  border: 0;
+  background: var(--tag-bg);
+  color: var(--tag-fg);
+  font: 11px/1 var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+  box-shadow: none;
 }
 
-.fallback table,
-.text-view table {
-  border-collapse: collapse;
-  display: block;
-  overflow-x: auto;
+button.tag:hover {
+  background: var(--highlight);
+  color: #000;
 }
 
-.fallback th,
-.fallback td,
-.text-view th,
-.text-view td {
-  padding: 4px 8px;
-  border: 1px solid #3b352f;
+.tag.outline {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+/* Headline strip: each number with its caveat beside it */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.strip > div {
+  padding: 8px 10px 10px;
+  border-right: 1px solid var(--rule);
+}
+
+.strip dt {
+  font: 11px/1.2 var(--font-pixel);
+}
+
+.strip dd {
+  margin: 0;
+}
+
+.strip .value {
+  font: 22px/1.3 var(--font-data);
+  font-variant-numeric: slashed-zero tabular-nums;
+}
+
+.strip .note {
+  margin: 2px 0 0;
+  font: 14px/1.4 var(--font-prose);
+}
+
+.strip .few .value {
+  color: var(--muted);
+}
+
+/* Sections of the dashboard */
+
+.block {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+}
+
+h2 {
+  margin: 0;
+  font: 22px/1.2 var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+h3 {
+  margin: 0;
+  padding: 8px;
+  font: 16.5px/1.2 var(--font-pixel);
+  text-transform: uppercase;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+}
+
+.pair > .block + .block {
+  border-left: 1px solid var(--rule);
+}
+
+.small-multiples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0 16px;
+  padding: 0 8px 8px;
+}
+
+.small-multiples figure {
+  margin: 0;
+}
+
+.chart {
+  padding: 0 8px;
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 8px;
+}
+
+.segmented button {
+  box-shadow: none;
+}
+
+/* Charts inherit the page's type and colour. */
+.ts-chart-host {
+  color: var(--fg);
+  font: 13px/1.2 var(--font-data);
+  --ts-chart-tooltip-background: var(--surface);
+  --ts-chart-tooltip-color: var(--fg);
+  --ts-chart-tooltip-border: 1px solid var(--border);
+  --ts-chart-tooltip-border-radius: 0;
+  --ts-chart-tooltip-shadow: 3px 3px 0 var(--fg);
+  --ts-chart-tooltip-font: 13px/1.3 var(--font-data);
+}
+
+/* Data tables */
+
+.table-wrap {
+  overflow: auto;
+  max-height: 75vh;
+}
+
+table.data {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: 14px/1.25 var(--font-data);
+  font-variant-numeric: slashed-zero tabular-nums;
+}
+
+table.data th,
+table.data td {
+  padding: 8px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
   text-align: left;
+  white-space: nowrap;
 }
 
-a {
-  color: var(--accent);
+table.data thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  border-bottom-color: var(--border);
+  font: 11px/1.2 var(--font-pixel);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+table.data tbody tr:nth-child(odd) > * {
+  background: var(--surface);
+}
+
+table.data tbody tr:nth-child(even) > * {
+  background: var(--bg);
+}
+
+table.data tbody th {
+  font-weight: normal;
+}
+
+/* The name column stays in view when a wide table scrolls sideways. */
+table.data th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+table.data thead th:first-child {
+  z-index: 3;
+}
+
+table.data tr.few > * {
+  color: var(--dim);
+}
+
+table.data td.muted {
+  color: var(--dim);
+}
+
+table.data tbody tr > td.shade-1 { background: var(--shade-1); color: var(--shade-1-fg); }
+table.data tbody tr > td.shade-2 { background: var(--shade-2); color: var(--shade-2-fg); }
+table.data tbody tr > td.shade-3 { background: var(--shade-3); color: var(--shade-3-fg); }
+table.data tbody tr > td.shade-4 { background: var(--shade-4); color: var(--shade-4-fg); }
+table.data tbody tr > td.shade-5 { background: var(--shade-5); color: var(--shade-5-fg); }
+
+th button.sort {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  box-shadow: none;
+}
+
+th button.sort:hover {
+  background: var(--highlight);
+  color: #000;
+}
+
+th[aria-sort] button.sort {
+  color: var(--fg);
+}
+
+/* About this sample */
+
+.sample summary {
+  padding: 8px;
+  cursor: pointer;
+  font: 16.5px/1.2 var(--font-pixel);
+  text-transform: uppercase;
+}
+
+.breakdowns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  border-top: 1px solid var(--border);
+}
+
+.breakdowns > section {
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+table.counts {
+  border-collapse: collapse;
+}
+
+.breakdowns table.counts {
+  margin: 0 8px 8px;
+}
+
+table.counts td {
+  padding: 2px 8px 2px 0;
+  vertical-align: baseline;
+}
+
+table.counts td.count {
+  text-align: right;
+  font-family: var(--font-data);
+}
+
+/* The submit page: a readable column */
+
+.page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page > section,
+.page > .lede {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.page h2 {
+  margin: 0 0 12px;
+}
+
+.page h3 {
+  padding: 12px 0 4px;
+}
+
+.page .error {
+  margin: 8px 0;
+}
+
+.lede {
+  margin: 0;
+  color: var(--muted);
+}
+
+.file {
+  margin: 8px 0 0;
+  font-family: var(--font-data);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+dt {
+  font: 11px/1.6 var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  font: 14px/1.4 var(--font-data);
+  font-variant-numeric: slashed-zero tabular-nums;
+}
+
+.rejected,
+.issues {
+  padding-left: 1.2em;
+}
+
+.rejected ul {
+  padding-left: 1.2em;
+  color: var(--muted);
+}
+
+.receipt {
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 3px 3px 0 var(--fg);
+}
+
+.receipt .label {
+  margin: 0 0 8px;
+}
+
+.receipt code {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 15px;
+  user-select: all;
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* Dialogs */
+
+dialog {
+  max-width: min(38rem, calc(100vw - 32px));
+  padding: 20px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  box-shadow: 6px 6px 0 var(--fg);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.25);
+}
+
+dialog h2 {
+  margin-bottom: 12px;
+}
+
+dialog form,
+dialog .actions {
+  margin-top: 16px;
+  justify-content: center;
+  text-align: center;
+}
+
+/* A short notice: "Receipt copied". */
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--highlight);
+  color: #000;
+  font: 14px/1 var(--font-pixel);
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 var(--fg);
+}
+
+.footer {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  font: 11px/1.4 var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.footer p {
+  margin: 0 0 4px;
+}
+
+/* No keyboard on a touch screen: its shortcuts would be noise. */
+@media (pointer: coarse) {
+  .footer .keys {
+    display: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .toolbar > * {
+    flex: 1 1 100%;
+  }
+
+  .toolbar .spacer {
+    display: none;
+  }
+
+  .strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .switches {
+    margin-left: 0;
+    padding: 6px;
+  }
+
+  dl {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  dd {
+    margin-bottom: 8px;
+  }
+
+  .page {
+    padding: 16px 8px;
+  }
 }
