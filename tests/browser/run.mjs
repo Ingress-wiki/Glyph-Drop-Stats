@@ -8,16 +8,15 @@ import { join } from "node:path";
 import { chromium, firefox } from "playwright-core";
 import { datasetRecords } from "../helpers/dataset.ts";
 import { csv } from "../helpers/export.ts";
-import { canvasSuite } from "./canvas.mjs";
 import { firefoxSuite } from "./firefox.mjs";
 import { languageSuite } from "./language.mjs";
-import { textLayerSuite } from "./text-layer.mjs";
+import { siteSuite } from "./site.mjs";
 
 const PORT = Number(process.env.BROWSER_TEST_PORT ?? 8799);
 const CONFIG = "dist/glyph_drop_stats/wrangler.json";
 const dir = mkdtempSync(join(tmpdir(), "gds-browser-"));
 const state = join(dir, "state");
-/** Screenshots outlive the run, for a look at each language; SCREENSHOT_DIR picks where. */
+/** Screenshots outlive the run, for a look at each page and language; SCREENSHOT_DIR picks where. */
 const screenshots = process.env.SCREENSHOT_DIR ?? mkdtempSync(join(tmpdir(), "gds-screens-"));
 mkdirSync(screenshots, { recursive: true });
 
@@ -55,26 +54,19 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   const lan = lanAddress();
-  // CI runners have no GPU: WebGL2 there comes from SwiftShader, which Chrome only allows when asked.
-  // SOFTWARE_GL=1 renders the same way locally, to reproduce CI's slow frames.
-  const args = process.env.CI || process.env.SOFTWARE_GL ? ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"] : [];
-  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true, args });
+  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome", headless: true });
   try {
-    const canvas = await canvasSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir, screens: screenshots });
-    const textLayer = await textLayerSuite({ browser, base, upload: join(dir, "b.csv") });
+    const site = await siteSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir, screens: screenshots });
     const languages = await languageSuite({ browser, base, dir: screenshots });
-    passed = canvas && textLayer && languages;
+    passed = site && languages;
   } finally {
     await browser.close();
   }
   // Playwright's own Firefox (`npx playwright-core install firefox`); CI always has it.
-  // Without a GPU, Firefox only offers WebGL when told to (software rendering).
-  const firefoxUserPrefs = process.env.CI ? { "webgl.force-enabled": true, "webgl.disable-fail-if-major-performance-caveat": true } : {};
-  // Headless Firefox on Linux has no WebGL without a GPU: CI runs it windowed, under xvfb-run.
-  const gecko = await firefox.launch({ headless: !process.env.CI, firefoxUserPrefs }).catch(() => null);
+  const gecko = await firefox.launch({ headless: true }).catch(() => null);
   if (gecko) {
     try {
-      passed = (await firefoxSuite({ browser: gecko, base })) && passed;
+      passed = (await firefoxSuite({ browser: gecko, base, upload: join(dir, "b.csv") })) && passed;
     } finally {
       await gecko.close();
     }
@@ -84,7 +76,7 @@ try {
     console.log("NOTE  no Playwright Firefox: the Firefox checks were skipped");
   }
   if (!lan) console.log("NOTE  no LAN address: the plain-HTTP copy checks were skipped");
-  console.log(`NOTE  language screenshots in ${screenshots}`);
+  console.log(`NOTE  screenshots in ${screenshots}`);
 } finally {
   stopServer();
   rmSync(dir, { recursive: true, force: true });

@@ -14,23 +14,25 @@ import {
 } from "../api.ts";
 import type { Messages } from "../i18n/en.ts";
 import { LOCALE_KEY, messages, type Locale } from "../i18n/index.ts";
-import { CJK_SIZE_KEY, DEFAULT_CJK_SIZE, isCjkSize, type CjkSize } from "../textSize.ts";
-import { DEFAULT_SORT, itemsTsv, type Sort, type SortKey } from "../itemTable.ts";
+import { itemsTsv, type Sort, type SortKey } from "../itemTable.ts";
 import { LatestOnly, STALE } from "../latest.ts";
 import { EMPTY_FORM, formQuery, type StatsForm } from "../statsForm.ts";
+import { address, DEFAULT_VIEW, hasRanges, type ViewState } from "../viewLink.ts";
 
 /**
- * Everything the page shows and every action on it, with no drawing. The
- * canvas reads `state` each frame and calls the actions; the accessible
- * mirror renders the same state as text. Keeping the rules here (which
- * answer may update the page, which file a receipt belongs to) lets them be
- * tested without a browser.
+ * Everything the page shows and every action on it, with no rendering. The
+ * React components read `state` and call the actions. Keeping the rules here
+ * (which answer may update the page, which file a receipt belongs to) lets
+ * them be tested without a browser.
  */
 
 export type View = "statistics" | "submit";
 
 export interface StatisticsState {
+  /** The form as typed; ranges apply only when asked. */
   form: StatsForm;
+  /** The form the shown answer was asked for: what the page's address records. */
+  applied: StatsForm;
   /** Null until the first answer. */
   outcome: StatisticsOutcome | null;
   loading: boolean;
@@ -41,6 +43,8 @@ export interface StatisticsState {
   disclaimerOpen: boolean;
   /** The comparison group whose level grid is shown; null for every record. */
   gridGroup: string | null;
+  /** The item whose count distribution is shown; null for the page's default. */
+  distItem: string | null;
   /** The "about this sample" section is expanded. */
   sampleOpen: boolean;
 }
@@ -82,17 +86,8 @@ export interface AppState {
   submit: SubmitPhase;
   status: StatusState;
   statistics: StatisticsState;
-  crt: boolean;
-  /** Text in the system's font instead of the pixel faces. */
-  smoothText: boolean;
-  /** The page shown as plain HTML instead of the canvas: text can be selected, copied and found. */
-  textView: boolean;
   /** The page's language. */
   locale: Locale;
-  /** The pixel size Chinese, Japanese and Korean text is drawn at. */
-  cjkSize: CjkSize;
-  /** The language picker is open. */
-  languageOpen: boolean;
   /**
    * Whether this deployment accepts submissions; null until known (or if it
    * couldn't be read, when the server's refusal still says so).
@@ -116,23 +111,14 @@ export interface StoreDeps {
   copy(text: string): Promise<void>;
   /** Per-viewer preferences; reads and writes may fail (private windows) and must not matter. */
   storage: { get(key: string): string | null; set(key: string, value: string): void };
-  setHash(view: View): void;
+  /** Records the view in the page's address (query and hash), without a history entry. */
+  setAddress(address: string): void;
   /** The site's address, written into receipts. */
   origin: string;
   now(): Date;
 }
 
 export const DISCLAIMER_KEY = "glyph-drop-stats:disclaimer-seen";
-export const CRT_KEY = "glyph-drop-stats:crt";
-export const TEXT_VIEW_KEY = "glyph-drop-stats:text-view";
-export const SMOOTH_TEXT_KEY = "glyph-drop-stats:smooth-text";
-
-
-
-function storedCjkSize(value: string | null): CjkSize {
-  const size = Number(value);
-  return value !== null && isCjkSize(size) ? size : DEFAULT_CJK_SIZE;
-}
 
 export class Store {
   state: AppState;
@@ -144,7 +130,11 @@ export class Store {
 
   private readonly deps: StoreDeps;
 
-  constructor(deps: StoreDeps, view: View, locale: Locale) {
+  /** The address last recorded, so it is only written when it changes. */
+  private recorded: string;
+
+  /** `initial` is the statistics view to open with, as a linked address describes it. */
+  constructor(deps: StoreDeps, view: View, locale: Locale, initial: ViewState = DEFAULT_VIEW) {
     this.deps = deps;
     this.state = {
       view,
@@ -153,27 +143,31 @@ export class Store {
       submit: { step: "explain" },
       status: { input: "", checking: false, looked: null, withdrawal: { step: "idle" } },
       statistics: {
-        form: EMPTY_FORM,
+        form: initial.form,
+        applied: initial.form,
         outcome: null,
         loading: false,
-        search: "",
-        sort: DEFAULT_SORT,
-        filtersOpen: false,
+        search: initial.search,
+        sort: initial.sort,
+        filtersOpen: hasRanges(initial.form),
         guideOpen: false,
         disclaimerOpen: deps.storage.get(DISCLAIMER_KEY) !== "1",
-        gridGroup: null,
+        gridGroup: initial.gridGroup,
+        distItem: initial.item,
         sampleOpen: false,
       },
-      crt: deps.storage.get(CRT_KEY) !== "off",
-      smoothText: deps.storage.get(SMOOTH_TEXT_KEY) === "on",
       locale,
-      cjkSize: storedCjkSize(deps.storage.get(CJK_SIZE_KEY)),
-      languageOpen: false,
-      textView: deps.storage.get(TEXT_VIEW_KEY) === "on",
       submissionsOpen: null,
       testPeriod: false,
       notice: null,
     };
+    this.recorded = this.address();
+  }
+
+  /** The address for the current state: the applied view, and whether submitting. */
+  private address(): string {
+    const { applied, search, sort, gridGroup, distItem } = this.state.statistics;
+    return address({ form: applied, search, sort, gridGroup, item: distItem }, this.state.view === "submit");
   }
 
   async loadConfig(): Promise<void> {
@@ -188,6 +182,11 @@ export class Store {
 
   private update(patch: Partial<AppState>): void {
     this.state = { ...this.state, ...patch };
+    const next = this.address();
+    if (next !== this.recorded) {
+      this.recorded = next;
+      this.deps.setAddress(next);
+    }
     for (const listener of this.listeners) listener();
   }
 
@@ -210,60 +209,33 @@ export class Store {
 
   setLocale(locale: Locale): void {
     this.deps.storage.set(LOCALE_KEY, locale);
-    this.update({ locale, languageOpen: false });
-  }
-
-  setCjkSize(cjkSize: CjkSize): void {
-    this.deps.storage.set(CJK_SIZE_KEY, String(cjkSize));
-    this.update({ cjkSize });
-  }
-
-  setLanguageOpen(languageOpen: boolean): void {
-    this.update({ languageOpen });
+    this.update({ locale });
   }
 
   // Views
 
   /** Statistics load fresh every time they are shown. */
   setView(view: View): void {
-    this.deps.setHash(view);
     this.update({ view });
-    if (view === "statistics") void this.loadStatistics(formQuery(this.state.statistics.form));
-  }
-
-  toggleCrt(): void {
-    const crt = !this.state.crt;
-    this.deps.storage.set(CRT_KEY, crt ? "on" : "off");
-    this.update({ crt });
-  }
-
-  toggleSmoothText(): void {
-    const smoothText = !this.state.smoothText;
-    this.deps.storage.set(SMOOTH_TEXT_KEY, smoothText ? "on" : "off");
-    this.update({ smoothText });
+    if (view === "statistics") void this.loadStatistics();
   }
 
   /**
-   * A dialog the canvas shows over the page: the language picker, the
-   * first-visit note, the guide or the withdrawal confirmation. Page
-   * shortcuts wait until it closes.
+   * A modal dialog over the page: the first-visit note, the guide or the
+   * withdrawal confirmation. Page shortcuts wait until it closes.
    */
   dialogOpen(): boolean {
-    const { view, statistics, status, languageOpen } = this.state;
-    if (languageOpen) return true;
+    const { view, statistics, status } = this.state;
     if (view === "statistics") return statistics.disclaimerOpen || statistics.guideOpen;
     return status.withdrawal.step === "confirming" || status.withdrawal.step === "uncertain" || status.withdrawal.step === "sending";
   }
 
-  setTextView(textView: boolean): void {
-    this.deps.storage.set(TEXT_VIEW_KEY, textView ? "on" : "off");
-    this.update({ textView });
-  }
-
   // Statistics
 
-  async loadStatistics(query: string): Promise<void> {
-    this.updateStatistics({ loading: true });
+  /** Asks for the statistics `form` describes (the form as it stands, unless given). */
+  async loadStatistics(form: StatsForm = this.state.statistics.form): Promise<void> {
+    this.updateStatistics({ loading: true, applied: form });
+    const query = formQuery(form);
     let outcome: StatisticsOutcome;
     try {
       const result = await this.statistics.run((signal) => this.deps.fetchStatistics(query, signal));
@@ -284,11 +256,15 @@ export class Store {
     const { form: current, gridGroup } = this.state.statistics;
     const form = { ...current, ...patch };
     this.updateStatistics({ form, gridGroup: form.split === current.split ? gridGroup : null });
-    void this.loadStatistics(formQuery(form));
+    void this.loadStatistics(form);
   }
 
   setGridGroup(gridGroup: string | null): void {
     this.updateStatistics({ gridGroup });
+  }
+
+  setDistItem(distItem: string): void {
+    this.updateStatistics({ distItem });
   }
 
   toggleSample(): void {
@@ -296,7 +272,7 @@ export class Store {
   }
 
   applyFilters(): void {
-    void this.loadStatistics(formQuery(this.state.statistics.form));
+    void this.loadStatistics();
   }
 
   /** Clears the ranges; the pickers keep their choice. */
@@ -304,7 +280,7 @@ export class Store {
     const { kind, panels, alignment, split } = this.state.statistics.form;
     const form = { ...EMPTY_FORM, kind, panels, alignment, split };
     this.updateStatistics({ form });
-    void this.loadStatistics(formQuery(form));
+    void this.loadStatistics(form);
   }
 
   setSearch(search: string): void {
@@ -329,6 +305,16 @@ export class Store {
   dismissDisclaimer(): void {
     this.deps.storage.set(DISCLAIMER_KEY, "1");
     this.updateStatistics({ disclaimerOpen: false });
+  }
+
+  /** Copies a link to this view; `url` is the page's address, which the store records but doesn't know the origin of. */
+  async copyLink(url: string): Promise<void> {
+    try {
+      await this.deps.copy(url);
+      this.notify("linkCopied");
+    } catch {
+      this.notify("linkCopyFailed");
+    }
   }
 
   downloadTsv(): void {

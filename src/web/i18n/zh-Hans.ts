@@ -2,56 +2,30 @@ import type { Messages } from "./en.ts";
 
 /** Simplified Chinese. Drafted from the English (en.ts); awaiting review by a native speaker. */
 export const zhHans: Messages = {
-  language: { name: "简体中文", code: "简中" },
+  language: { name: "简体中文" },
 
   app: {
     title: "Glyph Drop Stats",
     statistics: "统计",
     submit: "提交",
-    crtOn: "CRT 开",
-    crtOff: "CRT 关",
-    crtHint: "扫描线与辉光（F8）",
-    fontPixel: "像素字体",
-    fontSmooth: "平滑字体",
-    fontHint: "在像素字体和系统字体之间切换",
     source: "GitHub 上的源代码",
-    textView: "文本视图",
-    textViewHint: "将所有内容显示为可选择、复制和搜索的文本（F9）",
     language: "语言",
-    languageHint: "选择页面语言",
-    textSize: "字号",
-    textSizeHint: "中日韩像素文字的大小",
     testPeriod:
       "测试期：提交仅供测试。现在提交的所有数据及由此得出的统计，都会在网站正式公开前删除，也可能提前清除。",
-    statusLine: "F1 统计 · F2 提交 · F8 CRT · F9 文本视图",
-    canvasLabel: "Glyph Drop Stats。画布之后附有此处所有内容的文本版本。",
-    keyboardHelp:
-      "键盘：Tab 键在控件之间移动，Enter 或空格键激活当前聚焦的控件。F1 显示统计，F2 显示提交，F3 显示筛选，F4 显示数字说明，F8 切换 CRT 效果，F9 显示此文本视图。",
-    fallback:
-      "此浏览器无法绘制界面：需要 WebGPU 或 WebGL2。界面上的所有内容都以文本形式显示在下方。如需提交导出文件，请使用最新版本的浏览器。",
-    backToCanvas: "返回画布视图（F9）",
-    textViewNote: "文本视图：下方任何内容都可以选择、复制或搜索。",
+    keyboardHelp: "快捷键：F1 统计 · F2 提交 · F3 筛选 · F4 数字说明",
     close: "关闭",
+    views: "视图",
   },
 
   a11y: {
-    button: (label: string) => `${label}，按钮`,
-    textField: (label: string) => `${label}，文本框`,
-    selectable: (label: string) => `${label}，可选择的文本`,
-    checkbox: (label: string, checked: boolean) => `${label}，${checked ? "已勾选" : "未勾选"}`,
-    view: (label: string, current: boolean) => `${label}视图${current ? "，当前" : ""}`,
-    sortBy: (column: string, direction: "ascending" | "descending" | null) =>
-      `按${column}排序${direction ? `，${direction === "ascending" ? "升序" : "降序"}` : ""}`,
     showCategory: (category: string) => `显示“${category}”类物品`,
     searchItems: "搜索物品",
     receiptField: "回执",
-    crt: (on: boolean) => `CRT 效果${on ? "已开启" : "已关闭"}`,
     filterFrom: (label: string) => `${label}（起）`,
     filterTo: (label: string) => `${label}（止）`,
   },
 
   stats: {
-    heading: "统计",
     loading: "载入中…",
     loadFailed: (problem: string) => `无法载入统计：${problem}`,
     search: "搜索或点击标签",
@@ -72,6 +46,8 @@ export const zhHans: Messages = {
     aboutHint: "如何解读这些数字（F4）",
     tsv: "TSV",
     tsvHint: "将物品表下载为制表符分隔值文件",
+    copyLink: "复制链接",
+    copyLinkHint: "复制可打开此视图的链接：筛选、比较、搜索和排序",
     apply: "应用",
     clear: "清除",
     ranges: {
@@ -106,6 +82,10 @@ export const zhHans: Messages = {
         glyphCount: "按 Glyph 数量",
         speedCommand: "按速度指令",
         keyCommand: "按钥匙指令",
+        panelEffect: "按面板效果",
+        event: "按 Ingress 活动",
+        week: "按 UTC 周",
+        day: "按 UTC 日",
       },
       columns: {
         records: "记录",
@@ -130,6 +110,9 @@ export const zhHans: Messages = {
         noKey: "不要钥匙",
         keysOnly: "只要钥匙",
       },
+      panelEffects: { none: "未显示效果", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
+      outsideEvents: "活动之外",
+      week: (date: string) => `${date} 起的一周`,
       unknown: "未知",
       few: (min: number) => `颜色较暗的行合格观测少于 ${min} 次。`,
       notes: {
@@ -139,6 +122,10 @@ export const zhHans: Messages = {
         glyphCount: "掉落没有 Glyph 数量。",
         speedCommand: "只计应用确认看到的指令。",
         keyCommand: "只计应用确认看到的指令。",
+        panelEffect: "ITO EN (+) 和 (−) 以应用在面板上读到的为准。“未显示效果”也包括不记录效果的旧版本的读数。",
+        event: "每个活动的 UTC 时间窗口，列在网站代码中并注明来源。时间跨越活动开始或结束的记录归为“未知”。",
+        week: "每周为 UTC 周一至下周一。时间跨入下一周的记录（本地日期可能如此）归为“未知”。阴影：已知的 Ingress 活动。",
+        day: "日期为 UTC。时间跨入下一天的记录（UTC 以外的本地日期就会如此）归为“未知”。阴影：已知的 Ingress 活动。",
       },
       empty: "暂无可对比的数据。",
     },
@@ -147,6 +134,7 @@ export const zhHans: Messages = {
       all: "全部",
       note: "每一行把一个能量塔等级的带等级物品（Resonator、XMP Burster、Ultra Strike、Power Cube）按物品等级拆分，单位为百分比。只计应用确定的精确能量塔等级。",
       row: (level: number, observations: number) => `P${level} n=${observations}`,
+      cell: (level: string, items: number, total: number, percent: string) => `${level}：${total} 件有等级物品中的 ${items} 件（${percent}%）`,
       empty: "还没有能量塔等级可信的合格观测。",
       mirrorCaption: (group: string) => `各能量塔等级的带等级物品按物品等级的占比：${group}`,
     },
@@ -158,6 +146,20 @@ export const zhHans: Messages = {
         mods: "其他模组",
         other: "其他物品",
       },
+    },
+    distribution: {
+      heading: "每次观测的数量分布",
+      item: "物品",
+      observations: "观测数",
+      poisson: "同均值的泊松分布",
+      mean: "均值",
+      variance: "方差",
+      dispersion: "方差 ÷ 均值",
+      legend: "柱：恰好有这么多的合格观测数。点：同均值的泊松分布会给出的数量。",
+      note: "方差 ÷ 均值接近 1 时与泊松计数相符；大于 1 表示更聚集（没有的和很多的都更多），小于 1 表示更均匀。这只是对样本的描述，不是检验：记录按玩家和会话聚集。",
+      bin: (observations: number, percent: string) => `${observations} 次观测（${percent}%）`,
+      expected: (count: string) => `泊松：${count}`,
+      empty: "还没有含物品的合格观测。",
     },
     sample: {
       heading: "关于这批样本",
@@ -184,25 +186,6 @@ export const zhHans: Messages = {
     caption: (hacks: number, drops: number, panel: string, updating: boolean) =>
       `${hacks} 次 Hack · ${drops} 个掉落组 · 物品来自${panel}${updating ? " · 更新中…" : ""}`,
     mirrorCaption: (panel: string, eligible: number) => `来自${panel}的物品，共 ${eligible} 次合格观测`,
-    mirrorHeadline: {
-      records: "记录",
-      eligible: "合格观测",
-      perObservation: "每次观测",
-      rare: "含 Rare 或 Very Rare 物品",
-      key: "含 Portal Key",
-    },
-    mirrorColumns: {
-      item: "物品",
-      quantity: "数量",
-      perObservation: "每次观测",
-      chance: "每次观测的概率",
-      whenPresent: "出现时的平均数",
-      multiplied: "倍增",
-      colourUnread: "颜色未读出",
-    },
-    noLevels: "无等级",
-    noneMirror: "无。",
-    averageNone: "无",
   },
 
   panels: { portal: "能量塔面板", bonus: "奖励面板", both: "能量塔与奖励面板" },
@@ -267,7 +250,7 @@ export const zhHans: Messages = {
   },
 
   notices:
-    "代码以 MIT 许可证发布。界面使用 synth-ui 绘制（MIT，© Cyandev）。文字使用 X.org misc-fixed 5×7 字体（公有领域）和 Fusion Pixel Font（SIL OFL 1.1）。许可证全文：/licenses/。本站与 Niantic 或 Ingress 无关联；物品名称归其所有。",
+    "代码以 MIT 许可证发布。字体：Departure Mono、IBM Plex Mono 和 Inter（SIL OFL 1.1）。许可证全文：/licenses/。本站与 Niantic 或 Ingress 无关联；物品名称归其所有。",
 
   submit: {
     heading: "提交",
@@ -279,7 +262,6 @@ export const zhHans: Messages = {
     checking: "检查中…",
     noFile: "未选择文件。也可以将文件拖放到页面上。",
     fileName: (name: string) => `文件：${name}`,
-    noFileMirror: "未选择文件。",
     checkFailed: (problem: string) => `无法检查文件：${problem}`,
     cantUse: "此文件无法使用",
     summary: "摘要",
@@ -307,13 +289,11 @@ export const zhHans: Messages = {
     createReceipt: "生成我的回执",
     receiptHeading: "你的回执。请妥善保密。",
     yourReceipt: "你的回执",
-    receiptMirror: (secret: string) => `你的回执：${secret}`,
     download: "下载",
     downloadHint: "将回执保存为文本文件",
     copy: "复制",
     copyHint: "原样复制回执，包括大小写",
     saved: "我已保存回执",
-    savedMirror: (saved: boolean) => (saved ? "回执已标记为已保存。" : "请保存回执，然后确认。"),
     send: (n: number) => `提交 ${n} 条记录`,
     sending: "提交中…",
     sendFailed: (problem: string) => `无法确认提交（${problem}）。提交可能已经成功。`,
@@ -336,8 +316,6 @@ export const zhHans: Messages = {
     withdrawnAt: (when: string) => `已于 ${when} 撤回`,
     line: (state: string, submitted: string, rows: number, rejected: number) =>
       `${state}，提交于 ${submitted}。${rows} 行；${rejected} 条无法使用的记录未存储。`,
-    mirrorLine: (active: boolean, rows: number, rejected: number) =>
-      `${active ? "有效" : "已撤回"}；${rows} 行；${rejected} 条无法使用的记录未存储。`,
     failed: (problem: string) => `无法查询：${problem}`,
     withdraw: "撤回此提交",
     withdrawing: "撤回中…",
@@ -363,6 +341,8 @@ export const zhHans: Messages = {
   notice: {
     receiptCopied: "回执已复制",
     copyFailed: "无法复制：请改为下载回执",
+    linkCopied: "链接已复制",
+    linkCopyFailed: "无法复制：请改用地址栏中的链接",
   },
 
   announce: {
@@ -507,7 +487,7 @@ export const zhHans: Messages = {
     "filter.rangeOrder": "{first}不能高于{second}。",
     "filter.kind": "类型必须是 Hack 或掉落。",
     "filter.alignment": "alignment 必须是 same_faction、enemy 或 machina。",
-    "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand 或 keyCommand。",
+    "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect、event、week 或 day。",
     "filter.panels": "面板必须是能量塔、奖励或两者。",
   },
 };

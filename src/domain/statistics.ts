@@ -1,5 +1,6 @@
 import { isListedItem } from "./cells.ts";
-import { ITEMS_WITH_RARITY, KEY_COMMANDS, PORTAL_ALIGNMENTS, SPEED_COMMANDS } from "./format.ts";
+import { EVENTS, OUTSIDE_EVENTS, type IngressEvent } from "./events.ts";
+import { ITEMS_WITH_RARITY, KEY_COMMANDS, PANEL_EFFECTS, PORTAL_ALIGNMENTS, SPEED_COMMANDS } from "./format.ts";
 import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlignment, ReadStatus } from "./record.ts";
 
 /**
@@ -14,11 +15,18 @@ import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlign
 export type PanelSelection = "portal" | "bonus" | "both";
 
 /** What the comparison groups records by. */
-export const SPLITS = ["alignment", "portalLevel", "glyphCount", "speedCommand", "keyCommand"] as const;
+export const SPLITS = ["alignment", "portalLevel", "glyphCount", "speedCommand", "keyCommand", "panelEffect", "event", "week", "day"] as const;
 export type Split = (typeof SPLITS)[number];
 
 /** A group's key when its records don't have the split's value (drops, older builds, unreliable levels). */
 export const UNKNOWN_GROUP = "unknown";
+
+/**
+ * The panel-effect group of a reading whose panels showed none. The export
+ * leaves `panel_effects` blank both for no effect and for builds that didn't
+ * record effects, so this group holds both.
+ */
+export const NO_EFFECT_GROUP = "none";
 
 /**
  * Below this many eligible observations a figure is marked as resting on
@@ -26,6 +34,12 @@ export const UNKNOWN_GROUP = "unknown";
  * docs/statistics.md), so this is the page's only sample-size warning.
  */
 export const SMALL_SAMPLE = 30;
+
+/**
+ * An item's distribution counts observations with 0, 1, … of it, and puts
+ * every count from this one up in its last bin.
+ */
+export const COUNT_CAP = 10;
 
 /** Inclusive bounds. */
 export interface Range {
@@ -119,6 +133,17 @@ export interface ItemTotal {
   observations: number;
   /** Of `quantity`, by known rarity; the rest has none or wasn't read. */
   rarities: { common: number; rare: number; veryRare: number };
+  /**
+   * Eligible observations by how many of this item they had: index k for k
+   * (0 included), the last index for `COUNT_CAP` or more. Sums to the
+   * eligible observations.
+   */
+  distribution: number[];
+  /**
+   * Sample variance of the quantity per eligible observation (n - 1 in the
+   * denominator, uncapped); null with fewer than two eligible observations.
+   */
+  variance: number | null;
 }
 
 /** How many observations answer yes, of those where the answer is known. */
@@ -318,16 +343,60 @@ export function itemEligibility(record: ObservationRecord, panels: PanelSelectio
   return "eligible";
 }
 
-const GROUP_ORDER: Record<Split, readonly string[]> = {
+const DAY = 86_400;
+
+/** The UTC date of a time, as YYYY-MM-DD. */
+const utcDate = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
+
+/**
+ * The UTC day or week (Monday to Monday) a record's time interval lies in,
+ * as the YYYY-MM-DD it starts; null when the interval crosses into the
+ * next, as a local day does, so it is never placed by a guess.
+ */
+function period(record: ObservationRecord, days: 1 | 7): string | null {
+  const { startUtc, endUtc } = record.time;
+  const day = Math.floor(startUtc / DAY);
+  // 1970-01-01 was a Thursday: three days after a Monday.
+  const first = days === 1 ? day : day - ((day + 3) % 7);
+  return endUtc <= (first + days) * DAY ? utcDate(first * DAY) : null;
+}
+
+/**
+ * The event a record's time interval lies in, `OUTSIDE_EVENTS` when it
+ * touches none, and null when it crosses an event's start or end.
+ */
+function eventOf(record: ObservationRecord, events: readonly IngressEvent[]): string | null {
+  const { startUtc, endUtc } = record.time;
+  for (const event of events) {
+    if (endUtc <= event.startUtc || startUtc >= event.endUtc) continue;
+    return startUtc >= event.startUtc && endUtc <= event.endUtc ? event.id : null;
+  }
+  return OUTSIDE_EVENTS;
+}
+
+/** Groups in a split's natural order; time splits instead sort by their dates. */
+const GROUP_ORDER: Record<Exclude<Split, "event" | "week" | "day">, readonly string[]> = {
   alignment: PORTAL_ALIGNMENTS,
   portalLevel: ["1", "2", "3", "4", "5", "6", "7", "8"],
   glyphCount: Array.from({ length: 11 }, (_, n) => String(n)),
   speedCommand: SPEED_COMMANDS,
   keyCommand: KEY_COMMANDS,
+  panelEffect: [NO_EFFECT_GROUP, ...PANEL_EFFECTS],
 };
 
-/** Which group of `split` a record belongs to. */
-export function groupKey(record: ObservationRecord, split: Split): string {
+/**
+ * The one effect a reading's panels showed, or none. A record with no
+ * reading, or whose panels disagree, has no single effect.
+ */
+function panelEffect(record: ObservationRecord): string | null {
+  if (record.reading === null || record.reading.panels.length === 0) return null;
+  const effects = new Set(record.reading.panels.flatMap((panel) => panel.effects ?? []));
+  if (effects.size === 0) return NO_EFFECT_GROUP;
+  return effects.size === 1 ? [...effects][0] : null;
+}
+
+/** Which group of `split` a record belongs to. `events` is the known events' list. */
+export function groupKey(record: ObservationRecord, split: Split, events: readonly IngressEvent[] = EVENTS): string {
   const { hack } = record;
   const known = (value: string | number | null | undefined) => (value === null || value === undefined ? UNKNOWN_GROUP : String(value));
   switch (split) {
@@ -341,6 +410,14 @@ export function groupKey(record: ObservationRecord, split: Split): string {
       return known(hack?.commands?.speed);
     case "keyCommand":
       return known(hack?.commands?.key);
+    case "panelEffect":
+      return known(panelEffect(record));
+    case "event":
+      return known(eventOf(record, events));
+    case "week":
+      return known(period(record, 7));
+    case "day":
+      return known(period(record, 1));
   }
 }
 
@@ -403,15 +480,22 @@ function compareApps(a: AppCount, b: AppCount): number {
 
 /**
  * `uploadOf` maps a record id to the upload it is counted from; without it,
- * `selection.uploads` is null.
+ * `selection.uploads` is null. `events` is the known events' list.
  */
-export function computeStatistics(records: readonly ObservationRecord[], filter: StatsFilter, uploadOf?: ReadonlyMap<string, number>): Statistics {
+export function computeStatistics(
+  records: readonly ObservationRecord[],
+  filter: StatsFilter,
+  uploadOf?: ReadonlyMap<string, number>,
+  events: readonly IngressEvent[] = EVENTS,
+): Statistics {
   const unplaced = zeroes(UNPLACED_REASONS);
   const byKind: Record<Kind, number> = { hack: 0, drop: 0 };
   const byReadStatus: Record<ReadStatus, number> = { read: 0, notRead: 0, unavailable: 0, unsupported: 0 };
   const byCoverage = zeroes(COVERAGES);
   const excluded = zeroes(ITEM_EXCLUSIONS);
-  const totals = new Map<string, Omit<ItemTotal, "item" | "averagePerObservation">>();
+  const totals = new Map<string, Omit<ItemTotal, "item" | "averagePerObservation" | "variance">>();
+  /** Per item, the sum of each eligible observation's squared quantity: the variance needs it uncapped. */
+  const squares = new Map<string, number>();
   const apps = new Map<string, AppCount>();
   const uploads = new Set<number>();
   const overall = new Tally();
@@ -444,13 +528,14 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
         ? (record.reading?.panels ?? []).filter((panel) => STAGES[filter.panels].includes(panel.stage)).flatMap((panel) => panel.items)
         : null;
     overall.add(record, items);
-    const key = groupKey(record, filter.split);
+    const key = groupKey(record, filter.split, events);
     const group = groups.get(key) ?? new Tally();
     group.add(record, items);
     groups.set(key, group);
     if (items === null) continue;
 
-    const seen = new Set<string>();
+    /** This observation's quantity of each item: one item can fill several slots. */
+    const here = new Map<string, number>();
     for (const entry of items) {
       // Eligibility guarantees every name is known and listed.
       const name = entry.item as string;
@@ -461,6 +546,7 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
         levels: null,
         observations: 0,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        distribution: Array<number>(COUNT_CAP + 1).fill(0),
       };
       total.quantity += entry.quantity;
       // Eligibility rules out unreadable levels, so a levelled item always has its level here.
@@ -471,21 +557,34 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
       if (entry.multiplied === true) total.multiplied += entry.quantity;
       if (entry.multiplied === null) total.multipliedUnknown += entry.quantity;
       if (entry.rarity !== null && entry.rarity !== "unreadable") total.rarities[entry.rarity] += entry.quantity;
-      if (!seen.has(name)) total.observations++;
-      seen.add(name);
+      if (!here.has(name)) total.observations++;
+      here.set(name, (here.get(name) ?? 0) + entry.quantity);
       totals.set(name, total);
+    }
+    for (const [name, quantity] of here) {
+      (totals.get(name) as { distribution: number[] }).distribution[Math.min(quantity, COUNT_CAP)]++;
+      squares.set(name, (squares.get(name) ?? 0) + quantity * quantity);
     }
   }
 
   const summary = overall.summary();
   const byItem: ItemTotal[] = [...totals]
-    .map(([item, total]) => ({
-      item,
-      ...total,
-      averagePerObservation: total.quantity / summary.eligible,
-    }))
+    .map(([item, total]) => {
+      const n = summary.eligible;
+      // Observations without the item are the eligible ones not counted yet.
+      const distribution = total.distribution.map((count, k) => (k === 0 ? n - total.observations : count));
+      // (n·Σq² − (Σq)²) / n(n − 1): whole numbers until the one division, so it is exact and never negative.
+      const sum = total.quantity;
+      const variance = n < 2 ? null : (n * (squares.get(item) ?? 0) - sum * sum) / (n * (n - 1));
+      return { item, ...total, distribution, averagePerObservation: sum / n, variance };
+    })
     .sort((a, b) => b.quantity - a.quantity || (a.item < b.item ? -1 : 1));
-  const order = [...GROUP_ORDER[filter.split], UNKNOWN_GROUP];
+  const { split } = filter;
+  const natural =
+    split === "event" ? [OUTSIDE_EVENTS, ...events.map((event) => event.id)] : split === "week" || split === "day" ? null : GROUP_ORDER[split];
+  // Dates sort as text; unknown goes last either way.
+  const rank = (key: string) => (key === UNKNOWN_GROUP ? Number.POSITIVE_INFINITY : natural === null ? 0 : natural.indexOf(key));
+  const byOrder = ([a]: [string, Tally], [b]: [string, Tally]) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0);
 
   return {
     filter,
@@ -499,7 +598,7 @@ export function computeStatistics(records: readonly ObservationRecord[], filter:
     },
     summary,
     split: filter.split,
-    groups: [...groups].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b)).map(([key, tally]) => ({ key, summary: tally.summary() })),
+    groups: [...groups].sort(byOrder).map(([key, tally]) => ({ key, summary: tally.summary() })),
     items: {
       panels: filter.panels,
       eligible: summary.eligible,

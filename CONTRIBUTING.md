@@ -4,9 +4,11 @@
 2. Add or update tests. Every validation rule has a test in `tests/`.
 3. Run `npm run typecheck && npm run lint && npm test && npm run build`;
    CI runs the same. For changes to `src/web/`, also run
-   `npm run test:browser`. It needs Google Chrome; it starts the built
-   site on a throwaway database and drives it through the keyboard, the
-   mouse and the clipboard.
+   `npm run test:browser`. It needs Google Chrome, and runs a Firefox
+   check too once Playwright's Firefox is installed
+   (`npx playwright-core install firefox`; CI always has it). It starts the
+   built site on a throwaway database and drives it through the keyboard,
+   the mouse and the clipboard.
 
 ## Rules
 
@@ -18,3 +20,6 @@
   changes, update `src/domain/format.ts`, the tests and
   `docs/import-format.md` together.
 - **Blank means unknown.** Never turn a missing value into zero or false.
+- **Events need a source.** An Ingress event in `src/domain/events.ts`
+  carries where its dates come from in its `note`; see
+  [docs/statistics.md](docs/statistics.md#adding-an-event).

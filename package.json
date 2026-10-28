@@ -8,8 +8,7 @@
     "dev": "vite",
     "build": "wrangler types && tsc -b && vite build",
     "typecheck": "wrangler types && tsc -b",
-    "lint": "oxlint --ignore-pattern 'vendor/**'",
-    "check:synth-ui": "node scripts/check-synth-ui.mjs",
+    "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "npm run build && vite preview",
@@ -23,6 +22,9 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.62.5",
     "@types/node": "^24.19.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.81.0",
     "playwright-core": "1.63.0",
     "typescript": "~6.0.2",
@@ -35,8 +37,8 @@
     "esbuild@0.28.1": true
   },
   "dependencies": {
-    "@synth-ui/backend": "0.1.0",
-    "@synth-ui/core": "0.1.0",
-    "@synth-ui/widgets": "0.1.0"
+    "@tanstack/charts": "^1.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

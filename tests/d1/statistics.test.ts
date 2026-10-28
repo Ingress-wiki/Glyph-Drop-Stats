@@ -102,6 +102,9 @@ describe("withdrawal", () => {
           levels: [0, 0, 0, 0, 0, 0, 0, 2],
           observations: 1,
           rarities: { common: 0, rare: 0, veryRare: 0 },
+          // d 2, h9 0, h10 0: (3·4 − 2²) / (3·2).
+          distribution: [2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+          variance: 4 / 3,
         },
         {
           item: "Resonator",
@@ -112,6 +115,9 @@ describe("withdrawal", () => {
           levels: [0, 0, 0, 0, 0, 2, 0, 0],
           observations: 2,
           rarities: { common: 0, rare: 0, veryRare: 0 },
+          // d 0, h9 1, h10 1: (3·2 − 2²) / (3·2).
+          distribution: [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          variance: 1 / 3,
         },
       ],
     });

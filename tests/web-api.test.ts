@@ -169,6 +169,8 @@ describe("fetchStatistics", () => {
         levels: [0, 0, 0, 0, 0, 2, 0, 0],
         observations: 1,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        distribution: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: null,
       },
     ];
     statistics.groups = [{ key: "enemy", summary: structuredClone(statistics.summary) }];
@@ -213,6 +215,9 @@ describe("fetchStatistics", () => {
       ["multiplied", (s) => delete s.items.byItem[0].multipliedUnknown],
       ["item observations", (s) => (s.items.byItem[0].observations = -2)],
       ["item rarities", (s) => delete s.items.byItem[0].rarities.veryRare],
+      ["distribution length", (s) => (s.items.byItem[0].distribution = [0, 1])],
+      ["distribution count", (s) => (s.items.byItem[0].distribution[2] = 0.5)],
+      ["variance", (s) => (s.items.byItem[0].variance = -0.1)],
       ["uploads", (s) => (s.selection.uploads = "3")],
       ["app builds", (s) => (s.records.byApp[0].build = 74)],
       ["summary", (s) => delete s.summary],

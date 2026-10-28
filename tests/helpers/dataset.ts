@@ -157,6 +157,9 @@ export const EXPECTED = {
         // h1, h2, h9, h10
         observations: 4,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        // Per observation: h1 2, h2 3, d 0, h9 1, h10 1. Σq = 7, Σq² = 15: (5·15 − 7²) / (5·4).
+        distribution: [1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+        variance: 1.3,
       },
       {
         item: "Power Cube",
@@ -167,6 +170,9 @@ export const EXPECTED = {
         levels: [0, 0, 0, 0, 0, 0, 0, 2],
         observations: 1,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        // d 2, the rest 0: (5·4 − 2²) / (5·4).
+        distribution: [4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: 0.8,
       },
       {
         item: "XMP Burster",
@@ -177,6 +183,9 @@ export const EXPECTED = {
         levels: [0, 0, 0, 0, 0, 1, 0, 0],
         observations: 1,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        // h1 1, the rest 0: (5·1 − 1²) / (5·4).
+        distribution: [4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: 0.2,
       },
     ],
   },

@@ -108,6 +108,8 @@ describe("panel selection", () => {
         levels: null,
         observations: 2,
         rarities: { common: 0, rare: 0, veryRare: 2 },
+        distribution: [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: 0,
       },
     ]);
   });
@@ -127,6 +129,9 @@ describe("filters", () => {
         levels: [0, 0, 0, 0, 0, 0, 0, 2],
         observations: 1,
         rarities: { common: 0, rare: 0, veryRare: 0 },
+        // One observation: no variance.
+        distribution: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        variance: null,
       },
     ]);
   });
@@ -236,7 +241,7 @@ describe("query parameters", () => {
     expect(codes("localHourFrom=5&localHourTo=24")).toEqual(["localHourTo must be an hour from 0 to 23."]);
     expect(codes("panels=all")).toEqual(["panels must be portal, bonus or both."]);
     expect(codes("alignment=neutral")).toEqual(["alignment must be same_faction, enemy or machina."]);
-    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand or keyCommand."]);
+    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week or day."]);
   });
 });
 
@@ -245,14 +250,14 @@ describe("query parameters", () => {
  * expected value below is worked out by hand from this table (portal panel
  * only, each read in full):
  *
- * | id | kind | alignment    | portal level        | speed   | app        | items                                              |
- * | -- | ---- | ------------ | ------------------- | ------- | ---------- | -------------------------------------------------- |
- * | a  | hack | enemy        | 6 high              | complex | 0.1.0 (74) | Resonator L6 ×2, Portal Shield rare ×1, Portal Key ×1 |
- * | b  | hack | enemy        | 6 low, conflict     | complex | 0.1.0 (74) | Resonator L5 ×1                                    |
- * | c  | hack | machina      | 3 medium            | simple  | 0.1.0 (74) | Portal Shield rarity unread ×1, XMP Burster L3 ×1  |
- * | d  | hack | —            | 7 high              | complex | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
- * | e  | drop | —            | —                   | —       | 0.1.0 (74) | Power Cube L8 ×1                                   |
- * | f  | hack | same_faction | 2 low               | complex | 0.1.0 (10) | Resonator L2 ×1, Hypercube ×1, Resonator L3 ×1     |
+ * | id | kind | alignment    | portal level        | speed   | effect     | app        | items                                              |
+ * | -- | ---- | ------------ | ------------------- | ------- | ---------- | ---------- | -------------------------------------------------- |
+ * | a  | hack | enemy        | 6 high              | complex | ITO EN (+) | 0.1.0 (74) | Resonator L6 ×2, Portal Shield rare ×1, Portal Key ×1 |
+ * | b  | hack | enemy        | 6 low, conflict     | complex | —          | 0.1.0 (74) | Resonator L5 ×1                                    |
+ * | c  | hack | machina      | 3 medium            | simple  | ITO EN (-) | 0.1.0 (74) | Portal Shield rarity unread ×1, XMP Burster L3 ×1  |
+ * | d  | hack | —            | 7 high              | complex | —          | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
+ * | e  | drop | —            | —                   | —       | —          | 0.1.0 (74) | Power Cube L8 ×1                                   |
+ * | f  | hack | same_faction | 2 low               | complex | —          | 0.1.0 (10) | Resonator L2 ×1, Hypercube ×1, Resonator L3 ×1     |
  */
 describe("alignment, trusted levels, shares and splits", () => {
   const ALIGNED = [...COLUMN_NAMES, "portal_alignment"];
@@ -276,6 +281,7 @@ describe("alignment, trusted levels, shares and splits", () => {
     record_id: hackId(31),
     ...one,
     ...level("6", "high"),
+    panel_effects: "ITO EN (+)",
   });
   const b = hackRecord({
     record_id: hackId(32),
@@ -287,6 +293,7 @@ describe("alignment, trusted levels, shares and splits", () => {
     ...one,
     ...level("3", "medium"),
     speed_command: "simple",
+    panel_effects: "ITO EN (-)",
   });
   const d = hackRecord({
     record_id: hackId(34),
@@ -444,6 +451,17 @@ describe("alignment, trusted levels, shares and splits", () => {
     ]);
   });
 
+  it("groups by the panel effect the app read, readings without one first", () => {
+    const groups = run({ split: "panelEffect" }).groups;
+    expect(groups.map((group) => [group.key, group.summary.records])).toEqual([
+      ["none", 4],
+      ["ITO EN (+)", 1],
+      ["ITO EN (-)", 1],
+    ]);
+    // a alone: Resonator ×2, Portal Shield ×1, Portal Key ×1.
+    expect(groups[1].summary).toMatchObject({ eligible: 1, totalQuantity: 4, averagePerObservation: 4 });
+  });
+
   it("filters by alignment, setting aside records without one", () => {
     const result = run({ alignment: "enemy" });
     expect(result.selection.matched).toBe(2);
@@ -466,6 +484,77 @@ describe("alignment, trusted levels, shares and splits", () => {
       { version: "0.1.0", build: "10", records: 1 },
       { version: "0.1.0", build: "74", records: 4 },
       { version: "1.0.0", build: "2", records: 1 },
+    ]);
+  });
+});
+
+describe("count distributions", () => {
+  /**
+   * Three hacks, portal panel read in full:
+   * | id | Portal Shield rows      | per observation |
+   * | -- | ----------------------- | --------------- |
+   * | p  | ×1 in slot 0, ×2 in slot 1 | 3            |
+   * | q  | ×12                     | 12              |
+   * | r  | none (a Resonator)      | 0               |
+   */
+  const shield = (slot: number, quantity: string): Row =>
+    item("portal", slot, { item: "Portal Shield", level: "", level_state: "notApplicable", rarity: "common", rarity_source: "read", quantity });
+  const seen: Row = { observed_panels_read_in_full: "true", both_panels_read: "false" };
+  const p = hackRecord({ record_id: hackId(51), order: "1", ...seen });
+  const q = hackRecord({ record_id: hackId(52), order: "2", ...seen });
+  const r = hackRecord({ record_id: hackId(53), order: "3", ...seen });
+  const rows = [{ ...p, ...shield(0, "1") }, { ...p, ...shield(1, "2") }, { ...q, ...shield(0, "12") }, { ...r, ...item("portal", 0) }];
+  const parsed = parseExport(new TextEncoder().encode(csv(rows)), { now: NOW });
+  if (!parsed.ok || parsed.rejected.length > 0) throw new Error(`rejected: ${JSON.stringify(parsed)}`);
+  const result = computeStatistics(
+    parsed.records.map((entry) => entry.record),
+    NO_FILTER,
+  );
+  const shields = result.items.byItem.find((row) => row.item === "Portal Shield");
+
+  it("counts an observation by its total of the item, over every slot, with 10 or more in the last bin", () => {
+    expect(shields?.distribution).toEqual([1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1]);
+    expect(shields?.observations).toBe(2);
+  });
+
+  it("works out the variance from the uncapped counts", () => {
+    // Σq = 15, Σq² = 9 + 144 = 153: (3·153 − 15²) / (3·2) = 234 / 6.
+    expect(shields?.variance).toBe(39);
+    expect(shields?.averagePerObservation).toBe(5);
+  });
+});
+
+describe("time and event splits", () => {
+  // Every hack's hour is 2026-10-02 23:00–24:00 UTC, a Friday. The drop's local day at
+  // +08:00 is 2026-10-02 16:00 to 2026-10-03 16:00 UTC, so it crosses UTC midnight.
+  const keys = (split: StatsFilter["split"], events: Parameters<typeof computeStatistics>[3] = []) =>
+    computeStatistics(dataset(), { ...NO_FILTER, split }, undefined, events).groups.map((group) => [group.key, group.summary.records]);
+  const event = (id: string, from: string, to: string) => ({ id, name: id, startUtc: t(from), endUtc: t(to), note: "test" });
+
+  it("groups by UTC day, never guessing the day of an interval that crosses midnight", () => {
+    expect(keys("day")).toEqual([
+      ["2026-10-02", 9],
+      ["unknown", 1],
+    ]);
+  });
+
+  it("groups by the UTC week from Monday, which holds both", () => {
+    expect(keys("week")).toEqual([["2026-09-28", 10]]);
+  });
+
+  it("groups by event, with what crosses an event's end unknown and the rest outside", () => {
+    const friday = event("friday", "2026-10-02T00:00:00Z", "2026-10-03T00:00:00Z");
+    const later = event("later", "2026-11-01T00:00:00Z", "2026-11-08T00:00:00Z");
+    expect(keys("event", [friday, later])).toEqual([
+      ["friday", 9],
+      ["unknown", 1],
+    ]);
+    expect(keys("event", [later])).toEqual([["outside", 10]]);
+    // An event touching only the drop's day leaves the hacks outside and the drop unknown.
+    const morning = event("morning", "2026-10-03T00:00:00Z", "2026-10-03T12:00:00Z");
+    expect(keys("event", [morning])).toEqual([
+      ["outside", 9],
+      ["unknown", 1],
     ]);
   });
 });

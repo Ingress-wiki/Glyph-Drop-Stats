@@ -137,9 +137,42 @@ Over the eligible observations of the matching records:
   everything else.
 
 The comparison groups the matching records by **portal alignment** (the
-default), exact reliable portal level, Glyph count, speed command or key
-command, each group with the same figures. Records without the value form
-an "unknown" group, shown last. The level grid can show every record or
+default), exact reliable portal level, Glyph count, speed command, key
+command, **panel effect**, **Ingress event**, **UTC week** or **UTC day**,
+each group with the same figures. Records without the value form an
+"unknown" group, shown last.
+
+**Panel effect** is the ITO EN (+) or (−) the app read on the record's
+panels. The export leaves `panel_effects` blank both when no effect was
+shown and in builds that didn't record effects, so readings without an
+effect form one group, "No effect shown", that holds both. A record with no
+reading, or whose panels showed different effects, is unknown.
+
+**Events and time.** Ingress events can change what a hack gives (more
+keys, a bonus item), so figures that mix event and ordinary hacks describe
+neither.
+- **Ingress event** groups records by the known event whose UTC window
+  holds the record's whole time interval, with records touching no event
+  as "Outside events". The events are listed in `src/domain/events.ts`,
+  each with its source: see [Adding an event](#adding-an-event).
+- **UTC week** (Monday to Monday) and **UTC day** group records by the
+  period their whole interval lies in, and the page draws each figure as a
+  trend over them, with the periods a known event touches shaded. It shows
+  changes nobody announced as well as announced ones.
+- An interval that crosses an event's start or end, or into the next day
+  or week, is unknown, never placed by a guess. A local day outside UTC
+  always crosses UTC midnight, so records exported with day precision
+  rarely have a UTC day; most have a UTC week.
+- Times are when the hack happened (its exported interval), not when it
+  was uploaded: an upload this week can hold last month's hacks.
+
+### Adding an event
+
+Add it to `EVENTS` in `src/domain/events.ts`, in time order, with an id (it
+goes into links), Niantic's name, the UTC window (start inclusive, end
+exclusive) and a `note` saying where the dates come from. An event run in
+each player's local time is entered as the widest UTC window it covers, and
+its note says so. `tests/events.test.ts` checks the list. The level grid can show every record or
 one group.
 
 **Few observations.** A figure resting on fewer than 30 eligible
@@ -147,6 +180,23 @@ observations (30 known, for a share) is dimmed and says so. This is a
 warning, not a test: there are still no intervals (below).
 
 A blank cell is unknown. A blank `multiplied` is neither true nor false.
+
+## Count distributions
+
+For each item, the eligible observations are counted by how many of it they
+had: 0, 1, … up to 9, then 10 or more in one bin. An observation's count is
+its total over every slot of the selected panels. With them come:
+- **Mean:** the average per eligible observation (as in the item table).
+- **Variance:** the sample variance of the count per eligible observation,
+  `(n·Σq² − (Σq)²) / n(n − 1)`, from the uncapped counts; none with fewer
+  than two eligible observations.
+- **Variance ÷ mean:** 1 for a Poisson count. Above 1, counts are more
+  spread out than Poisson (more observations with none and more with many);
+  below 1, more even.
+
+The page draws the observed counts against what a Poisson distribution with
+the same mean would give the same number of observations. This describes
+the sample; it is not a goodness-of-fit test (see below).
 
 ## No confidence intervals
 

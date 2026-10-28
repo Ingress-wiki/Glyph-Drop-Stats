@@ -107,7 +107,7 @@ export const ISSUE_MESSAGES = {
   "filter.rangeOrder": "{first} must not be above {second}.",
   "filter.kind": "kind must be hack or drop.",
   "filter.alignment": "alignment must be same_faction, enemy or machina.",
-  "filter.split": "split must be alignment, portalLevel, glyphCount, speedCommand or keyCommand.",
+  "filter.split": "split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week or day.",
   "filter.panels": "panels must be portal, bonus or both.",
 } as const;
 

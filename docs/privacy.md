@@ -41,18 +41,18 @@ before testing.
 
 ## In the visitor's browser
 
-No cookies, analytics or tracking. The page keeps six preferences in
+No cookies, analytics or tracking. The page keeps two preferences in
 `localStorage`, each written only when the visitor chooses it, and never
 sent to the server:
 
 | Key | Holds |
 | --- | --- |
 | `glyph-drop-stats:locale` | The language picked in the language switch |
-| `glyph-drop-stats:crt` | The CRT switch |
-| `glyph-drop-stats:smooth-text` | The font switch |
-| `glyph-drop-stats:cjk-size` | The pixel size chosen for Chinese, Japanese and Korean text |
-| `glyph-drop-stats:text-view` | Whether the text view is shown |
 | `glyph-drop-stats:disclaimer-seen` | That the first-visit note was dismissed |
+
+The earlier canvas interface also kept `glyph-drop-stats:crt`,
+`smooth-text`, `cjk-size` and `text-view`; the page deletes them when a
+returning visitor opens it.
 
 These are interface settings the visitor asked for, so they need no
 consent banner (they are "strictly necessary" under the ePrivacy rules).

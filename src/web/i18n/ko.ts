@@ -2,56 +2,30 @@ import type { Messages } from "./en.ts";
 
 /** Korean. Drafted from the English (en.ts); awaiting review by a native speaker. */
 export const ko: Messages = {
-  language: { name: "한국어", code: "한국어" },
+  language: { name: "한국어" },
 
   app: {
     title: "Glyph Drop Stats",
     statistics: "통계",
     submit: "제출",
-    crtOn: "CRT 켬",
-    crtOff: "CRT 끔",
-    crtHint: "주사선 및 발광 효과 (F8)",
-    fontPixel: "픽셀 글꼴",
-    fontSmooth: "일반 글꼴",
-    fontHint: "픽셀 글꼴과 시스템 글꼴을 전환합니다",
     source: "GitHub의 소스 코드",
-    textView: "텍스트 보기",
-    textViewHint: "모든 내용을 선택, 복사, 검색할 수 있는 텍스트로 표시 (F9)",
     language: "언어",
-    languageHint: "페이지 언어 선택",
-    textSize: "글자 크기",
-    textSizeHint: "한중일 픽셀 글자의 크기",
     testPeriod:
       "테스트 기간: 제출은 테스트용으로만 받습니다. 지금 제출한 모든 데이터와 이를 바탕으로 한 통계는 사이트를 일반에 공개하기 전에 삭제되며, 그보다 일찍 지워질 수도 있습니다.",
-    statusLine: "F1 통계 · F2 제출 · F8 CRT · F9 텍스트 보기",
-    canvasLabel: "Glyph Drop Stats. 여기에 표시된 모든 내용의 텍스트 버전이 캔버스 뒤에 이어집니다.",
-    keyboardHelp:
-      "키보드: Tab으로 컨트롤 사이를 이동하고, Enter 또는 Space로 선택한 컨트롤을 실행합니다. F1은 통계, F2는 제출, F3은 필터, F4는 숫자 읽는 방법을 표시하고, F8은 CRT 효과를 전환하며, F9는 이 텍스트 보기를 표시합니다.",
-    fallback:
-      "이 브라우저에서는 인터페이스를 그릴 수 없습니다. WebGPU 또는 WebGL2가 필요합니다. 표시될 모든 내용은 아래에 텍스트로 있습니다. 내보내기 파일을 제출하려면 최신 브라우저를 사용하세요.",
-    backToCanvas: "캔버스 보기로 돌아가기 (F9)",
-    textViewNote: "텍스트 보기: 아래 내용을 선택, 복사, 검색할 수 있습니다.",
+    keyboardHelp: "단축키: F1 통계 · F2 제출 · F3 필터 · F4 숫자 읽는 방법",
     close: "닫기",
+    views: "보기",
   },
 
   a11y: {
-    button: (label: string) => `${label}, 버튼`,
-    textField: (label: string) => `${label}, 텍스트 필드`,
-    selectable: (label: string) => `${label}, 선택 가능한 텍스트`,
-    checkbox: (label: string, checked: boolean) => `${label}, ${checked ? "선택됨" : "선택 안 됨"}`,
-    view: (label: string, current: boolean) => `${label} 화면${current ? ", 현재 화면" : ""}`,
-    sortBy: (column: string, direction: "ascending" | "descending" | null) =>
-      `${column} 기준 정렬${direction === "ascending" ? ", 오름차순" : direction === "descending" ? ", 내림차순" : ""}`,
     showCategory: (category: string) => `${category} 아이템 표시`,
     searchItems: "아이템 검색",
     receiptField: "영수증",
-    crt: (on: boolean) => `CRT 효과 ${on ? "켬" : "끔"}`,
     filterFrom: (label: string) => `${label} 시작`,
     filterTo: (label: string) => `${label} 끝`,
   },
 
   stats: {
-    heading: "통계",
     loading: "불러오는 중…",
     loadFailed: (problem: string) => `통계를 불러오지 못했습니다: ${problem}`,
     search: "검색하거나 태그를 클릭",
@@ -72,6 +46,8 @@ export const ko: Messages = {
     aboutHint: "숫자를 읽는 방법 (F4)",
     tsv: "TSV",
     tsvHint: "아이템 표를 탭으로 구분된 값 (TSV)으로 다운로드",
+    copyLink: "링크 복사",
+    copyLinkHint: "이 보기를 여는 링크 복사: 필터, 비교, 검색, 정렬",
     apply: "적용",
     clear: "초기화",
     ranges: {
@@ -106,6 +82,10 @@ export const ko: Messages = {
         glyphCount: "Glyph 수별",
         speedCommand: "속도 명령별",
         keyCommand: "키 명령별",
+        panelEffect: "패널 효과별",
+        event: "Ingress 이벤트별",
+        week: "UTC 주별",
+        day: "UTC 일별",
       },
       columns: {
         records: "기록",
@@ -130,6 +110,9 @@ export const ko: Messages = {
         noKey: "키 없음",
         keysOnly: "키만",
       },
+      panelEffects: { none: "효과 표시 없음", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
+      outsideEvents: "이벤트 외",
+      week: (date: string) => `${date} 주`,
       unknown: "알 수 없음",
       few: (min: number) => `흐린 행은 집계 대상 관측이 ${min}건 미만입니다.`,
       notes: {
@@ -139,6 +122,10 @@ export const ko: Messages = {
         glyphCount: "드롭에는 Glyph 수가 없습니다.",
         speedCommand: "앱이 확정을 확인한 명령만 셉니다.",
         keyCommand: "앱이 확정을 확인한 명령만 셉니다.",
+        panelEffect: "ITO EN (+)와 (−)는 앱이 패널에서 읽은 그대로입니다. '효과 표시 없음'에는 효과를 기록하지 않는 이전 빌드의 읽기도 포함됩니다.",
+        event: "각 이벤트의 UTC 기간이며, 출처와 함께 사이트 코드에 적혀 있습니다. 시간이 이벤트 시작이나 끝에 걸친 기록은 '알 수 없음'입니다.",
+        week: "주는 UTC 월요일부터 다음 월요일까지입니다. 시간이 다음 주로 넘어가는 기록(현지 날짜는 그럴 수 있음)은 '알 수 없음'입니다. 음영: 알려진 Ingress 이벤트.",
+        day: "날짜는 UTC 기준입니다. 시간이 다음 날로 넘어가는 기록(UTC가 아닌 현지 날짜는 그렇습니다)은 '알 수 없음'입니다. 음영: 알려진 Ingress 이벤트.",
       },
       empty: "아직 비교할 데이터가 없습니다.",
     },
@@ -147,6 +134,7 @@ export const ko: Messages = {
       all: "전체",
       note: "각 행은 한 포탈 레벨에서 나온 레벨 아이템(Resonator, XMP Burster, Ultra Strike, Power Cube)을 아이템 레벨별 비율(%)로 나눈 것입니다. 앱이 확신한 정확한 포탈 레벨만 씁니다.",
       row: (level: number, observations: number) => `P${level} n=${observations}`,
+      cell: (level: string, items: number, total: number, percent: string) => `${level}: 레벨 아이템 ${total}개 중 ${items}개 (${percent}%)`,
       empty: "포탈 레벨을 믿을 수 있는 집계 대상 관측이 아직 없습니다.",
       mirrorCaption: (group: string) => `포탈 레벨별 아이템 레벨 비율: ${group}`,
     },
@@ -158,6 +146,20 @@ export const ko: Messages = {
         mods: "기타 모드",
         other: "기타 아이템",
       },
+    },
+    distribution: {
+      heading: "관측당 개수 분포",
+      item: "아이템",
+      observations: "관측 수",
+      poisson: "같은 평균의 푸아송 분포",
+      mean: "평균",
+      variance: "분산",
+      dispersion: "분산 ÷ 평균",
+      legend: "막대: 정확히 그 개수였던 대상 관측 수. 점: 같은 평균의 푸아송 분포라면 나올 수.",
+      note: "분산 ÷ 평균이 1에 가까우면 푸아송 분포와 같습니다. 1보다 크면 더 몰려 있고(0개와 많은 개수가 모두 더 많음), 1보다 작으면 더 고릅니다. 이는 표본에 대한 설명이며 검정이 아닙니다. 기록은 플레이어와 세션별로 몰려 있습니다.",
+      bin: (observations: number, percent: string) => `관측 ${observations}회 (${percent}%)`,
+      expected: (count: string) => `푸아송: ${count}`,
+      empty: "아이템이 있는 대상 관측이 아직 없습니다.",
     },
     sample: {
       heading: "이 표본에 대해",
@@ -184,25 +186,6 @@ export const ko: Messages = {
     caption: (hacks: number, drops: number, panel: string, updating: boolean) =>
       `해킹 ${hacks} · 드롭 그룹 ${drops} · ${panel} 아이템${updating ? " · 업데이트 중…" : ""}`,
     mirrorCaption: (panel: string, eligible: number) => `${panel} 아이템, 집계 대상 관측 ${eligible}개 기준`,
-    mirrorHeadline: {
-      records: "기록",
-      eligible: "집계 대상 관측",
-      perObservation: "관측당",
-      rare: "Rare 또는 Very Rare가 있는 관측",
-      key: "Portal Key가 있는 관측",
-    },
-    mirrorColumns: {
-      item: "아이템",
-      quantity: "수량",
-      perObservation: "관측당",
-      chance: "관측당 확률",
-      whenPresent: "나올 때의 평균",
-      multiplied: "배수 적용",
-      colourUnread: "색상 미판독",
-    },
-    noLevels: "레벨 없음",
-    noneMirror: "없음.",
-    averageNone: "없음",
   },
 
   panels: { portal: "포탈 패널", bonus: "보너스 패널", both: "포탈 및 보너스 패널" },
@@ -267,7 +250,7 @@ export const ko: Messages = {
   },
 
   notices:
-    "코드는 MIT 라이선스로 제공됩니다. synth-ui (MIT, © Cyandev)로 그렸습니다. 텍스트에는 X.org misc-fixed 5×7 글꼴 (퍼블릭 도메인)과 Fusion Pixel Font (SIL OFL 1.1)를 사용합니다. 라이선스 전문: /licenses/. Niantic 및 Ingress와 제휴 관계가 없으며, 아이템 이름의 권리는 해당 권리자에게 있습니다.",
+    "코드는 MIT 라이선스로 제공됩니다. 글꼴: Departure Mono, IBM Plex Mono, Inter (SIL OFL 1.1). 라이선스 전문: /licenses/. Niantic 및 Ingress와 제휴 관계가 없으며, 아이템 이름의 권리는 해당 권리자에게 있습니다.",
 
   submit: {
     heading: "제출",
@@ -279,7 +262,6 @@ export const ko: Messages = {
     checking: "확인 중…",
     noFile: "선택한 파일이 없습니다. 페이지에 끌어다 놓아도 됩니다.",
     fileName: (name: string) => `파일: ${name}`,
-    noFileMirror: "선택한 파일이 없습니다.",
     checkFailed: (problem: string) => `파일을 확인하지 못했습니다: ${problem}`,
     cantUse: "이 파일은 사용할 수 없습니다",
     summary: "요약",
@@ -308,13 +290,11 @@ export const ko: Messages = {
     createReceipt: "영수증 만들기",
     receiptHeading: "내 영수증입니다. 비공개로 보관하세요.",
     yourReceipt: "내 영수증",
-    receiptMirror: (secret: string) => `내 영수증: ${secret}`,
     download: "다운로드",
     downloadHint: "영수증을 텍스트 파일로 저장",
     copy: "복사",
     copyHint: "영수증을 대소문자까지 정확히 복사",
     saved: "영수증을 저장했습니다",
-    savedMirror: (saved: boolean) => (saved ? "영수증을 저장한 것으로 표시했습니다." : "영수증을 저장한 뒤 확인하세요."),
     send: (n: number) => `기록 ${n}개 제출`,
     sending: "제출 중…",
     sendFailed: (problem: string) => `제출을 확인하지 못했습니다 (${problem}). 제출이 완료되었을 수도 있습니다.`,
@@ -337,8 +317,6 @@ export const ko: Messages = {
     withdrawnAt: (when: string) => `${when} 철회됨`,
     line: (state: string, submitted: string, rows: number, rejected: number) =>
       `${state}, ${submitted} 제출. ${rows}행, 사용할 수 없는 기록 ${rejected}개는 저장되지 않았습니다.`,
-    mirrorLine: (active: boolean, rows: number, rejected: number) =>
-      `${active ? "활성" : "철회됨"}, ${rows}행, 사용할 수 없는 기록 ${rejected}개는 저장되지 않았습니다.`,
     failed: (problem: string) => `확인하지 못했습니다: ${problem}`,
     withdraw: "이 제출 철회",
     withdrawing: "철회 중…",
@@ -364,6 +342,8 @@ export const ko: Messages = {
   notice: {
     receiptCopied: "영수증을 복사했습니다",
     copyFailed: "복사하지 못했습니다. 대신 영수증을 다운로드하세요",
+    linkCopied: "링크를 복사했습니다",
+    linkCopyFailed: "복사하지 못했습니다. 주소 표시줄의 링크를 사용하세요",
   },
 
   announce: {
@@ -512,7 +492,7 @@ export const ko: Messages = {
     "filter.rangeOrder": "{first} 값은 {second} 값보다 크면 안 됩니다.",
     "filter.kind": "종류는 해킹 또는 드롭이어야 합니다.",
     "filter.alignment": "alignment는 same_faction, enemy, machina 중 하나여야 합니다.",
-    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand 중 하나여야 합니다.",
+    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week, day 중 하나여야 합니다.",
     "filter.panels": "패널은 포탈, 보너스, 양쪽 중 하나여야 합니다.",
   },
 };
