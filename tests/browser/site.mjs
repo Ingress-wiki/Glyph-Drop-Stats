@@ -51,9 +51,12 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await note.waitFor({ state: "hidden" });
     await page.locator("[data-testid=headline]").waitFor();
     check("items come from both panels unless chosen otherwise", (await page.getByRole("combobox", { name: /^Items:/ }).inputValue()) === "both");
-    // The hand calculations below read the portal panel alone.
+    check("multiplied observations are left out unless chosen otherwise", (await page.getByRole("combobox", { name: /^Multiplied:/ }).inputValue()) === "exclude");
+    // The hand calculations below read the portal panel alone and count multiplied quantities.
     await page.getByRole("combobox", { name: /^Items:/ }).selectOption("portal");
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("portal panel"));
+    await page.getByRole("combobox", { name: /^Multiplied:/ }).selectOption("include");
+    await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("over 5 eligible"));
     const headline = await headlineValues(page);
     check("headline numbers", JSON.stringify(headline) === '["10","5 of 10","2.00","0%","0%"]', JSON.stringify(headline));
     check("few observations are marked", (await page.locator("[data-testid=headline] .few").count()) === 3);
@@ -85,7 +88,7 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("over 3 eligible"));
     const plain = (await itemNames(page)).sort().join(",");
     check("leaving out multiplied observations", plain === "Power Cube,Resonator", plain);
-    check("the address records it", new URL(page.url()).searchParams.get("multiplied") === "exclude", page.url());
+    check("the address leaves the default out", new URL(page.url()).searchParams.get("multiplied") === null, page.url());
     await page.getByRole("combobox", { name: /^Multiplied:/ }).selectOption("include");
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("over 5 eligible"));
 
@@ -112,7 +115,7 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     const order = (await itemNames(page)).join(",");
     check("sorting by item", order === "Power Cube,Resonator,XMP Burster", order);
     check("the sorted column says so", (await page.getByRole("columnheader", { name: "Item" }).getAttribute("aria-sort")) === "ascending");
-    check("the address records the view", new URL(page.url()).search === "?panels=portal&sort=item", page.url());
+    check("the address records the view", new URL(page.url()).search === "?panels=portal&multiplied=include&sort=item", page.url());
     await page.getByRole("button", { name: "Copy link" }).click();
     check("COPY LINK copies the view's address", await clipboardBecomes(page, page.url()), await clipboard(page));
     await page.reload({ waitUntil: "domcontentloaded" });

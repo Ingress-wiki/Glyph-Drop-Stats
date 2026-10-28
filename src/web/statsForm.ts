@@ -25,7 +25,7 @@ export interface StatsForm {
 export const EMPTY_FORM: StatsForm = {
   kind: "",
   panels: "both",
-  multiplied: "include",
+  multiplied: "exclude",
   alignment: "",
   split: "alignment",
   utcFrom: "",

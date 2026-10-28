@@ -15,8 +15,11 @@ function dataset(): ObservationRecord[] {
   return result.records.map((entry) => entry.record);
 }
 
-/** The hand calculations below read the portal panel alone; the page's default is both. */
-const PORTAL: StatsFilter = { ...NO_FILTER, panels: "portal" };
+/**
+ * The hand calculations below read the portal panel alone and count
+ * multiplied quantities; the page's default is both panels, without them.
+ */
+const PORTAL: StatsFilter = { ...NO_FILTER, panels: "portal", multiplied: "include" };
 const stats = (filter: Partial<StatsFilter> = {}) => computeStatistics(dataset(), { ...PORTAL, ...filter });
 const t = (iso: string) => Date.parse(iso) / 1000;
 
@@ -563,7 +566,11 @@ describe("leaving out multiplied items", () => {
   const records = parsed.records.map((entry) => entry.record);
   const run = (filter: Partial<StatsFilter>) => computeStatistics(records, { ...PORTAL, ...filter });
 
-  it("counts multiplied quantities as shown by default", () => {
+  it("leaves them out by default", () => {
+    expect(computeStatistics(records, NO_FILTER).items.excluded).toMatchObject({ multiplied: 2, multiplied_unread: 1 });
+  });
+
+  it("counts multiplied quantities as shown when asked", () => {
     const result = run({});
     expect(result.items.eligible).toBe(4);
     expect(result.items.totalQuantity).toBe(8);

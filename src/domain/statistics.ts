@@ -85,7 +85,7 @@ export const NO_FILTER: StatsFilter = {
   speedBonus: null,
   alignment: null,
   panels: "both",
-  multiplied: "include",
+  multiplied: "exclude",
   split: "alignment",
 };
 

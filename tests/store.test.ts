@@ -228,15 +228,15 @@ describe("statistics", () => {
     const { store, deps } = setup();
     store.choose({ panels: "portal" });
     expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal");
-    store.choose({ multiplied: "exclude" });
-    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=exclude");
+    store.choose({ multiplied: "include" });
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=include");
     store.setFormField("portalLevelMin", "6");
     store.setFormField("portalLevelMax", "8");
     expect(deps.fetchStatistics).toHaveBeenCalledTimes(2);
     store.applyFilters();
-    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=exclude&portalLevelMin=6&portalLevelMax=8");
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=include&portalLevelMin=6&portalLevelMax=8");
     store.clearFilters();
-    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=exclude");
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=include");
     expect(store.state.statistics.form.portalLevelMin).toBe("");
   });
 

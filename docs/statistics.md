@@ -117,11 +117,12 @@ quantity in red, and the export records that colour for each item row, but
 not the factor or the cause, and the quantity is the one shown. So the base
 quantity can't be recovered, and boosts can't be told apart.
 
-By default multiplied quantities count as shown. Mixing them with plain
-hacks raises averages and spreads out count distributions, so a dispersion
-above 1 may come from multipliers alone. Choosing **Multiplied: left out**
-(`multiplied=exclude`) keeps only observations whose counted items were all
-read in normal colour, reasons 6 and 7 above. Only the selected panels'
+Mixing multiplied quantities with plain hacks raises averages and spreads
+out count distributions, so a dispersion above 1 may come from multipliers
+alone. So by default (**Multiplied: left out**, `multiplied=exclude`) only
+observations whose counted items were all read in normal colour count,
+reasons 6 and 7 above. **Multiplied: counted** (`multiplied=include`)
+counts every quantity as shown. Only the selected panels'
 items are judged, as only they are counted. An observation that gave no
 item shows no colour, so a multiplier on it can't be seen and it stays in.
 

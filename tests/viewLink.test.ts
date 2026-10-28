@@ -24,10 +24,10 @@ describe("view links", () => {
     expect(viewFromQuery(`?${query}`)).toEqual(view);
   });
 
-  it("keep leaving out multiplied observations, and a rarity sort", () => {
-    const view: ViewState = { ...DEFAULT_VIEW, form: { ...EMPTY_FORM, multiplied: "exclude" }, sort: { key: "rarity.veryRare", descending: true } };
-    expect(viewQuery(view)).toBe("multiplied=exclude&sort=-rarity.veryRare");
-    expect(viewFromQuery("multiplied=exclude&sort=-rarity.veryRare")).toEqual(view);
+  it("keep counting multiplied observations, and a rarity sort", () => {
+    const view: ViewState = { ...DEFAULT_VIEW, form: { ...EMPTY_FORM, multiplied: "include" }, sort: { key: "rarity.veryRare", descending: true } };
+    expect(viewQuery(view)).toBe("multiplied=include&sort=-rarity.veryRare");
+    expect(viewFromQuery("multiplied=include&sort=-rarity.veryRare")).toEqual(view);
     expect(viewFromQuery("multiplied=sometimes&sort=rarity.gold")).toEqual(DEFAULT_VIEW);
   });
 
