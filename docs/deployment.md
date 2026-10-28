@@ -89,25 +89,27 @@ The account is on Workers Free. Its 10 ms CPU limit per request is about
 what checking a typical export takes, so larger files can fail with error
 1102 until the account moves to Workers Paid (see [Plan](#plan)).
 
-### CI/CD
+### CI and deploys
 
 `.github/workflows/ci.yml` runs on every push and pull request:
 
 - **check:** typecheck, lint, unit and D1 tests, build;
 - **browser:** `npm run test:browser` in the runner's Chrome and
   Playwright's Firefox, with screenshots of each page and language uploaded
-  as an artifact;
-- **deploy:** on `main` only, after both pass (or by running the workflow
-  by hand): applies new D1 migrations to production, deploys, and checks
-  the live site. It runs in the GitHub `production` environment; add
-  required reviewers there to approve each deploy.
+  as an artifact.
 
-The deploy job needs, in the `production` environment:
+Deploys are Cloudflare's: the repository is connected to the Worker with
+the Cloudflare GitHub app (Workers Builds), which builds and deploys each
+push to `main` and reports the result as a check on the commit. GitHub
+holds no Cloudflare token. In the Worker's *Settings → Build*:
 
-- the secret `CLOUDFLARE_API_TOKEN`: an API token with *Workers Scripts:
-  Edit*, *D1: Edit* (account) and *Workers Routes: Edit* plus *Zone: Read*
-  for `ingress.wiki` (the "Edit Cloudflare Workers" template, plus D1);
-- the variable `CLOUDFLARE_ACCOUNT_ID`.
+- build command: none, as the deploy command builds;
+- deploy command: `npm run db:migrate:production && npm run deploy`, so
+  new D1 migrations, which are additive, are applied before the code that
+  needs them. The build's API token needs *D1: Edit* for this.
+
+Workers Builds doesn't wait for the GitHub checks, so a push to `main`
+deploys even if they fail: merge only pull requests whose checks pass.
 
 ### By hand
 
