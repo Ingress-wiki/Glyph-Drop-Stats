@@ -36,7 +36,8 @@ async function withdraw(secret: string): Promise<void> {
   expect(response.status).toBe(200);
 }
 
-async function stats(query = ""): Promise<Statistics> {
+/** The hand calculations read the portal panel alone; the page's default is both. */
+async function stats(query = "panels=portal"): Promise<Statistics> {
   const response = await call(`/api/statistics${query ? `?${query}` : ""}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toBe("no-store");
@@ -51,6 +52,13 @@ describe("statistics from submitted data", () => {
     const result = await stats();
     expect(result.records).toEqual(EXPECTED.records);
     expect(result.items).toEqual({ panels: "portal", ...EXPECTED.portalItems });
+  });
+
+  it("read both panels unless asked otherwise", async () => {
+    await submit(datasetCsv());
+    const result = await stats("");
+    expect(result.filter.panels).toBe("both");
+    expect(result.items.panels).toBe("both");
   });
 
   it("are empty, not zero-filled averages, before anything is submitted", async () => {
@@ -88,7 +96,7 @@ describe("withdrawal", () => {
     expect(afterA.items).toEqual({
       panels: "portal",
       eligible: 3, // d, h9, h10
-      excluded: { no_reading: 1, panel_not_seen: 1, partly_read: 0, unidentified_items: 1, unlisted_item_names: 1 },
+      excluded: { no_reading: 1, panel_not_seen: 1, partly_read: 0, unidentified_items: 1, unlisted_item_names: 1, multiplied: 0, multiplied_unread: 0 },
       totalQuantity: 4,
       averagePerObservation: 4 / 3,
       byItem: [

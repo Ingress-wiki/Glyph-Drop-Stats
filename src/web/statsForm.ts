@@ -1,10 +1,11 @@
 import type { PortalAlignment } from "../domain/record.ts";
-import type { Split } from "../domain/statistics.ts";
+import type { MultipliedSelection, Split } from "../domain/statistics.ts";
 
 /** The statistics filter form, as the strings its fields hold. Empty means no filter. */
 export interface StatsForm {
   kind: "" | "hack" | "drop";
   panels: "portal" | "bonus" | "both";
+  multiplied: MultipliedSelection;
   alignment: "" | PortalAlignment;
   split: Split;
   utcFrom: string;
@@ -23,7 +24,8 @@ export interface StatsForm {
 
 export const EMPTY_FORM: StatsForm = {
   kind: "",
-  panels: "portal",
+  panels: "both",
+  multiplied: "include",
   alignment: "",
   split: "alignment",
   utcFrom: "",
@@ -56,7 +58,8 @@ export function formQuery(form: StatsForm): string {
     if (value.trim() !== "") params.set(name, value.trim());
   };
   set("kind", form.kind);
-  if (form.panels !== "portal") params.set("panels", form.panels);
+  if (form.panels !== EMPTY_FORM.panels) params.set("panels", form.panels);
+  if (form.multiplied !== EMPTY_FORM.multiplied) params.set("multiplied", form.multiplied);
   set("alignment", form.alignment);
   if (form.split !== EMPTY_FORM.split) params.set("split", form.split);
   if (form.utcFrom.trim() !== "") params.set("utcFrom", `${form.utcFrom.trim()}T00:00:00Z`);

@@ -226,15 +226,17 @@ describe("statistics", () => {
 
   it("applies pickers at once and ranges only on apply", async () => {
     const { store, deps } = setup();
-    store.choose({ panels: "both" });
-    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=both");
+    store.choose({ panels: "portal" });
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal");
+    store.choose({ multiplied: "exclude" });
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=exclude");
     store.setFormField("portalLevelMin", "6");
     store.setFormField("portalLevelMax", "8");
-    expect(deps.fetchStatistics).toHaveBeenCalledTimes(1);
+    expect(deps.fetchStatistics).toHaveBeenCalledTimes(2);
     store.applyFilters();
-    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=both&portalLevelMin=6&portalLevelMax=8");
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=exclude&portalLevelMin=6&portalLevelMax=8");
     store.clearFilters();
-    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=both");
+    expect(vi.mocked(deps.fetchStatistics).mock.calls.at(-1)?.[0]).toBe("panels=portal&multiplied=exclude");
     expect(store.state.statistics.form.portalLevelMin).toBe("");
   });
 

@@ -11,7 +11,7 @@ describe("view links", () => {
 
   it("round-trip every part of a view, in the forms the page shows", () => {
     const view: ViewState = {
-      form: { ...EMPTY_FORM, kind: "hack", panels: "both", alignment: "enemy", split: "panelEffect", utcFrom: "2026-10-01", utcTo: "2026-10-03", portalLevelMin: "6", portalLevelMax: "8" },
+      form: { ...EMPTY_FORM, kind: "hack", panels: "bonus", alignment: "enemy", split: "panelEffect", utcFrom: "2026-10-01", utcTo: "2026-10-03", portalLevelMin: "6", portalLevelMax: "8" },
       search: "shield",
       sort: { key: "item", descending: false },
       gridGroup: "ITO EN (+)",
@@ -19,9 +19,16 @@ describe("view links", () => {
     };
     const query = viewQuery(view);
     expect(query).toBe(
-      "kind=hack&panels=both&alignment=enemy&split=panelEffect&utcFrom=2026-10-01&utcTo=2026-10-03&portalLevelMin=6&portalLevelMax=8&group=ITO+EN+%28%2B%29&item=Portal+Shield&q=shield&sort=item",
+      "kind=hack&panels=bonus&alignment=enemy&split=panelEffect&utcFrom=2026-10-01&utcTo=2026-10-03&portalLevelMin=6&portalLevelMax=8&group=ITO+EN+%28%2B%29&item=Portal+Shield&q=shield&sort=item",
     );
     expect(viewFromQuery(`?${query}`)).toEqual(view);
+  });
+
+  it("keep leaving out multiplied observations, and a rarity sort", () => {
+    const view: ViewState = { ...DEFAULT_VIEW, form: { ...EMPTY_FORM, multiplied: "exclude" }, sort: { key: "rarity.veryRare", descending: true } };
+    expect(viewQuery(view)).toBe("multiplied=exclude&sort=-rarity.veryRare");
+    expect(viewFromQuery("multiplied=exclude&sort=-rarity.veryRare")).toEqual(view);
+    expect(viewFromQuery("multiplied=sometimes&sort=rarity.gold")).toEqual(DEFAULT_VIEW);
   });
 
   it("mark a descending sort with a minus, and leave the default sort out", () => {

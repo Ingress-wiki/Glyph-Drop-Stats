@@ -34,6 +34,7 @@ export const zhHant: Messages = {
     panelShort: { portal: "能量塔", bonus: "獎勵", both: "兩者" },
     panelChoice: { portal: "物品：能量塔面板", bonus: "物品：獎勵面板", both: "物品：兩個面板" },
     kind: { "": "Hack 與掉落", hack: "僅 Hack", drop: "僅掉落" },
+    multipliedChoice: { include: "倍增：計入", exclude: "倍增：排除" },
     alignmentChoice: {
       "": "所有能量塔",
       same_faction: "同陣營能量塔",
@@ -177,6 +178,8 @@ export const zhHant: Messages = {
       whenPresent: "有時平均",
       multiplied: "倍增",
       colourUnread: "顏色？",
+      rarity: { common: "普通", rare: "稀有", veryRare: "非常稀有", unread: "稀有度？" },
+      rarityHint: { common: "普通的數量", rare: "稀有的數量", veryRare: "非常稀有的數量", unread: "未讀出稀有度的數量" },
       noEligible: "沒有符合這些篩選條件的合格觀測。",
       noMatch: "沒有符合搜尋的物品。",
     },
@@ -220,6 +223,8 @@ export const zhHant: Messages = {
     partly_read: "筆所選面板僅部分讀取",
     unidentified_items: "筆有無法讀取的物品或等級",
     unlisted_item_names: "筆有待審核的物品名稱",
+    multiplied: "筆含倍增物品（紅色數量）",
+    multiplied_unread: "筆含未讀出顏色的物品",
   },
 
   outcomes: {
@@ -236,6 +241,7 @@ export const zhHant: Messages = {
     points: [
       "記錄是玩家提交的 Hack 和掉落組。每筆記錄只計一次，以其被接受的版本為準。已撤回的提交、互相衝突的副本和尚未審核的更新都不計入。",
       "合格觀測是指已讀取裝備，且所選的每個面板都有看到、完整讀取，每件物品也都已辨識的觀測。未達到這些條件的都不計入，並統計在表格下方：缺少的面板代表未知，而不是零。",
+      "紅色數量表示經過倍增（Fracker、當天首次 Hack、信標等）；應用程式不記錄倍數，也不記錄原因，所以按顯示的數量計入。選擇「倍增：排除」可只保留所計物品都以正常顏色讀出的觀測。模組等沒有等級的物品改按稀有度細分。",
       "每次觀測 = 數量 ÷ 合格觀測次數，包括沒有該物品的觀測。",
       "數值越接近該欄的最大值，底色越亮。亮代表較多，不代表較好。",
       "無法判定某筆記錄的篩選條件（掉落沒有能量塔等級；舊記錄沒有當地時間）會將它擱置並加以註明，而不是去猜測。",
@@ -489,5 +495,6 @@ export const zhHant: Messages = {
     "filter.alignment": "alignment 必須是 same_faction、enemy 或 machina。",
     "filter.split": "split 必須是 alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect、event、week 或 day。",
     "filter.panels": "面板必須是 portal、bonus 或 both。",
+    "filter.multiplied": "multiplied 必須是 include 或 exclude。",
   },
 };

@@ -1,7 +1,7 @@
 import { makeIssue, type Issue } from "./importer.ts";
 import type { IssueKey, IssueParams } from "./issueMessages.ts";
 import { PORTAL_ALIGNMENTS } from "./format.ts";
-import { NO_FILTER, SPLITS, type PanelSelection, type Range, type Split, type StatsFilter } from "./statistics.ts";
+import { NO_FILTER, SPLITS, type MultipliedSelection, type PanelSelection, type Range, type Split, type StatsFilter } from "./statistics.ts";
 import type { PortalAlignment } from "./record.ts";
 
 /**
@@ -19,7 +19,7 @@ const PAIRS = {
   speedBonus: ["speedBonusMin", "speedBonusMax"],
 } as const;
 
-const KNOWN = new Set<string>(["kind", "panels", "alignment", "split", ...Object.values(PAIRS).flat()]);
+const KNOWN = new Set<string>(["kind", "panels", "multiplied", "alignment", "split", ...Object.values(PAIRS).flat()]);
 
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -89,6 +89,8 @@ export function parseStatsQuery(params: URLSearchParams): { ok: true; filter: St
   if (kind !== null && kind !== "hack" && kind !== "drop") bad("filter.kind");
   const panels = params.get("panels") ?? NO_FILTER.panels;
   if (panels !== "portal" && panels !== "bonus" && panels !== "both") bad("filter.panels");
+  const multiplied = params.get("multiplied") ?? NO_FILTER.multiplied;
+  if (multiplied !== "include" && multiplied !== "exclude") bad("filter.multiplied");
   const alignment = params.get("alignment");
   if (alignment !== null && !(PORTAL_ALIGNMENTS as readonly string[]).includes(alignment)) bad("filter.alignment");
   const split = params.get("split") ?? NO_FILTER.split;
@@ -107,6 +109,7 @@ export function parseStatsQuery(params: URLSearchParams): { ok: true; filter: St
       speedBonus,
       alignment: alignment as PortalAlignment | null,
       panels: panels as PanelSelection,
+      multiplied: multiplied as MultipliedSelection,
       split: split as Split,
     },
   };
@@ -138,6 +141,7 @@ export function statsQueryString(filter: StatsFilter): string {
   }
   if (filter.alignment) params.set("alignment", filter.alignment);
   if (filter.panels !== NO_FILTER.panels) params.set("panels", filter.panels);
+  if (filter.multiplied !== NO_FILTER.multiplied) params.set("multiplied", filter.multiplied);
   if (filter.split !== NO_FILTER.split) params.set("split", filter.split);
   return params.toString();
 }

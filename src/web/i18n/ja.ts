@@ -34,6 +34,7 @@ export const ja: Messages = {
     panelShort: { portal: "ポータル", bonus: "ボーナス", both: "両方" },
     panelChoice: { portal: "アイテム：ポータルパネル", bonus: "アイテム：ボーナスパネル", both: "アイテム：両方のパネル" },
     kind: { "": "ハックとドロップ", hack: "ハックのみ", drop: "ドロップのみ" },
+    multipliedChoice: { include: "倍増：含める", exclude: "倍増：除く" },
     alignmentChoice: {
       "": "すべてのポータル",
       same_faction: "自陣営のポータル",
@@ -179,6 +180,8 @@ export const ja: Messages = {
       whenPresent: "出た時",
       multiplied: "倍増",
       colourUnread: "色 ?",
+      rarity: { common: "コモン", rare: "レア", veryRare: "ベリーレア", unread: "レア度 ?" },
+      rarityHint: { common: "コモンの数量", rare: "レアの数量", veryRare: "ベリーレアの数量", unread: "レア度を読めなかった数量" },
       noEligible: "このフィルターに合う対象の観測はありません。",
       noMatch: "検索に一致するアイテムはありません。",
     },
@@ -222,6 +225,8 @@ export const ja: Messages = {
     partly_read: "選択したパネルを一部のみ読み取り",
     unidentified_items: "読み取れないアイテムまたはレベルあり",
     unlisted_item_names: "確認待ちのアイテム名あり",
+    multiplied: "倍増アイテム（赤い数量）あり",
+    multiplied_unread: "色を読めなかったアイテムあり",
   },
 
   outcomes: {
@@ -238,6 +243,7 @@ export const ja: Messages = {
     points: [
       "記録とは、プレイヤーが提出したハックとドロップグループです。各記録は受理されたバージョンで 1 回だけ数えます。取り下げられた提出、内容が食い違うコピー、未確認の更新は数えません。",
       "対象の観測とは、アイテムが読み取られ、選択したパネルがすべて表示されてすべて読み取られ、すべてのアイテムが特定できたものです。それ以外は除外し、件数を表の下に示します。パネルがない場合は不明であり、ゼロではありません。",
+      "赤い数量は倍増されたものです（Fracker、その日最初のハック、ビーコンなど）。アプリは倍率も原因も記録しないため、表示どおりに数えます。「倍増：除く」を選ぶと、数えるアイテムがすべて通常の色で読み取れた観測だけを残します。MOD などレベルのないアイテムは、代わりにレア度で分けます。",
       "「1 観測あたり」は、数量 ÷ 対象の観測数です。そのアイテムが出なかった観測も含みます。",
       "網掛けは、値がその列の最大値に近いほど明るくなります。多いことを示すだけで、良いという意味ではありません。",
       "記録を判定できないフィルター（ドロップにはポータルレベルがない、古い記録にはローカル時刻がない など）は、推測せずにその記録を別に分け、その旨を表示します。",
@@ -495,5 +501,6 @@ export const ja: Messages = {
     "filter.alignment": "alignment は same_faction、enemy、machina のいずれかで指定してください。",
     "filter.split": "split は alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect、event、week、day のいずれかで指定してください。",
     "filter.panels": "パネルは portal、bonus、both のいずれかで指定してください。",
+    "filter.multiplied": "multiplied は include または exclude で指定してください。",
   },
 };
