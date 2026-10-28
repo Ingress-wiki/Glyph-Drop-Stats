@@ -50,11 +50,18 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await page.keyboard.press("Enter");
     await note.waitFor({ state: "hidden" });
     await page.locator("[data-testid=headline]").waitFor();
+    check("items come from both panels unless chosen otherwise", (await page.getByRole("combobox", { name: /^Items:/ }).inputValue()) === "both");
+    check("multiplied observations are left out unless chosen otherwise", (await page.getByRole("combobox", { name: /^Multiplied:/ }).inputValue()) === "exclude");
+    // The hand calculations below read the portal panel alone and count multiplied quantities.
+    await page.getByRole("combobox", { name: /^Items:/ }).selectOption("portal");
+    await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("portal panel"));
+    await page.getByRole("combobox", { name: /^Multiplied:/ }).selectOption("include");
+    await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("over 5 eligible"));
     const headline = await headlineValues(page);
     check("headline numbers", JSON.stringify(headline) === '["10","5 of 10","2.00","0%","0%"]', JSON.stringify(headline));
     check("few observations are marked", (await page.locator("[data-testid=headline] .few").count()) === 3);
     const resonator = await itemCells(page, "Resonator");
-    check("Resonator row matches hand calculation", resonator.join(",") === "7,1.40,80%,1.75,0,0,0,0,3,4,0,0,2,3", resonator.join(","));
+    check("Resonator row matches hand calculation", resonator.join(",") === "7,1.40,80%,1.75,0,0,0,0,3,4,0,0,—,—,—,—,2,3", resonator.join(","));
 
     // A chart's tooltip names its row and what the value is over.
     const chart = await page.locator(".ts-chart-host").first().boundingBox();
@@ -75,6 +82,15 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     check("panel picker", true);
     await page.getByRole("combobox", { name: /^Items:/ }).selectOption("portal");
     await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("portal panel"));
+
+    // Leaving out the hacks with a red or unread quantity keeps 3 of the 5 eligible observations.
+    await page.getByRole("combobox", { name: /^Multiplied:/ }).selectOption("exclude");
+    await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("over 3 eligible"));
+    const plain = (await itemNames(page)).sort().join(",");
+    check("leaving out multiplied observations", plain === "Power Cube,Resonator", plain);
+    check("the address leaves the default out", new URL(page.url()).searchParams.get("multiplied") === null, page.url());
+    await page.getByRole("combobox", { name: /^Multiplied:/ }).selectOption("include");
+    await page.waitForFunction(() => document.querySelector("[data-testid=items] caption")?.textContent?.includes("over 5 eligible"));
 
     await page.keyboard.press("F3");
     await page.getByLabel("Portal level from").fill("6");
@@ -99,7 +115,7 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     const order = (await itemNames(page)).join(",");
     check("sorting by item", order === "Power Cube,Resonator,XMP Burster", order);
     check("the sorted column says so", (await page.getByRole("columnheader", { name: "Item" }).getAttribute("aria-sort")) === "ascending");
-    check("the address records the view", new URL(page.url()).search === "?sort=item", page.url());
+    check("the address records the view", new URL(page.url()).search === "?panels=portal&multiplied=include&sort=item", page.url());
     await page.getByRole("button", { name: "Copy link" }).click();
     check("COPY LINK copies the view's address", await clipboardBecomes(page, page.url()), await clipboard(page));
     await page.reload({ waitUntil: "domcontentloaded" });

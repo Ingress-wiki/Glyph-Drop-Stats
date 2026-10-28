@@ -1,4 +1,5 @@
 import { EVENTS, OUTSIDE_EVENTS, type IngressEvent } from "../domain/events.ts";
+import { ITEMS_WITH_RARITY } from "../domain/format.ts";
 import { COUNT_CAP, SMALL_SAMPLE, UNKNOWN_GROUP, type ItemTotal, type Share, type Split } from "../domain/statistics.ts";
 import type { Messages } from "./i18n/en.ts";
 
@@ -105,6 +106,16 @@ export function chance(row: ItemTotal, eligible: number): number | null {
 /** The average quantity in observations that had the item. */
 export function whenPresent(row: ItemTotal): number | null {
   return row.observations === 0 ? null : row.quantity / row.observations;
+}
+
+/**
+ * An item's quantity by rarity, with what is left unread, for items that
+ * have a rarity (mods and the like, which have no level); null for the rest.
+ */
+export function rarityCounts(row: ItemTotal): { common: number; rare: number; veryRare: number; unread: number } | null {
+  if (!ITEMS_WITH_RARITY.has(row.item)) return null;
+  const { common, rare, veryRare } = row.rarities;
+  return { common, rare, veryRare, unread: row.quantity - common - rare - veryRare };
 }
 
 /**

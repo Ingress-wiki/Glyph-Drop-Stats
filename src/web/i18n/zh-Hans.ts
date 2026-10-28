@@ -34,6 +34,7 @@ export const zhHans: Messages = {
     panelShort: { portal: "能量塔", bonus: "奖励", both: "全部" },
     panelChoice: { portal: "物品：能量塔面板", bonus: "物品：奖励面板", both: "物品：两个面板" },
     kind: { "": "Hack 与掉落", hack: "仅 Hack", drop: "仅掉落" },
+    multipliedChoice: { include: "倍增：计入", exclude: "倍增：排除" },
     alignmentChoice: {
       "": "所有能量塔",
       same_faction: "本阵营能量塔",
@@ -177,6 +178,8 @@ export const zhHans: Messages = {
       whenPresent: "有时平均",
       multiplied: "倍增",
       colourUnread: "颜色？",
+      rarity: { common: "普通", rare: "稀有", veryRare: "非常稀有", unread: "稀有度？" },
+      rarityHint: { common: "普通的数量", rare: "稀有的数量", veryRare: "非常稀有的数量", unread: "未读出稀有度的数量" },
       noEligible: "没有符合这些筛选条件的合格观测。",
       noMatch: "没有与搜索匹配的物品。",
     },
@@ -220,6 +223,8 @@ export const zhHans: Messages = {
     partly_read: "所选面板仅部分读取",
     unidentified_items: "有无法读出的物品或等级",
     unlisted_item_names: "有待审核的物品名称",
+    multiplied: "含倍增物品（红色数量）",
+    multiplied_unread: "含未读出颜色的物品",
   },
 
   outcomes: {
@@ -236,6 +241,7 @@ export const zhHans: Messages = {
     points: [
       "记录是玩家提交的 Hack 和掉落组。每条记录只按其已接受的版本计一次。已撤回的提交、相互冲突的副本和未审核的更新均不计入。",
       "合格观测是指装备已读取，且所选的每个面板都出现、完整读取、每件物品都已识别的观测。达不到这些条件的不计入，并在表格下方统计：缺失的面板表示未知，而不是零。",
+      "红色数量表示经过倍增（Fracker、当天首次 Hack、信标等）；应用既不记录倍数也不记录原因，所以默认排除含倍增物品的观测，以及含未读出颜色物品的观测。选择“倍增：计入”可按显示的数量计入所有物品。模组等没有等级的物品改按稀有度细分。",
       "每次观测 = 数量 ÷ 合格观测数，包括没有该物品的观测。",
       "数值越接近该列的最大值，底色越亮。亮表示更多，而不是更好。",
       "无法判断某条记录的筛选条件（掉落没有能量塔等级；旧记录没有本地时间）会将其单独列出并注明，而不会猜测。",
@@ -489,5 +495,6 @@ export const zhHans: Messages = {
     "filter.alignment": "alignment 必须是 same_faction、enemy 或 machina。",
     "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect、event、week 或 day。",
     "filter.panels": "面板必须是能量塔、奖励或两者。",
+    "filter.multiplied": "multiplied 必须是 include 或 exclude。",
   },
 };

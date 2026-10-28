@@ -59,13 +59,37 @@ describe("sortItems", () => {
   });
 
   it("finds each shaded column's largest value", () => {
-    expect(columnMaxima(rows)).toEqual({ quantity: 7, average: 1.75, observations: 4, whenPresent: 2, level: 4 });
-    expect(columnMaxima([])).toEqual({ quantity: 0, average: 0, observations: 0, whenPresent: 0, level: 0 });
+    expect(columnMaxima(rows)).toEqual({ quantity: 7, average: 1.75, observations: 4, whenPresent: 2, level: 4, rarity: 0 });
+    expect(columnMaxima([])).toEqual({ quantity: 0, average: 0, observations: 0, whenPresent: 0, level: 0, rarity: 0 });
+  });
+
+  describe("by rarity", () => {
+    // Shield: 3 common, 1 rare, 3 unread; Heat Sink: 2 rare; Hypercube (from `rows`): 2 unread.
+    const mods = [
+      ...rows,
+      { ...row("Portal Shield", 7), rarities: { common: 3, rare: 1, veryRare: 0 } },
+      { ...row("Heat Sink", 2), rarities: { common: 0, rare: 2, veryRare: 0 } },
+    ];
+
+    it("puts items without a rarity below every item with one", () => {
+      expect(sortItems(mods, { key: "rarity.rare", descending: true }).map((r) => r.item)).toEqual([
+        "Heat Sink",
+        "Portal Shield",
+        "Hypercube",
+        "Power Cube",
+        "Resonator",
+      ]);
+      expect(sortItems(mods, { key: "rarity.unread", descending: true })[0].item).toBe("Portal Shield");
+    });
+
+    it("shades common, rare and very rare against their largest value", () => {
+      expect(columnMaxima(mods).rarity).toBe(3);
+    });
   });
 });
 
 describe("itemsTsv", () => {
-  it("writes the denominator on every row and leaves level cells blank for items without levels", () => {
+  it("writes the denominator on every row, leaving level cells blank without levels and rarity cells blank without a rarity", () => {
     const statistics = computeStatistics([], NO_FILTER);
     statistics.items.eligible = 4;
     statistics.items.byItem = [
@@ -75,10 +99,10 @@ describe("itemsTsv", () => {
     expect(itemsTsv(statistics).split("\n")).toEqual([
       [
         "item\tquantity\teligible_observations\tper_observation\tobservations_with_item\taverage_when_present",
-        "L1\tL2\tL3\tL4\tL5\tL6\tL7\tL8\tcommon\trare\tvery_rare\tmultiplied\tcolour_unread\tpanels",
+        "L1\tL2\tL3\tL4\tL5\tL6\tL7\tL8\tcommon\trare\tvery_rare\trarity_unread\tmultiplied\tcolour_unread\tpanels",
       ].join("\t"),
-      "Resonator\t7\t4\t1.75\t4\t1.75\t0\t0\t0\t0\t3\t4\t0\t0\t0\t0\t0\t0\t0\tportal",
-      "Hypercube\t2\t4\t0.5\t1\t2\t\t\t\t\t\t\t\t\t0\t0\t2\t0\t0\tportal",
+      "Resonator\t7\t4\t1.75\t4\t1.75\t0\t0\t0\t0\t3\t4\t0\t0\t\t\t\t\t0\t0\tboth",
+      "Hypercube\t2\t4\t0.5\t1\t2\t\t\t\t\t\t\t\t\t0\t0\t2\t0\t0\t0\tboth",
       "",
     ]);
   });

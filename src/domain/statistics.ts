@@ -14,6 +14,15 @@ import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlign
 
 export type PanelSelection = "portal" | "bonus" | "both";
 
+/**
+ * Whether observations with multiplied items count. The game prints a
+ * multiplied quantity in red, but the export says neither the factor (×2,
+ * ×3, ×1.15…) nor its cause (a Fracker, the day's first hack, a beacon), so
+ * the base quantity can't be recovered: the only clean choice is to leave
+ * such observations out.
+ */
+export type MultipliedSelection = "include" | "exclude";
+
 /** What the comparison groups records by. */
 export const SPLITS = ["alignment", "portalLevel", "glyphCount", "speedCommand", "keyCommand", "panelEffect", "event", "week", "day"] as const;
 export type Split = (typeof SPLITS)[number];
@@ -62,6 +71,7 @@ export interface StatsFilter {
   alignment: PortalAlignment | null;
   /** Which panels item metrics read. */
   panels: PanelSelection;
+  multiplied: MultipliedSelection;
   split: Split;
 }
 
@@ -74,7 +84,8 @@ export const NO_FILTER: StatsFilter = {
   hackingBonus: null,
   speedBonus: null,
   alignment: null,
-  panels: "portal",
+  panels: "both",
+  multiplied: "exclude",
   split: "alignment",
 };
 
@@ -115,6 +126,8 @@ export const ITEM_EXCLUSIONS = [
   "partly_read",
   "unidentified_items",
   "unlisted_item_names",
+  "multiplied",
+  "multiplied_unread",
 ] as const;
 export type ItemExclusion = (typeof ITEM_EXCLUSIONS)[number];
 
@@ -329,9 +342,11 @@ const STAGES: Record<PanelSelection, PanelStage[]> = {
 /**
  * Whether a record's item list is complete for the selected panels. Only
  * then can its quantities be summed: a missing or partly read panel is
- * unknown, never zero.
+ * unknown, never zero. Leaving multiplied items out judges only the selected
+ * panels' items, the ones counted; an observation with no items shows no
+ * colour, so a multiplier on it can't be seen and it stays in.
  */
-export function itemEligibility(record: ObservationRecord, panels: PanelSelection): "eligible" | ItemExclusion {
+export function itemEligibility(record: ObservationRecord, panels: PanelSelection, multiplied: MultipliedSelection = "include"): "eligible" | ItemExclusion {
   if (record.readStatus !== "read" || record.reading === null) return "no_reading";
   const selected = STAGES[panels].map((stage) => record.reading?.panels.find((panel) => panel.stage === stage));
   if (selected.some((panel) => panel === undefined)) return "panel_not_seen";
@@ -340,6 +355,10 @@ export function itemEligibility(record: ObservationRecord, panels: PanelSelectio
   const items = present.flatMap((panel) => panel.items);
   if (items.some((item) => item.item === null || item.levelState === "unreadable")) return "unidentified_items";
   if (items.some((item) => item.item !== null && !isListedItem(item.item))) return "unlisted_item_names";
+  if (multiplied === "exclude") {
+    if (items.some((item) => item.multiplied === true)) return "multiplied";
+    if (items.some((item) => item.multiplied === null)) return "multiplied_unread";
+  }
   return "eligible";
 }
 
@@ -521,7 +540,7 @@ export function computeStatistics(
     const upload = uploadOf?.get(record.recordId);
     if (upload !== undefined) uploads.add(upload);
 
-    const verdict = itemEligibility(record, filter.panels);
+    const verdict = itemEligibility(record, filter.panels, filter.multiplied);
     if (verdict !== "eligible") excluded[verdict]++;
     const items =
       verdict === "eligible"

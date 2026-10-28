@@ -15,13 +15,14 @@ import {
   levelShares,
   percent,
   poissonExpected,
+  rarityCounts,
   sharePercent,
   whenPresent,
 } from "./dashboard.ts";
 import type { Messages } from "./i18n/en.ts";
 import { issuesText, messages, problemText } from "./i18n/index.ts";
 import { itemCategory, matchesSearch } from "./items.ts";
-import { columnMaxima, shade, sortItems, type SortKey } from "./itemTable.ts";
+import { columnMaxima, RARITY_KEYS, shade, sortItems, type SortKey } from "./itemTable.ts";
 import type { StatsForm } from "./statsForm.ts";
 import { Bars, CountChart, LevelHeatmap, TrendChart, type BarRow, type CountRow, type GridCell, type TrendRow } from "./charts.tsx";
 import { usePaint, type Paint } from "./paint.ts";
@@ -93,6 +94,12 @@ function Toolbar({ store, state, s }: { store: Store; state: AppState; s: Messag
         value={form.alignment}
         options={(["", "same_faction", "enemy", "machina"] as const).map((value) => ({ value, label: s.stats.alignmentChoice[value] }))}
         onChange={(alignment) => store.choose({ alignment })}
+      />
+      <Select
+        label={s.stats.multipliedChoice[form.multiplied]}
+        value={form.multiplied}
+        options={(["include", "exclude"] as const).map((value) => ({ value, label: s.stats.multipliedChoice[value] }))}
+        onChange={(multiplied) => store.choose({ multiplied })}
       />
       <button type="button" aria-expanded={filtersOpen} aria-keyshortcuts="F3" title={s.stats.filtersHint} onClick={() => store.toggleFilters()}>
         {s.stats.filters(activeRanges(form))}
@@ -510,6 +517,7 @@ function Distribution({ store, state, s, statistics, paint }: { store: Store; st
 interface Column {
   key: SortKey;
   label: string;
+  title?: string;
 }
 
 function ItemTable({ store, state, s, statistics }: { store: Store; state: AppState; s: Messages; statistics: Statistics }) {
@@ -523,6 +531,7 @@ function ItemTable({ store, state, s, statistics }: { store: Store; state: AppSt
     { key: "chance", label: t.chance },
     { key: "whenPresent", label: t.whenPresent },
     ...[1, 2, 3, 4, 5, 6, 7, 8].map((level) => ({ key: `L${level}` as SortKey, label: `L${level}` })),
+    ...RARITY_KEYS.map((key) => ({ key: `rarity.${key}` as SortKey, label: t.rarity[key], title: t.rarityHint[key] })),
     { key: "multiplied", label: t.multiplied },
     { key: "multipliedUnknown", label: t.colourUnread },
   ];
@@ -542,7 +551,7 @@ function ItemTable({ store, state, s, statistics }: { store: Store; state: AppSt
                 const active = sort.key === col.key;
                 return (
                   <th key={col.key} scope="col" aria-sort={active ? (sort.descending ? "descending" : "ascending") : undefined}>
-                    <button type="button" className="sort" onClick={() => store.sortBy(col.key)}>
+                    <button type="button" className="sort" title={col.title} onClick={() => store.sortBy(col.key)}>
                       <span>{col.label}</span>
                       <span aria-hidden="true">{active ? (sort.descending ? "▼" : "▲") : ""}</span>
                     </button>
@@ -571,6 +580,7 @@ function ItemRow({ row, eligible, max, store, s }: { row: ItemTotal; eligible: n
   const category = itemCategory(row.item);
   const share = chance(row, eligible);
   const present = whenPresent(row);
+  const rarity = rarityCounts(row);
   return (
     <tr>
       <th scope="row">
@@ -590,6 +600,21 @@ function ItemRow({ row, eligible, max, store, s }: { row: ItemTotal; eligible: n
           {value === null ? "—" : value}
         </Shaded>
       ))}
+      {RARITY_KEYS.map((key) =>
+        rarity === null ? (
+          <Shaded key={key} step={0}>
+            —
+          </Shaded>
+        ) : key === "unread" ? (
+          <td key={key} className={rarity.unread === 0 ? "num muted" : "num"}>
+            {rarity.unread}
+          </td>
+        ) : (
+          <Shaded key={key} step={shade(rarity[key], max.rarity)}>
+            {rarity[key]}
+          </Shaded>
+        ),
+      )}
       <td className={row.multiplied === 0 ? "num muted" : "num"}>{row.multiplied}</td>
       <td className={row.multipliedUnknown === 0 ? "num muted" : "num"}>{row.multipliedUnknown}</td>
     </tr>

@@ -85,8 +85,8 @@ Coverage:
 
 ## Item metrics
 
-Item metrics use the **portal panel** by default, or the bonus panel, or
-both.
+Item metrics use **both panels** by default, or the portal or the bonus
+panel alone.
 
 A matching record is **eligible** only if its item list for the selected
 panels is complete. Otherwise it is left out, and counted under the first
@@ -104,6 +104,27 @@ reason that applies:
    on averages is unknown.
 5. `unlisted_item_names`: an item name isn't on the server's list yet.
    Records with such names are excluded until the name is reviewed.
+6. `multiplied`, only when multiplied items are left out: a counted item's
+   quantity was printed in red.
+7. `multiplied_unread`, only when multiplied items are left out: a counted
+   item's colour wasn't read, so it may have been multiplied.
+
+### Multiplied quantities
+
+A Fracker, the day's first hack, a beacon and other boosts multiply what a
+hack gives, by factors from about ×1.15 to ×3. The game prints a multiplied
+quantity in red, and the export records that colour for each item row, but
+not the factor or the cause, and the quantity is the one shown. So the base
+quantity can't be recovered, and boosts can't be told apart.
+
+Mixing multiplied quantities with plain hacks raises averages and spreads
+out count distributions, so a dispersion above 1 may come from multipliers
+alone. So by default (**Multiplied: left out**, `multiplied=exclude`) only
+observations whose counted items were all read in normal colour count,
+reasons 6 and 7 above. **Multiplied: counted** (`multiplied=include`)
+counts every quantity as shown. Only the selected panels'
+items are judged, as only they are counted. An observation that gave no
+item shows no colour, so a multiplier on it can't be seen and it stays in.
 
 For eligible observations, per item:
 - **Quantity:** the summed quantity.
@@ -117,7 +138,10 @@ For eligible observations, per item:
 - **Chance per observation:** eligible observations with the item ÷
   eligible observations.
 - **Average when present:** quantity ÷ observations with the item.
-- **By rarity:** quantity that is Common, Rare or Very Rare (in the TSV).
+- **By rarity:** for items that have a rarity instead of a level (mods,
+  Hypercubes, viruses, capsules…), the quantity that was Common, Rare or
+  Very Rare, and the quantity whose rarity wasn't read. Items without a
+  rarity show "—", and blank cells in the TSV.
 
 With no eligible observations, the average is shown as "—", not 0.
 

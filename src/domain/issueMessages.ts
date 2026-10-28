@@ -109,6 +109,7 @@ export const ISSUE_MESSAGES = {
   "filter.alignment": "alignment must be same_faction, enemy or machina.",
   "filter.split": "split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week or day.",
   "filter.panels": "panels must be portal, bonus or both.",
+  "filter.multiplied": "multiplied must be include or exclude.",
 } as const;
 
 export type IssueKey = keyof typeof ISSUE_MESSAGES;

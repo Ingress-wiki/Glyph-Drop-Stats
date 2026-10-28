@@ -36,7 +36,8 @@ async function withdraw(secret: string): Promise<void> {
   expect(response.status).toBe(200);
 }
 
-async function stats(query = ""): Promise<Statistics> {
+/** The hand calculations read the portal panel alone and count multiplied quantities; the page's default is neither. */
+async function stats(query = "panels=portal&multiplied=include"): Promise<Statistics> {
   const response = await call(`/api/statistics${query ? `?${query}` : ""}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toBe("no-store");
@@ -51,6 +52,14 @@ describe("statistics from submitted data", () => {
     const result = await stats();
     expect(result.records).toEqual(EXPECTED.records);
     expect(result.items).toEqual({ panels: "portal", ...EXPECTED.portalItems });
+  });
+
+  it("read both panels, without multiplied observations, unless asked otherwise", async () => {
+    await submit(datasetCsv());
+    const result = await stats("");
+    expect(result.filter.panels).toBe("both");
+    expect(result.items.panels).toBe("both");
+    expect(result.filter.multiplied).toBe("exclude");
   });
 
   it("are empty, not zero-filled averages, before anything is submitted", async () => {
@@ -88,7 +97,7 @@ describe("withdrawal", () => {
     expect(afterA.items).toEqual({
       panels: "portal",
       eligible: 3, // d, h9, h10
-      excluded: { no_reading: 1, panel_not_seen: 1, partly_read: 0, unidentified_items: 1, unlisted_item_names: 1 },
+      excluded: { no_reading: 1, panel_not_seen: 1, partly_read: 0, unidentified_items: 1, unlisted_item_names: 1, multiplied: 0, multiplied_unread: 0 },
       totalQuantity: 4,
       averagePerObservation: 4 / 3,
       byItem: [
@@ -176,7 +185,7 @@ describe("filters through the API", () => {
 
   it("apply level, bonus and panel filters", async () => {
     await submit(datasetCsv());
-    const result = await stats("portalLevelMin=6&portalLevelMax=6&hackingBonusMin=100&hackingBonusMax=200&panels=both");
+    const result = await stats("portalLevelMin=6&portalLevelMax=6&hackingBonusMin=100&hackingBonusMax=200&panels=both&multiplied=include");
     // In: h1 h3 h4 h5 h8 h9 (level 6, bonus 120 final). Out: h2 (level 5).
     // Unplaced: h6 and the drop have no portal level; h10's range 5–6 crosses the filter.
     expect(result.selection.matched).toBe(6);

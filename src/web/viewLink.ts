@@ -1,6 +1,6 @@
 import { PORTAL_ALIGNMENTS } from "../domain/format.ts";
 import { SPLITS } from "../domain/statistics.ts";
-import { DEFAULT_SORT, type Sort, type SortKey } from "./itemTable.ts";
+import { DEFAULT_SORT, RARITY_KEYS, type Sort, type SortKey } from "./itemTable.ts";
 import { EMPTY_FORM, type StatsForm } from "./statsForm.ts";
 
 /**
@@ -43,6 +43,7 @@ const RANGE_FIELDS = [
 const CHOICES = {
   kind: ["", "hack", "drop"],
   panels: ["portal", "bonus", "both"],
+  multiplied: ["include", "exclude"],
   alignment: ["", ...PORTAL_ALIGNMENTS],
   split: SPLITS,
 } as const satisfies Partial<Record<keyof StatsForm, readonly string[]>>;
@@ -56,6 +57,7 @@ const SORT_KEYS: readonly string[] = [
   "multiplied",
   "multipliedUnknown",
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((level) => `L${level}`),
+  ...RARITY_KEYS.map((key) => `rarity.${key}`),
 ];
 
 /** Whether any range is set: a link with one opens the filter panel, so the viewer sees it. */

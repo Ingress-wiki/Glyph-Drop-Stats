@@ -19,7 +19,8 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
     page.on("pageerror", (e) => errors.push(e.message));
     const tab = (name) => page.getByRole("navigation").getByRole("button", { name });
 
-    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    // Counting multiplied quantities, so this small dataset has item rows to name.
+    await page.goto(`${BASE}/?multiplied=include`, { waitUntil: "domcontentloaded" });
     await page.locator("[data-testid=headline]").waitFor();
     check(
       "a Japanese browser gets Japanese",

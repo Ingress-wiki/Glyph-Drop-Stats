@@ -34,6 +34,7 @@ export const ko: Messages = {
     panelShort: { portal: "포탈", bonus: "보너스", both: "양쪽" },
     panelChoice: { portal: "아이템: 포탈 패널", bonus: "아이템: 보너스 패널", both: "아이템: 양쪽 패널" },
     kind: { "": "해킹과 드롭", hack: "해킹만", drop: "드롭만" },
+    multipliedChoice: { include: "배수: 포함", exclude: "배수: 제외" },
     alignmentChoice: {
       "": "모든 포탈",
       same_faction: "같은 진영 포탈",
@@ -177,6 +178,8 @@ export const ko: Messages = {
       whenPresent: "나올 때",
       multiplied: "배수",
       colourUnread: "색상 ?",
+      rarity: { common: "커먼", rare: "레어", veryRare: "베리 레어", unread: "희귀도 ?" },
+      rarityHint: { common: "커먼 수량", rare: "레어 수량", veryRare: "베리 레어 수량", unread: "희귀도를 읽지 못한 수량" },
       noEligible: "이 필터에 맞는 집계 대상 관측이 없습니다.",
       noMatch: "검색과 일치하는 아이템이 없습니다.",
     },
@@ -220,6 +223,8 @@ export const ko: Messages = {
     partly_read: "선택한 패널을 일부만 읽음",
     unidentified_items: "읽을 수 없는 아이템 또는 레벨 있음",
     unlisted_item_names: "검토 대기 중인 아이템 이름 있음",
+    multiplied: "배수 아이템(빨간 수량) 있음",
+    multiplied_unread: "색상을 읽지 못한 아이템 있음",
   },
 
   outcomes: {
@@ -236,6 +241,7 @@ export const ko: Messages = {
     points: [
       "기록은 플레이어가 제출한 해킹과 드롭 그룹입니다. 각 기록은 승인된 버전으로 한 번만 집계됩니다. 철회된 제출, 충돌하는 사본, 검토되지 않은 업데이트는 집계되지 않습니다.",
       "집계 대상 관측은 장비를 읽었고, 선택한 모든 패널이 보였으며, 그 패널을 전부 읽고 모든 아이템을 식별한 기록입니다. 하나라도 부족하면 제외되어 표 아래에 따로 집계됩니다. 패널이 없으면 0이 아니라 알 수 없음입니다.",
+      "빨간 수량은 배수가 적용된 것입니다(Fracker, 그날 첫 해킹, 비콘 등). 앱은 배수도 원인도 기록하지 않으므로 배수 아이템이 있는 관측과 색상을 읽지 못한 아이템이 있는 관측은 기본적으로 제외합니다. \"배수: 포함\"을 고르면 모든 수량을 표시된 대로 집계합니다. 모드처럼 레벨이 없는 아이템은 대신 희귀도로 나눕니다.",
       "관측당 값은 수량 ÷ 집계 대상 관측 수이며, 그 아이템이 나오지 않은 관측도 포함합니다.",
       "음영은 값이 해당 열의 최댓값에 가까울수록 밝아집니다. 더 많다는 뜻이지 더 좋다는 뜻이 아닙니다.",
       "기록을 판정할 수 없는 필터 (드롭에는 포탈 레벨이 없고, 오래된 기록에는 현지 시각이 없음)는 추측하지 않고 그 기록을 따로 두며, 그 사실을 표시합니다.",
@@ -494,5 +500,6 @@ export const ko: Messages = {
     "filter.alignment": "alignment는 same_faction, enemy, machina 중 하나여야 합니다.",
     "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week, day 중 하나여야 합니다.",
     "filter.panels": "패널은 포탈, 보너스, 양쪽 중 하나여야 합니다.",
+    "filter.multiplied": "multiplied는 include 또는 exclude여야 합니다.",
   },
 };

@@ -15,7 +15,12 @@ function dataset(): ObservationRecord[] {
   return result.records.map((entry) => entry.record);
 }
 
-const stats = (filter: Partial<StatsFilter> = {}) => computeStatistics(dataset(), { ...NO_FILTER, ...filter });
+/**
+ * The hand calculations below read the portal panel alone and count
+ * multiplied quantities; the page's default is both panels, without them.
+ */
+const PORTAL: StatsFilter = { ...NO_FILTER, panels: "portal", multiplied: "include" };
+const stats = (filter: Partial<StatsFilter> = {}) => computeStatistics(dataset(), { ...PORTAL, ...filter });
 const t = (iso: string) => Date.parse(iso) / 1000;
 
 describe("the whole dataset", () => {
@@ -83,6 +88,8 @@ describe("panel selection", () => {
       partly_read: 0,
       unidentified_items: 0,
       unlisted_item_names: 0,
+      multiplied: 0,
+      multiplied_unread: 0,
     });
     expect(items.totalQuantity).toBe(4);
     expect(items.averagePerObservation).toBe(4);
@@ -219,6 +226,7 @@ describe("query parameters", () => {
       speedBonus: { min: 10, max: 40 },
       alignment: "enemy",
       panels: "both",
+      multiplied: "exclude",
       split: "glyphCount",
     };
     expect(parseStatsQuery(new URLSearchParams(statsQueryString(filter)))).toEqual({ ok: true, filter });
@@ -240,6 +248,7 @@ describe("query parameters", () => {
     expect(codes("localDateFrom=2026-02-30&localDateTo=2026-03-01")).toEqual(["localDateFrom must be a YYYY-MM-DD date."]);
     expect(codes("localHourFrom=5&localHourTo=24")).toEqual(["localHourTo must be an hour from 0 to 23."]);
     expect(codes("panels=all")).toEqual(["panels must be portal, bonus or both."]);
+    expect(codes("multiplied=yes")).toEqual(["multiplied must be include or exclude."]);
     expect(codes("alignment=neutral")).toEqual(["alignment must be same_faction, enemy or machina."]);
     expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week or day."]);
   });
@@ -370,7 +379,7 @@ describe("alignment, trusted levels, shares and splits", () => {
     [hackId(32), 1],
     [hackId(33), 2],
   ]);
-  const run = (filter: Partial<StatsFilter> = {}) => computeStatistics(records, { ...NO_FILTER, ...filter }, uploadOf);
+  const run = (filter: Partial<StatsFilter> = {}) => computeStatistics(records, { ...PORTAL, ...filter }, uploadOf);
   const grid = (cells: [number, number, number][]) => {
     const rows = Array.from({ length: 8 }, () => Array<number>(8).fill(0));
     for (const [portal, itemLevel, quantity] of cells) rows[portal - 1][itemLevel - 1] = quantity;
@@ -508,7 +517,7 @@ describe("count distributions", () => {
   if (!parsed.ok || parsed.rejected.length > 0) throw new Error(`rejected: ${JSON.stringify(parsed)}`);
   const result = computeStatistics(
     parsed.records.map((entry) => entry.record),
-    NO_FILTER,
+    PORTAL,
   );
   const shields = result.items.byItem.find((row) => row.item === "Portal Shield");
 
@@ -521,6 +530,67 @@ describe("count distributions", () => {
     // Σq = 15, Σq² = 9 + 144 = 153: (3·153 − 15²) / (3·2) = 234 / 6.
     expect(shields?.variance).toBe(39);
     expect(shields?.averagePerObservation).toBe(5);
+  });
+});
+
+describe("leaving out multiplied items", () => {
+  /**
+   * Four hacks, both panels read in full:
+   * | id | portal panel                        | bonus panel      |
+   * | -- | ----------------------------------- | ---------------- |
+   * | m  | Resonator ×2 red, Resonator ×1 plain | Hypercube ×1 plain |
+   * | n  | Resonator ×1 plain                  | Hypercube ×2 red   |
+   * | o  | Resonator ×1 colour unread          | Hypercube ×1 plain |
+   * | v  | Resonator ×3 plain                  | Hypercube ×1 plain |
+   */
+  const plain = { multiplied: "false" };
+  const red = { multiplied: "true" };
+  const cube: Row = { item: "Hypercube", level: "", level_state: "notApplicable", rarity: "veryRare", rarity_source: "fixed" };
+  const m = hackRecord({ record_id: hackId(61), order: "1" });
+  const n = hackRecord({ record_id: hackId(62), order: "2" });
+  const o = hackRecord({ record_id: hackId(63), order: "3" });
+  const v = hackRecord({ record_id: hackId(64), order: "4" });
+  const rows = [
+    { ...m, ...item("portal", 0, { quantity: "2", ...red }) },
+    { ...m, ...item("portal", 1, plain) },
+    { ...m, ...item("bonus", 0, { ...cube, ...plain }) },
+    { ...n, ...item("portal", 0, plain) },
+    { ...n, ...item("bonus", 0, { ...cube, quantity: "2", ...red }) },
+    { ...o, ...item("portal", 0) },
+    { ...o, ...item("bonus", 0, { ...cube, ...plain }) },
+    { ...v, ...item("portal", 0, { quantity: "3", ...plain }) },
+    { ...v, ...item("bonus", 0, { ...cube, ...plain }) },
+  ];
+  const parsed = parseExport(new TextEncoder().encode(csv(rows)), { now: NOW });
+  if (!parsed.ok || parsed.rejected.length > 0) throw new Error(`rejected: ${JSON.stringify(parsed)}`);
+  const records = parsed.records.map((entry) => entry.record);
+  const run = (filter: Partial<StatsFilter>) => computeStatistics(records, { ...PORTAL, ...filter });
+
+  it("leaves them out by default", () => {
+    expect(computeStatistics(records, NO_FILTER).items.excluded).toMatchObject({ multiplied: 2, multiplied_unread: 1 });
+  });
+
+  it("counts multiplied quantities as shown when asked", () => {
+    const result = run({});
+    expect(result.items.eligible).toBe(4);
+    expect(result.items.totalQuantity).toBe(8);
+    expect(result.items.excluded).toMatchObject({ multiplied: 0, multiplied_unread: 0 });
+  });
+
+  it("leaves out an observation with a red or unread counted item, and says which", () => {
+    const result = run({ multiplied: "exclude" });
+    // n's red Hypercube is on the bonus panel, which isn't counted.
+    expect(result.items.eligible).toBe(2);
+    expect(result.items.totalQuantity).toBe(4);
+    expect(result.items.excluded).toMatchObject({ multiplied: 1, multiplied_unread: 1 });
+    expect(result.records.total).toBe(4);
+    expect(result.items.byItem.map((row) => [row.item, row.quantity, row.multiplied, row.multipliedUnknown])).toEqual([["Resonator", 4, 0, 0]]);
+  });
+
+  it("judges every counted panel", () => {
+    const result = run({ multiplied: "exclude", panels: "both" });
+    expect(result.items.eligible).toBe(1);
+    expect(result.items.excluded).toMatchObject({ multiplied: 2, multiplied_unread: 1 });
   });
 });
 

@@ -141,7 +141,7 @@ export const EXPECTED = {
   portalItems: {
     // h1, h2, d, h9, h10
     eligible: 5,
-    excluded: { no_reading: 1, panel_not_seen: 1, partly_read: 1, unidentified_items: 1, unlisted_item_names: 1 },
+    excluded: { no_reading: 1, panel_not_seen: 1, partly_read: 1, unidentified_items: 1, unlisted_item_names: 1, multiplied: 0, multiplied_unread: 0 },
     // Resonator 2 + 3 + 1 + 1, Power Cube 2, XMP Burster 1
     totalQuantity: 10,
     averagePerObservation: 2,

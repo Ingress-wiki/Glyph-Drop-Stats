@@ -45,6 +45,7 @@ export const en = {
     panelShort: { portal: "portal", bonus: "bonus", both: "both" },
     panelChoice: { portal: "Items: portal panel", bonus: "Items: bonus panel", both: "Items: both panels" },
     kind: { "": "Hacks and drops", hack: "Hacks only", drop: "Drops only" },
+    multipliedChoice: { include: "Multiplied: counted", exclude: "Multiplied: left out" },
     alignmentChoice: {
       "": "All portals",
       same_faction: "Own-faction portals",
@@ -183,6 +184,8 @@ export const en = {
       whenPresent: "If any",
       multiplied: "Mult.",
       colourUnread: "Colour ?",
+      rarity: { common: "Common", rare: "Rare", veryRare: "V. rare", unread: "Rarity ?" },
+      rarityHint: { common: "Quantity that was Common", rare: "Quantity that was Rare", veryRare: "Quantity that was Very Rare", unread: "Quantity whose rarity wasn't read" },
       noEligible: "No eligible observations match these filters.",
       noMatch: "No item matches the search.",
     },
@@ -230,6 +233,8 @@ export const en = {
     partly_read: "with the selected panel partly read",
     unidentified_items: "with an unreadable item or level",
     unlisted_item_names: "with an item name awaiting review",
+    multiplied: "with a multiplied item (red quantity)",
+    multiplied_unread: "with an item whose colour wasn't read",
   } as Record<ItemExclusion, string>,
 
   outcomes: {
@@ -246,6 +251,7 @@ export const en = {
     points: [
       "Records are hacks and drop groups players submitted. Each counts once, as its accepted version. Withdrawn submissions, conflicting copies and unreviewed updates don't count.",
       "Eligible observations had their gear read, with every selected panel seen, read in full and every item identified. Anything less is left out and counted below the table: a missing panel is unknown, not zero.",
+      "A red quantity was multiplied (by a Fracker, the day's first hack, a beacon…); the app records neither the factor nor the cause, so observations with one are left out by default, as are those with an item whose colour wasn't read. Choose “Multiplied: counted” to count every quantity as shown. Mods and other items without a level are split by rarity instead.",
       "Per observation is quantity ÷ eligible observations, including observations without that item.",
       "Shading brightens as a value approaches its column's largest. It means more, not better.",
       "Filters that can't judge a record (a drop has no portal level; an old record has no local time) set it aside and say so, instead of guessing.",

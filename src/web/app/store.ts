@@ -252,7 +252,7 @@ export class Store {
   }
 
   /** Pickers apply at once, like a unit switch; ranges wait for `applyFilters`. A new split's groups start from "all". */
-  choose(patch: Partial<Pick<StatsForm, "kind" | "panels" | "alignment" | "split">>): void {
+  choose(patch: Partial<Pick<StatsForm, "kind" | "panels" | "multiplied" | "alignment" | "split">>): void {
     const { form: current, gridGroup } = this.state.statistics;
     const form = { ...current, ...patch };
     this.updateStatistics({ form, gridGroup: form.split === current.split ? gridGroup : null });
@@ -277,8 +277,8 @@ export class Store {
 
   /** Clears the ranges; the pickers keep their choice. */
   clearFilters(): void {
-    const { kind, panels, alignment, split } = this.state.statistics.form;
-    const form = { ...EMPTY_FORM, kind, panels, alignment, split };
+    const { kind, panels, multiplied, alignment, split } = this.state.statistics.form;
+    const form = { ...EMPTY_FORM, kind, panels, multiplied, alignment, split };
     this.updateStatistics({ form });
     void this.loadStatistics(form);
   }

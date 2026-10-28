@@ -21,10 +21,10 @@ describe("formQuery", () => {
   });
 
   it("passes the other fields through for the server to validate", () => {
-    const query = formQuery({ ...EMPTY_FORM, kind: "hack", panels: "both", portalLevelMin: "6", portalLevelMax: " 8 " });
+    const query = formQuery({ ...EMPTY_FORM, kind: "hack", panels: "both", multiplied: "exclude", portalLevelMin: "6", portalLevelMax: " 8 " });
     expect(parseStatsQuery(new URLSearchParams(query))).toMatchObject({
       ok: true,
-      filter: { kind: "hack", panels: "both", portalLevel: { min: 6, max: 8 } },
+      filter: { kind: "hack", panels: "both", multiplied: "exclude", portalLevel: { min: 6, max: 8 } },
     });
     expect(parseStatsQuery(new URLSearchParams(formQuery({ ...EMPTY_FORM, portalLevelMin: "6" })))).toMatchObject({ ok: false });
   });
