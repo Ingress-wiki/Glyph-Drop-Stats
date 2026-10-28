@@ -83,6 +83,9 @@ export const zhHans: Messages = {
         speedCommand: "按速度指令",
         keyCommand: "按钥匙指令",
         panelEffect: "按面板效果",
+        event: "按 Ingress 活动",
+        week: "按 UTC 周",
+        day: "按 UTC 日",
       },
       columns: {
         records: "记录",
@@ -108,6 +111,8 @@ export const zhHans: Messages = {
         keysOnly: "只要钥匙",
       },
       panelEffects: { none: "未显示效果", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
+      outsideEvents: "活动之外",
+      week: (date: string) => `${date} 起的一周`,
       unknown: "未知",
       few: (min: number) => `颜色较暗的行合格观测少于 ${min} 次。`,
       notes: {
@@ -118,6 +123,9 @@ export const zhHans: Messages = {
         speedCommand: "只计应用确认看到的指令。",
         keyCommand: "只计应用确认看到的指令。",
         panelEffect: "ITO EN (+) 和 (−) 以应用在面板上读到的为准。“未显示效果”也包括不记录效果的旧版本的读数。",
+        event: "每个活动的 UTC 时间窗口，列在网站代码中并注明来源。时间跨越活动开始或结束的记录归为“未知”。",
+        week: "每周为 UTC 周一至下周一。时间跨入下一周的记录（本地日期可能如此）归为“未知”。阴影：已知的 Ingress 活动。",
+        day: "日期为 UTC。时间跨入下一天的记录（UTC 以外的本地日期就会如此）归为“未知”。阴影：已知的 Ingress 活动。",
       },
       empty: "暂无可对比的数据。",
     },
@@ -479,7 +487,7 @@ export const zhHans: Messages = {
     "filter.rangeOrder": "{first}不能高于{second}。",
     "filter.kind": "类型必须是 Hack 或掉落。",
     "filter.alignment": "alignment 必须是 same_faction、enemy 或 machina。",
-    "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand、keyCommand 或 panelEffect。",
+    "filter.split": "split 必须是 alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect、event、week 或 day。",
     "filter.panels": "面板必须是能量塔、奖励或两者。",
   },
 };

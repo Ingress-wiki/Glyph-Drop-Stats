@@ -1,3 +1,4 @@
+import { EVENTS, OUTSIDE_EVENTS, type IngressEvent } from "../domain/events.ts";
 import { COUNT_CAP, SMALL_SAMPLE, UNKNOWN_GROUP, type ItemTotal, type Share, type Split } from "../domain/statistics.ts";
 import type { Messages } from "./i18n/en.ts";
 
@@ -35,6 +36,12 @@ export function groupLabel(s: Messages, split: Split, key: string): string {
       return g.keyCommands[key as keyof typeof g.keyCommands] ?? key;
     case "panelEffect":
       return g.panelEffects[key as keyof typeof g.panelEffects] ?? key;
+    case "event":
+      return key === OUTSIDE_EVENTS ? g.outsideEvents : (EVENTS.find((event) => event.id === key)?.name ?? key);
+    case "week":
+      return g.week(key);
+    case "day":
+      return key;
   }
 }
 
@@ -130,3 +137,17 @@ export function dispersion(row: ItemTotal): number | null {
 
 /** A count's label: "10+" for the last bin. */
 export const countLabel = (k: number): string => (k === COUNT_CAP ? `${k}+` : String(k));
+
+/** Whether a split groups records by UTC period, for a trend rather than bars. */
+export const isTimeSplit = (split: Split): split is "week" | "day" => split === "week" || split === "day";
+
+/**
+ * The known events that overlap a day or week group (its key is the
+ * YYYY-MM-DD it starts), for shading and naming on the trend.
+ */
+export function eventsDuring(split: "week" | "day", key: string, events: readonly IngressEvent[] = EVENTS): IngressEvent[] {
+  const start = Date.parse(`${key}T00:00:00Z`) / 1000;
+  if (Number.isNaN(start)) return [];
+  const end = start + (split === "week" ? 7 : 1) * 86_400;
+  return events.filter((event) => event.startUtc < end && event.endUtc > start);
+}

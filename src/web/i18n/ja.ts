@@ -85,6 +85,9 @@ export const ja: Messages = {
         speedCommand: "スピードコマンド別",
         keyCommand: "キーコマンド別",
         panelEffect: "パネル効果別",
+        event: "Ingress イベント別",
+        week: "UTC 週別",
+        day: "UTC 日別",
       },
       columns: {
         records: "記録",
@@ -110,6 +113,8 @@ export const ja: Messages = {
         keysOnly: "キーのみ",
       },
       panelEffects: { none: "効果表示なし", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
+      outsideEvents: "イベント外",
+      week: (date: string) => `${date} からの週`,
       unknown: "不明",
       few: (min: number) => `暗い行は対象の観測が ${min} 件未満です。`,
       notes: {
@@ -120,6 +125,9 @@ export const ja: Messages = {
         speedCommand: "アプリが確定を確認したコマンドだけを数えます。",
         keyCommand: "アプリが確定を確認したコマンドだけを数えます。",
         panelEffect: "ITO EN (+) と (−) は、アプリがパネル上で読み取ったものです。「効果表示なし」には、効果を記録しない古いビルドの読み取りも含まれます。",
+        event: "各イベントの UTC の期間で、出典とともにサイトのコードに記載されています。時刻がイベントの開始・終了をまたぐ記録は「不明」です。",
+        week: "週は UTC の月曜から次の月曜までです。時刻が次の週にまたがる記録（現地の日付ではありえます）は「不明」です。網掛け：既知の Ingress イベント。",
+        day: "日付は UTC です。時刻が翌日にまたがる記録（UTC 以外の現地の日付はそうなります）は「不明」です。網掛け：既知の Ingress イベント。",
       },
       empty: "まだ比較できるデータがありません。",
     },
@@ -485,7 +493,7 @@ export const ja: Messages = {
     "filter.rangeOrder": "{first} を {second} より大きくすることはできません。",
     "filter.kind": "種類は hack または drop で指定してください。",
     "filter.alignment": "alignment は same_faction、enemy、machina のいずれかで指定してください。",
-    "filter.split": "split は alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect のいずれかで指定してください。",
+    "filter.split": "split は alignment、portalLevel、glyphCount、speedCommand、keyCommand、panelEffect、event、week、day のいずれかで指定してください。",
     "filter.panels": "パネルは portal、bonus、both のいずれかで指定してください。",
   },
 };

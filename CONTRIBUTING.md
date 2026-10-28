@@ -20,3 +20,6 @@
   changes, update `src/domain/format.ts`, the tests and
   `docs/import-format.md` together.
 - **Blank means unknown.** Never turn a missing value into zero or false.
+- **Events need a source.** An Ingress event in `src/domain/events.ts`
+  carries where its dates come from in its `note`; see
+  [docs/statistics.md](docs/statistics.md#adding-an-event).

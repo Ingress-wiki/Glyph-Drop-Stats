@@ -96,6 +96,9 @@ export const en = {
         speedCommand: "By speed command",
         keyCommand: "By key command",
         panelEffect: "By panel effect",
+        event: "By Ingress event",
+        week: "By UTC week",
+        day: "By UTC day",
       },
       columns: {
         records: "Records",
@@ -118,6 +121,8 @@ export const en = {
         keysOnly: "Keys only",
       },
       panelEffects: { none: "No effect shown", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
+      outsideEvents: "Outside events",
+      week: (date: string) => `Week of ${date}`,
       unknown: "Unknown",
       few: (min: number) => `Dimmed rows rest on fewer than ${min} eligible observations.`,
       notes: {
@@ -128,6 +133,9 @@ export const en = {
         speedCommand: "A command counts only when the app saw it confirmed.",
         keyCommand: "A command counts only when the app saw it confirmed.",
         panelEffect: "ITO EN (+) and (−) as the app read them on the panel. “No effect shown” also holds readings from builds that didn't record effects.",
+        event: "Each event's UTC window, as listed in the site's code with its source. A record whose time crosses an event's start or end is Unknown.",
+        week: "Weeks run Monday to Monday, UTC. A record whose time crosses into the next week (a local day can) is Unknown. Shaded: known Ingress events.",
+        day: "Days are UTC. A record whose time crosses into the next day, as a local day outside UTC does, is Unknown. Shaded: known Ingress events.",
       },
       empty: "Nothing to compare yet.",
     },

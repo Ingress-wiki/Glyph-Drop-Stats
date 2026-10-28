@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { SMALL_SAMPLE, SPLITS, type ItemTotal, type Statistics } from "../domain/statistics.ts";
+import { SMALL_SAMPLE, SPLITS, UNKNOWN_GROUP, type ItemTotal, type Statistics } from "../domain/statistics.ts";
 import type { AppState, Store } from "./app/store.ts";
 import {
   averageText,
@@ -8,8 +8,10 @@ import {
   chance,
   countLabel,
   dispersion,
+  eventsDuring,
   groupLabel,
   isFew,
+  isTimeSplit,
   levelShares,
   percent,
   poissonExpected,
@@ -21,7 +23,7 @@ import { issuesText, messages, problemText } from "./i18n/index.ts";
 import { itemCategory, matchesSearch } from "./items.ts";
 import { columnMaxima, shade, sortItems, type SortKey } from "./itemTable.ts";
 import type { StatsForm } from "./statsForm.ts";
-import { Bars, CountChart, LevelHeatmap, type BarRow, type CountRow, type GridCell } from "./charts.tsx";
+import { Bars, CountChart, LevelHeatmap, TrendChart, type BarRow, type CountRow, type GridCell, type TrendRow } from "./charts.tsx";
 import { usePaint, type Paint } from "./paint.ts";
 
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((total, n) => total + n, 0);
@@ -196,6 +198,11 @@ function Section({ title, aside, children }: { title: string; aside?: React.Reac
   );
 }
 
+type GroupSummary = Statistics["groups"][number]["summary"];
+
+/** A share's fraction, or null when nothing is known. */
+const share = ({ yes, known }: { yes: number; known: number }) => (known === 0 ? null : yes / known);
+
 function Compare({ store, state, s, statistics, paint }: { store: Store; state: AppState; s: Messages; statistics: Statistics; paint: Paint }) {
   const t = s.stats.compare;
   const { groups, split } = statistics;
@@ -209,7 +216,6 @@ function Compare({ store, state, s, statistics, paint }: { store: Store; state: 
   );
   const h = s.stats.headline;
   const series = useMemo(() => {
-    type GroupSummary = (typeof groups)[number]["summary"];
     const row = (pick: (g: GroupSummary) => number | null, known: (g: GroupSummary) => number, basis: (n: number) => string): BarRow[] =>
       groups.map(({ key, summary }) => ({
         label: groupLabel(s, split, key),
@@ -217,11 +223,28 @@ function Compare({ store, state, s, statistics, paint }: { store: Store; state: 
         few: isFew(known(summary)),
         basis: basis(known(summary)),
       }));
-    const share = ({ yes, known }: { yes: number; known: number }) => (known === 0 ? null : yes / known);
     return {
       perObservation: row((g) => g.averagePerObservation, (g) => g.eligible, h.perObservationNote),
       rare: row((g) => share(g.rare), (g) => g.rare.known, h.rareNote),
       key: row((g) => share(g.key), (g) => g.key.known, h.keyNote),
+    };
+  }, [groups, split, s, h]);
+  const trends = useMemo(() => {
+    if (!isTimeSplit(split)) return null;
+    const dated = groups.filter((group) => group.key !== UNKNOWN_GROUP);
+    const series = (pick: (g: GroupSummary) => number | null, known: (g: GroupSummary) => number, basis: (n: number) => string): TrendRow[] =>
+      dated.map(({ key, summary }) => ({
+        key,
+        title: groupLabel(s, split, key),
+        value: pick(summary) ?? 0,
+        few: isFew(known(summary)),
+        basis: basis(known(summary)),
+        events: eventsDuring(split, key).map((event) => event.name),
+      }));
+    return {
+      perObservation: series((g) => g.averagePerObservation, (g) => g.eligible, h.perObservationNote),
+      rare: series((g) => share(g.rare), (g) => g.rare.known, h.rareNote),
+      key: series((g) => share(g.key), (g) => g.key.known, h.keyNote),
     };
   }, [groups, split, s, h]);
   const two = useCallback((value: number) => value.toFixed(2), []);
@@ -234,20 +257,37 @@ function Compare({ store, state, s, statistics, paint }: { store: Store; state: 
   }
   return (
     <Section title={t.heading} aside={picker}>
-      <div className="small-multiples">
-        <figure>
-          <figcaption className="label">{t.columns.perObservation}</figcaption>
-          <Bars rows={series.perObservation} paint={paint} label={`${t.splitChoice[split]}: ${h.perObservation}`} metric={h.perObservation} fewNote={h.few} format={two} />
-        </figure>
-        <figure>
-          <figcaption className="label">{t.columns.rare}</figcaption>
-          <Bars rows={series.rare} paint={paint} label={`${t.splitChoice[split]}: ${h.rare}`} metric={h.rare} fewNote={h.few} format={percentOf} max={1} />
-        </figure>
-        <figure>
-          <figcaption className="label">{t.columns.key}</figcaption>
-          <Bars rows={series.key} paint={paint} label={`${t.splitChoice[split]}: ${h.key}`} metric={h.key} fewNote={h.few} format={percentOf} max={1} />
-        </figure>
-      </div>
+      {trends ? (
+        <div className="small-multiples">
+          <figure>
+            <figcaption className="label">{h.perObservation}</figcaption>
+            <TrendChart rows={trends.perObservation} paint={paint} label={`${t.splitChoice[split]}: ${h.perObservation}`} metric={h.perObservation} fewNote={h.few} format={two} />
+          </figure>
+          <figure>
+            <figcaption className="label">{h.rare}</figcaption>
+            <TrendChart rows={trends.rare} paint={paint} label={`${t.splitChoice[split]}: ${h.rare}`} metric={h.rare} fewNote={h.few} format={percentOf} />
+          </figure>
+          <figure>
+            <figcaption className="label">{h.key}</figcaption>
+            <TrendChart rows={trends.key} paint={paint} label={`${t.splitChoice[split]}: ${h.key}`} metric={h.key} fewNote={h.few} format={percentOf} />
+          </figure>
+        </div>
+      ) : (
+        <div className="small-multiples">
+          <figure>
+            <figcaption className="label">{t.columns.perObservation}</figcaption>
+            <Bars rows={series.perObservation} paint={paint} label={`${t.splitChoice[split]}: ${h.perObservation}`} metric={h.perObservation} fewNote={h.few} format={two} />
+          </figure>
+          <figure>
+            <figcaption className="label">{t.columns.rare}</figcaption>
+            <Bars rows={series.rare} paint={paint} label={`${t.splitChoice[split]}: ${h.rare}`} metric={h.rare} fewNote={h.few} format={percentOf} max={1} />
+          </figure>
+          <figure>
+            <figcaption className="label">{t.columns.key}</figcaption>
+            <Bars rows={series.key} paint={paint} label={`${t.splitChoice[split]}: ${h.key}`} metric={h.key} fewNote={h.few} format={percentOf} max={1} />
+          </figure>
+        </div>
+      )}
       <div className="table-wrap">
         <table className="data" data-testid="compare">
           <thead>
@@ -298,7 +338,8 @@ function Levels({ store, state, s, statistics, paint }: { store: Store; state: A
     return { selected, cells: gridCells, rows: rowNames };
   }, [statistics, gridGroup, s]);
   const describe = useCallback((c: GridCell) => s.stats.levels.cell(c.column, c.items, c.total, sharePercent(c.share)), [s]);
-  const tabs = split !== "portalLevel" && groups.length > 1 && (
+  // A group per portal level is a row each already; a tab per day or week would be noise.
+  const tabs = split !== "portalLevel" && !isTimeSplit(split) && groups.length > 1 && (
     <div className="segmented" role="group" aria-label={t.heading}>
       {[{ key: null as string | null, label: t.all }, ...groups.map((g) => ({ key: g.key, label: groupLabel(s, split, g.key) }))].map((tab) => (
         <button key={tab.key ?? "all"} type="button" aria-pressed={(selected?.key ?? null) === tab.key} onClick={() => store.setGridGroup(tab.key)}>

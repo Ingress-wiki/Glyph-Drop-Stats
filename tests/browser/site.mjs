@@ -225,6 +225,20 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await page.locator("[data-testid=headline]").waitFor();
     check("page recovers on the next good answer", true);
 
+    // Time and event splits, opened from links. Every hack is on 2026-10-02 UTC; the drop's local day crosses midnight.
+    const compareRows = () => page.locator("[data-testid=compare] tbody th").allTextContents();
+    await page.goto(`${BASE}/?split=day`, { waitUntil: "domcontentloaded" });
+    await page.locator("[data-testid=compare]").waitFor();
+    check("by UTC day, with a crossing interval unknown", (await compareRows()).join(",") === "2026-10-02,Unknown", (await compareRows()).join(","));
+    const trend = page.locator("section.block", { has: page.locator("[data-testid=compare]") }).locator(".ts-chart-host");
+    check("a time split draws trends, not bars", (await trend.count()) === 3 && (await trend.first().locator("path").count()) > 0);
+    await page.goto(`${BASE}/?split=week`, { waitUntil: "domcontentloaded" });
+    await page.locator("[data-testid=compare]").waitFor();
+    check("by UTC week from Monday", (await compareRows()).join(",") === "Week of 2026-09-28", (await compareRows()).join(","));
+    await page.goto(`${BASE}/?split=event`, { waitUntil: "domcontentloaded" });
+    await page.locator("[data-testid=compare]").waitFor();
+    check("by event, all outside while none are listed", (await compareRows()).join(",") === "Outside events", (await compareRows()).join(","));
+
     // Keyboard only: Tab reaches the views from the top of the page.
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("[data-testid=headline]").waitFor();

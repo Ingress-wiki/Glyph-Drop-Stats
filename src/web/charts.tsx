@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { barX, barY, cell, defineChart, dot, lineY, text } from "@tanstack/charts";
+import { bandX, barX, barY, cell, defineChart, dot, lineY, text } from "@tanstack/charts";
 import { Chart } from "@tanstack/charts/react";
 import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { tooltip } from "@tanstack/charts/tooltip";
+import { portal } from "@tanstack/charts/tooltip/portal";
 import type { ChartTooltipRow } from "@tanstack/charts";
 import { sharePercent } from "./dashboard.ts";
 import { shade } from "./itemTable.ts";
@@ -79,15 +80,12 @@ export function Bars({
       ],
       scales: {
         y: {
-          scale: () =>
-            scaleBand<string>()
-              .domain(rows.map((row) => row.label))
-              .padding(0.08),
+          scale: scaleBand<string>().domain(rows.map((row) => row.label)).padding(0.08),
           axis: { ticks: { size: 0 }, tickLabels: { fontSize: paint.text }, line: false },
         },
         x: {
           // Room after the longest bar for its value.
-          scale: () => scaleLinear().domain([0, top === 0 ? 1 : top * 1.18]),
+          scale: scaleLinear().domain([0, top === 0 ? 1 : top * 1.18]),
           axis: false,
         },
       },
@@ -96,6 +94,8 @@ export function Bars({
       focusRing: false,
       tooltip: {
         use: tooltip,
+        // Above the page, so a short chart doesn't cut its tooltip off.
+        portal,
         content: (points) => {
           const row = points[0]?.datum;
           if (!row) return { rows: [] };
@@ -160,18 +160,20 @@ export function LevelHeatmap({
       color: { domain: [0, 1, 2, 3, 4, 5], range: [0, 1, 2, 3, 4, 5].map((step) => fillFor(paint, step)) },
       scales: {
         x: {
-          scale: () => scaleBand<string>().domain(columns).padding(0),
+          scale: scaleBand<string>().domain(columns).padding(0),
           side: "top",
           axis: { ticks: { size: 0 }, tickLabels: { fontSize: paint.text }, line: false },
         },
         y: {
-          scale: () => scaleBand<string>().domain(rows).padding(0),
+          scale: scaleBand<string>().domain(rows).padding(0),
           axis: { ticks: { size: 0 }, tickLabels: { fontSize: paint.text }, line: false },
         },
       },
       focusRing: false,
       tooltip: {
         use: tooltip,
+        // Above the page, so a short chart doesn't cut its tooltip off.
+        portal,
         content: (points) => {
           const c = points[0]?.datum;
           return c ? { title: c.row, rows: [note(describe(c))] } : { rows: [] };
@@ -224,10 +226,7 @@ export function CountChart({
         ],
         scales: {
           x: {
-            scale: () =>
-              scaleBand<string>()
-                .domain(rows.map((row) => row.label))
-                .padding(0.12),
+            scale: scaleBand<string>().domain(rows.map((row) => row.label)).padding(0.12),
             axis: { ticks: { size: 0 }, tickLabels: { fontSize: paint.text } },
           },
           y: {
@@ -242,6 +241,8 @@ export function CountChart({
         focusRing: false,
         tooltip: {
           use: tooltip,
+        // Above the page, so a short chart doesn't cut its tooltip off.
+        portal,
           content: (points) => {
             const row = points[0]?.datum;
             return row ? { title: row.label, rows: describe(row).map(note) } : { rows: [] };
@@ -251,4 +252,89 @@ export function CountChart({
     [rows, paint, describe],
   );
   return <Chart definition={definition} ariaLabel={label} height={Math.round(paint.text * 16)} initialWidth={640} />;
+}
+
+export interface TrendRow {
+  /** The period's key, YYYY-MM-DD: what the x axis is ordered by. */
+  key: string;
+  /** Its full name, for the tooltip: "Week of 2026-09-28". */
+  title: string;
+  value: number;
+  few: boolean;
+  basis: string;
+  /** Names of the known events during the period; empty outside them. */
+  events: readonly string[];
+}
+
+/**
+ * One figure over time, a dot per day or week joined by a line, with the
+ * periods a known event touches shaded behind. Dots on few observations are
+ * dimmed, as table rows are.
+ */
+export function TrendChart({
+  rows,
+  paint,
+  label,
+  metric,
+  fewNote,
+  format,
+  max,
+}: {
+  rows: readonly TrendRow[];
+  paint: Paint;
+  label: string;
+  metric: string;
+  fewNote: string;
+  format: (value: number) => string;
+  max?: number;
+}) {
+  const definition = useMemo(() => {
+    const top = max ?? Math.max(0, ...rows.map((row) => row.value));
+    return defineChart({
+      marks: [
+        bandX(
+          rows.filter((row) => row.events.length > 0),
+          { x: "key", fill: paint.shades[1] },
+        ),
+        lineY(rows, { x: "key", y: "value", stroke: paint.muted, strokeWidth: 1.5 }),
+        dot(
+          rows.filter((row) => row.few),
+          { x: "key", y: "value", r: 3, fill: paint.dim },
+        ),
+        dot(
+          rows.filter((row) => !row.few),
+          { x: "key", y: "value", r: 3.5, fill: paint.fg },
+        ),
+      ],
+      scales: {
+        x: {
+          scale: scaleBand<string>().domain(rows.map((row) => row.key)).padding(0),
+          // MM-DD: the year is in the tooltip and the table.
+          axis: { ticks: { size: 0, format: (key: string) => key.slice(5) }, tickLabels: { fontSize: paint.text } },
+        },
+        y: {
+          scale: scaleLinear().domain([0, top === 0 ? 1 : top]),
+          nice: true,
+          grid: { stroke: paint.dim, strokeOpacity: 0.5 },
+          axis: { ticks: { size: 0, count: 4, format: format }, tickLabels: { fontSize: paint.text }, line: false },
+        },
+      },
+      focus: "nearest-x",
+      focusRing: { stroke: paint.fg, fill: "transparent", radius: 6 },
+      tooltip: {
+        use: tooltip,
+        // Above the page, so a short chart doesn't cut its tooltip off.
+        portal,
+        content: (points) => {
+          const row = points[0]?.datum;
+          if (!row) return { rows: [] };
+          return {
+            title: row.title,
+            rows: [{ label: metric, value: format(row.value) }, note(row.basis), ...(row.few ? [note(fewNote)] : []), ...row.events.map(note)],
+          };
+        },
+      },
+    });
+  }, [rows, paint, metric, fewNote, format, max]);
+  return <Chart definition={definition} ariaLabel={label} height={Math.round(paint.text * 13)} initialWidth={480} />;
 }

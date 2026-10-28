@@ -241,7 +241,7 @@ describe("query parameters", () => {
     expect(codes("localHourFrom=5&localHourTo=24")).toEqual(["localHourTo must be an hour from 0 to 23."]);
     expect(codes("panels=all")).toEqual(["panels must be portal, bonus or both."]);
     expect(codes("alignment=neutral")).toEqual(["alignment must be same_faction, enemy or machina."]);
-    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand or panelEffect."]);
+    expect(codes("split=faction")).toEqual(["split must be alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week or day."]);
   });
 });
 
@@ -521,5 +521,40 @@ describe("count distributions", () => {
     // Σq = 15, Σq² = 9 + 144 = 153: (3·153 − 15²) / (3·2) = 234 / 6.
     expect(shields?.variance).toBe(39);
     expect(shields?.averagePerObservation).toBe(5);
+  });
+});
+
+describe("time and event splits", () => {
+  // Every hack's hour is 2026-10-02 23:00–24:00 UTC, a Friday. The drop's local day at
+  // +08:00 is 2026-10-02 16:00 to 2026-10-03 16:00 UTC, so it crosses UTC midnight.
+  const keys = (split: StatsFilter["split"], events: Parameters<typeof computeStatistics>[3] = []) =>
+    computeStatistics(dataset(), { ...NO_FILTER, split }, undefined, events).groups.map((group) => [group.key, group.summary.records]);
+  const event = (id: string, from: string, to: string) => ({ id, name: id, startUtc: t(from), endUtc: t(to), note: "test" });
+
+  it("groups by UTC day, never guessing the day of an interval that crosses midnight", () => {
+    expect(keys("day")).toEqual([
+      ["2026-10-02", 9],
+      ["unknown", 1],
+    ]);
+  });
+
+  it("groups by the UTC week from Monday, which holds both", () => {
+    expect(keys("week")).toEqual([["2026-09-28", 10]]);
+  });
+
+  it("groups by event, with what crosses an event's end unknown and the rest outside", () => {
+    const friday = event("friday", "2026-10-02T00:00:00Z", "2026-10-03T00:00:00Z");
+    const later = event("later", "2026-11-01T00:00:00Z", "2026-11-08T00:00:00Z");
+    expect(keys("event", [friday, later])).toEqual([
+      ["friday", 9],
+      ["unknown", 1],
+    ]);
+    expect(keys("event", [later])).toEqual([["outside", 10]]);
+    // An event touching only the drop's day leaves the hacks outside and the drop unknown.
+    const morning = event("morning", "2026-10-03T00:00:00Z", "2026-10-03T12:00:00Z");
+    expect(keys("event", [morning])).toEqual([
+      ["outside", 9],
+      ["unknown", 1],
+    ]);
   });
 });

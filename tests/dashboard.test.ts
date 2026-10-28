@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ItemTotal } from "../src/domain/statistics.ts";
-import { averageText, barOf, countLabel, dispersion, poissonExpected, barTotals, chance, groupLabel, isFew, levelShares, percent, sharePercent, whenPresent } from "../src/web/dashboard.ts";
+import { averageText, barOf, countLabel, dispersion, eventsDuring, isTimeSplit, poissonExpected, barTotals, chance, groupLabel, isFew, levelShares, percent, sharePercent, whenPresent } from "../src/web/dashboard.ts";
 import { en } from "../src/web/i18n/en.ts";
 
 const row = (item: string, quantity: number, observations: number): ItemTotal => ({
@@ -89,5 +89,30 @@ describe("count distributions", () => {
   it("label the last bin as that many or more", () => {
     expect(countLabel(3)).toBe("3");
     expect(countLabel(10)).toBe("10+");
+  });
+});
+
+describe("trends", () => {
+  const event = (id: string, from: string, to: string) => ({ id, name: id, startUtc: Date.parse(from) / 1000, endUtc: Date.parse(to) / 1000, note: "test" });
+  const weekend = event("weekend", "2026-10-03T00:00:00Z", "2026-10-05T00:00:00Z");
+
+  it("finds the events a day or week overlaps, ends exclusive", () => {
+    expect(eventsDuring("day", "2026-10-03", [weekend])).toEqual([weekend]);
+    expect(eventsDuring("day", "2026-10-02", [weekend])).toEqual([]);
+    expect(eventsDuring("day", "2026-10-05", [weekend])).toEqual([]);
+    expect(eventsDuring("week", "2026-09-28", [weekend])).toEqual([weekend]);
+    expect(eventsDuring("week", "2026-10-05", [weekend])).toEqual([]);
+    expect(eventsDuring("week", "unknown", [weekend])).toEqual([]);
+  });
+
+  it("knows which splits are periods of time", () => {
+    expect(isTimeSplit("week") && isTimeSplit("day")).toBe(true);
+    expect(isTimeSplit("event")).toBe(false);
+  });
+
+  it("names time and event groups", () => {
+    expect(groupLabel(en, "week", "2026-09-28")).toBe("Week of 2026-09-28");
+    expect(groupLabel(en, "day", "2026-10-02")).toBe("2026-10-02");
+    expect(groupLabel(en, "event", "outside")).toBe("Outside events");
   });
 });

@@ -83,6 +83,9 @@ export const ko: Messages = {
         speedCommand: "속도 명령별",
         keyCommand: "키 명령별",
         panelEffect: "패널 효과별",
+        event: "Ingress 이벤트별",
+        week: "UTC 주별",
+        day: "UTC 일별",
       },
       columns: {
         records: "기록",
@@ -108,6 +111,8 @@ export const ko: Messages = {
         keysOnly: "키만",
       },
       panelEffects: { none: "효과 표시 없음", "ITO EN (+)": "ITO EN (+)", "ITO EN (-)": "ITO EN (−)" },
+      outsideEvents: "이벤트 외",
+      week: (date: string) => `${date} 주`,
       unknown: "알 수 없음",
       few: (min: number) => `흐린 행은 집계 대상 관측이 ${min}건 미만입니다.`,
       notes: {
@@ -118,6 +123,9 @@ export const ko: Messages = {
         speedCommand: "앱이 확정을 확인한 명령만 셉니다.",
         keyCommand: "앱이 확정을 확인한 명령만 셉니다.",
         panelEffect: "ITO EN (+)와 (−)는 앱이 패널에서 읽은 그대로입니다. '효과 표시 없음'에는 효과를 기록하지 않는 이전 빌드의 읽기도 포함됩니다.",
+        event: "각 이벤트의 UTC 기간이며, 출처와 함께 사이트 코드에 적혀 있습니다. 시간이 이벤트 시작이나 끝에 걸친 기록은 '알 수 없음'입니다.",
+        week: "주는 UTC 월요일부터 다음 월요일까지입니다. 시간이 다음 주로 넘어가는 기록(현지 날짜는 그럴 수 있음)은 '알 수 없음'입니다. 음영: 알려진 Ingress 이벤트.",
+        day: "날짜는 UTC 기준입니다. 시간이 다음 날로 넘어가는 기록(UTC가 아닌 현지 날짜는 그렇습니다)은 '알 수 없음'입니다. 음영: 알려진 Ingress 이벤트.",
       },
       empty: "아직 비교할 데이터가 없습니다.",
     },
@@ -484,7 +492,7 @@ export const ko: Messages = {
     "filter.rangeOrder": "{first} 값은 {second} 값보다 크면 안 됩니다.",
     "filter.kind": "종류는 해킹 또는 드롭이어야 합니다.",
     "filter.alignment": "alignment는 same_faction, enemy, machina 중 하나여야 합니다.",
-    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect 중 하나여야 합니다.",
+    "filter.split": "split은 alignment, portalLevel, glyphCount, speedCommand, keyCommand, panelEffect, event, week, day 중 하나여야 합니다.",
     "filter.panels": "패널은 포탈, 보너스, 양쪽 중 하나여야 합니다.",
   },
 };
