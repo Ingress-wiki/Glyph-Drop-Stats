@@ -1,6 +1,7 @@
 import type { ObservationRecord } from "../domain/record.ts";
 import { computeStatistics, type Statistics, type StatsFilter } from "../domain/statistics.ts";
 import type { Db } from "./db.ts";
+import { loadEvents } from "./events.ts";
 import { loadVersions } from "./submissions.ts";
 
 export interface CountedRecords {
@@ -48,6 +49,6 @@ export async function loadCountedRecords(db: Db, utc: StatsFilter["utc"]): Promi
 
 /** Computed on every request from current data: there is no cache to refresh after a withdrawal. */
 export async function statistics(db: Db, filter: StatsFilter): Promise<Statistics> {
-  const { records, uploadOf } = await loadCountedRecords(db, filter.utc);
-  return computeStatistics(records, filter, uploadOf);
+  const [{ records, uploadOf }, events] = await Promise.all([loadCountedRecords(db, filter.utc), loadEvents(db)]);
+  return computeStatistics(records, filter, uploadOf, events);
 }

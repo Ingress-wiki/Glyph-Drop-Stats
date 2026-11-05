@@ -248,6 +248,19 @@ function isSummary(value: unknown): value is Summary {
   );
 }
 
+function isEvent(value: unknown): boolean {
+  if (!isObject(value)) return false;
+  const { id, name, startUtc, endUtc, note } = value;
+  return (
+    typeof id === "string" &&
+    typeof name === "string" &&
+    typeof note === "string" &&
+    Number.isInteger(startUtc) &&
+    Number.isInteger(endUtc) &&
+    (startUtc as number) < (endUtc as number)
+  );
+}
+
 function isApp(value: unknown): boolean {
   if (!isObject(value)) return false;
   const text = (v: unknown) => v === null || typeof v === "string";
@@ -257,7 +270,7 @@ function isApp(value: unknown): boolean {
 /** Checks every field the dashboard reads, so a malformed answer fails cleanly instead of crashing the page. */
 export function isStatistics(value: unknown): value is Statistics {
   if (!isObject(value)) return false;
-  const { selection, records, items, summary, split, groups } = value;
+  const { selection, records, items, summary, split, groups, events } = value;
   return (
     isObject(selection) &&
     isCount(selection.matched) &&
@@ -275,6 +288,8 @@ export function isStatistics(value: unknown): value is Statistics {
     (SPLITS as readonly string[]).includes(split) &&
     Array.isArray(groups) &&
     groups.every((group) => isObject(group) && typeof group.key === "string" && isSummary(group.summary)) &&
+    Array.isArray(events) &&
+    events.every(isEvent) &&
     isObject(items) &&
     (items.panels === "portal" || items.panels === "bonus" || items.panels === "both") &&
     isCount(items.eligible) &&

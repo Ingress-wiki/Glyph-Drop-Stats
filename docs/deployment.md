@@ -83,6 +83,26 @@ Production is `"test"`; locally it is `"true"`.
 
 Only then set `"true"`.
 
+### Ingress events
+
+A cron trigger (`17 6 * * *`, daily at 06:17 UTC, in `wrangler.jsonc`)
+fetches the game's activity board and stores its events (see
+[Statistics](statistics.md#where-events-come-from)). It runs only when
+deployed; its result is in the Worker's logs ("activity board: …"). A
+failed or unreadable fetch changes nothing and logs the error. To run it
+locally: `npx wrangler dev --test-scheduled`, then open
+`http://localhost:8787/__scheduled?cron=17+6+*+*+*`.
+
+**Terms.** The Niantic Spatial Terms of Service (last modified 2026-02-20,
+§7.1) forbid accessing the Services or downloading their data "through the
+use of any engine, software, tool, agent, device or mechanism (including
+spiders, robots, crawlers or any other similar data mining tools) other
+than software or features provided by Niantic Spatial". The scheduled fetch
+is such a tool, and Niantic provides no feed for events. The maintainers
+chose to run it anyway, once a day with a plain user agent
+(`GlyphDropStats/1 (+https://stats.ingress.wiki)`); remove the trigger if
+Niantic objects or offers a feed.
+
 ### Plan limits
 
 The account is on Workers Free. Its 10 ms CPU limit per request is about

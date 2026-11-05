@@ -114,5 +114,7 @@ describe("trends", () => {
     expect(groupLabel(en, "week", "2026-09-28")).toBe("Week of 2026-09-28");
     expect(groupLabel(en, "day", "2026-10-02")).toBe("2026-10-02");
     expect(groupLabel(en, "event", "outside")).toBe("Outside events");
+    expect(groupLabel(en, "event", "weekend", [weekend])).toBe("weekend");
+    expect(groupLabel(en, "event", "gone", [weekend])).toBe("gone");
   });
 });

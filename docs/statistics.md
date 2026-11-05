@@ -175,29 +175,48 @@ reading, or whose panels showed different effects, is unknown.
 **Events and time.** Ingress events can change what a hack gives (more
 keys, a bonus item), so figures that mix event and ordinary hacks describe
 neither.
-- **Ingress event** groups records by the known event whose UTC window
+- **Ingress event** groups records by every known event whose UTC window
   holds the record's whole time interval, with records touching no event
-  as "Outside events". The events are listed in `src/domain/events.ts`,
-  each with its source: see [Adding an event](#adding-an-event).
+  as "Outside events". Events overlap (campaigns often run together), so a
+  record can count in several groups, and the groups add up to more than
+  the total. The events come from the game's activity board: see
+  [Where events come from](#where-events-come-from).
 - **UTC week** (Monday to Monday) and **UTC day** group records by the
   period their whole interval lies in, and the page draws each figure as a
   trend over them, with the periods a known event touches shaded. It shows
   changes nobody announced as well as announced ones.
-- An interval that crosses an event's start or end, or into the next day
-  or week, is unknown, never placed by a guess. A local day outside UTC
+- An interval that crosses the start or end of every event it touches, or
+  crosses into the next day or week, is unknown, never placed by a guess. A local day outside UTC
   always crosses UTC midnight, so records exported with day precision
   rarely have a UTC day; most have a UTC week.
 - Times are when the hack happened (its exported interval), not when it
   was uploaded: an upload this week can hold last month's hacks.
 
-### Adding an event
+### Where events come from
 
-Add it to `EVENTS` in `src/domain/events.ts`, in time order, with an id (it
-goes into links), Niantic's name, the UTC window (start inclusive, end
-exclusive) and a `note` saying where the dates come from. An event run in
-each player's local time is entered as the widest UTC window it covers, and
-its note says so. `tests/events.test.ts` checks the list. The level grid can show every record or
-one group.
+Once a day the Worker reads the activity board the game shows
+(`https://prod-ingress.ingress.com/plfe/events`, parsed by
+`src/domain/activityBoard.ts`) and stores every event it lists in
+`ingress_events`, each with an id of its name and start date (it goes into
+links), Niantic's name, the UTC window (start inclusive, end exclusive) and
+a note saying where the window comes from.
+- **Every event on the board** is kept, including story campaigns and
+  AP-only events that don't change what a hack gives: read an event's
+  figures knowing what it was.
+- **Local-time events.** The board lists global campaigns as
+  "…T18:00:00 UTC", and events run in each player's local time (First
+  Saturday, Second Sunday) as "…Etc/UTC", although they are local. Those
+  are held as the UTC window the local time covers in every time zone
+  (UTC−12:00 to UTC+14:00), and one listed with no length as the whole
+  local day; their notes say so. The window is wide, so it holds records
+  from before and after the event in any one place.
+- **History.** The board drops an event once it ends, so stored events
+  stay. An upcoming event the board stops listing was cancelled or moved,
+  and is removed. A page the parser can't read an event from is refused,
+  not taken as an empty board.
+- Only names and windows are kept, not Niantic's descriptions.
+
+The level grid can show every record or one group.
 
 **Few observations.** A figure resting on fewer than 30 eligible
 observations (30 known, for a share) is dimmed and says so. This is a

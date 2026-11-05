@@ -5,7 +5,7 @@
 | Path | Role |
 | --- | --- |
 | `src/domain/` | CSV reading, validation, normalization, version comparison and receipts. Uses only web-standard APIs, with no Cloudflare APIs, so it runs and is tested in Node. |
-| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `index.ts` (entry). |
+| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `events.ts` (Ingress events from the activity board, refreshed by the daily cron), `index.ts` (entry: requests and the cron). |
 | `src/web/` | The site, served as Workers Static Assets. See [The web page](#the-web-page). |
 | `migrations/` | D1 schema migrations. |
 
@@ -168,6 +168,7 @@ See `migrations/` (`0001_initial.sql`, then `0002_portal_alignment.sql`).
 | `accepted_versions` | The single accepted version of each `record_id`, how it was decided, the upload, and when. |
 | `upload_records` | Which version each upload supplied for each record, and its outcome. |
 | `counted_records` (view) | Accepted versions still supported by a completed upload. Statistics read only this. |
+| `ingress_events` | Ingress events from the game's activity board: name, UTC window, a note, and when the board first and last listed each. Not submissions: the test-period wipe leaves them. |
 
 ## Equivalent copies and accepted versions
 

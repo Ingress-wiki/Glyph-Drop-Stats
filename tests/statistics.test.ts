@@ -627,4 +627,16 @@ describe("time and event splits", () => {
       ["unknown", 1],
     ]);
   });
+
+  it("counts a record in every overlapping event that holds it, unknown only when none does", () => {
+    const campaign = event("campaign", "2026-09-01T00:00:00Z", "2026-11-01T00:00:00Z");
+    const friday = event("friday", "2026-10-02T00:00:00Z", "2026-10-03T00:00:00Z");
+    expect(keys("event", [campaign, friday])).toEqual([
+      ["campaign", 10],
+      ["friday", 9],
+    ]);
+    const result = computeStatistics(dataset(), { ...NO_FILTER, split: "event" }, undefined, [campaign, friday]);
+    expect(result.records.total).toBe(10);
+    expect(result.events.map((e) => e.id)).toEqual(["campaign", "friday"]);
+  });
 });

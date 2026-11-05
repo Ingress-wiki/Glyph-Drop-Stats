@@ -134,7 +134,7 @@ export const en = {
         speedCommand: "A command counts only when the app saw it confirmed.",
         keyCommand: "A command counts only when the app saw it confirmed.",
         panelEffect: "ITO EN (+) and (−) as the app read them on the panel. “No effect shown” also holds readings from builds that didn't record effects.",
-        event: "Each event's UTC window, as listed in the site's code with its source. A record whose time crosses an event's start or end is Unknown.",
+        event: "Each event's UTC window, from the game's activity board; one run in local time covers that time in every time zone. Events overlap, so a record can count in several. A record whose time crosses an event's start or end is Unknown.",
         week: "Weeks run Monday to Monday, UTC. A record whose time crosses into the next week (a local day can) is Unknown. Shaded: known Ingress events.",
         day: "Days are UTC. A record whose time crosses into the next day, as a local day outside UTC does, is Unknown. Shaded: known Ingress events.",
       },

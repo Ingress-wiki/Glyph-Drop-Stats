@@ -8,6 +8,10 @@
 		// API routes must reach the Worker even when a static asset path could match.
 		"run_worker_first": ["/api/*"]
 	},
+	// Daily: the Ingress events from the game's activity board (src/worker/events.ts).
+	"triggers": {
+		"crons": ["17 6 * * *"]
+	},
 	"observability": {
 		"enabled": true
 	},
@@ -32,6 +36,9 @@
 			// One address only: receipts record the site they were made on.
 			"routes": [{ "pattern": "stats.ingress.wiki", "custom_domain": true }],
 			"workers_dev": false,
+			"triggers": {
+				"crons": ["17 6 * * *"]
+			},
 			"preview_urls": false,
 			"vars": {
 				"SUBMISSIONS_OPEN": "test"

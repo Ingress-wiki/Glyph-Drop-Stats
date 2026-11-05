@@ -212,7 +212,7 @@ const share = ({ yes, known }: { yes: number; known: number }) => (known === 0 ?
 
 function Compare({ store, state, s, statistics, paint }: { store: Store; state: AppState; s: Messages; statistics: Statistics; paint: Paint }) {
   const t = s.stats.compare;
-  const { groups, split } = statistics;
+  const { groups, split, events } = statistics;
   const picker = (
     <Select
       label={t.heading}
@@ -225,7 +225,7 @@ function Compare({ store, state, s, statistics, paint }: { store: Store; state: 
   const series = useMemo(() => {
     const row = (pick: (g: GroupSummary) => number | null, known: (g: GroupSummary) => number, basis: (n: number) => string): BarRow[] =>
       groups.map(({ key, summary }) => ({
-        label: groupLabel(s, split, key),
+        label: groupLabel(s, split, key, events),
         value: pick(summary) ?? 0,
         few: isFew(known(summary)),
         basis: basis(known(summary)),
@@ -235,25 +235,25 @@ function Compare({ store, state, s, statistics, paint }: { store: Store; state: 
       rare: row((g) => share(g.rare), (g) => g.rare.known, h.rareNote),
       key: row((g) => share(g.key), (g) => g.key.known, h.keyNote),
     };
-  }, [groups, split, s, h]);
+  }, [groups, split, events, s, h]);
   const trends = useMemo(() => {
     if (!isTimeSplit(split)) return null;
     const dated = groups.filter((group) => group.key !== UNKNOWN_GROUP);
     const series = (pick: (g: GroupSummary) => number | null, known: (g: GroupSummary) => number, basis: (n: number) => string): TrendRow[] =>
       dated.map(({ key, summary }) => ({
         key,
-        title: groupLabel(s, split, key),
+        title: groupLabel(s, split, key, events),
         value: pick(summary) ?? 0,
         few: isFew(known(summary)),
         basis: basis(known(summary)),
-        events: eventsDuring(split, key).map((event) => event.name),
+        events: eventsDuring(split, key, events).map((event) => event.name),
       }));
     return {
       perObservation: series((g) => g.averagePerObservation, (g) => g.eligible, h.perObservationNote),
       rare: series((g) => share(g.rare), (g) => g.rare.known, h.rareNote),
       key: series((g) => share(g.key), (g) => g.key.known, h.keyNote),
     };
-  }, [groups, split, s, h]);
+  }, [groups, split, events, s, h]);
   const two = useCallback((value: number) => value.toFixed(2), []);
   if (groups.length === 0) {
     return (
@@ -310,7 +310,7 @@ function Compare({ store, state, s, statistics, paint }: { store: Store; state: 
           <tbody>
             {groups.map(({ key, summary }) => (
               <tr key={key} className={isFew(summary.eligible) ? "few" : undefined}>
-                <th scope="row">{groupLabel(s, split, key)}</th>
+                <th scope="row">{groupLabel(s, split, key, events)}</th>
                 <td>{summary.records}</td>
                 <td>{summary.eligible}</td>
                 <td>{averageText(summary.averagePerObservation)}</td>
@@ -348,7 +348,7 @@ function Levels({ store, state, s, statistics, paint }: { store: Store; state: A
   // A group per portal level is a row each already; a tab per day or week would be noise.
   const tabs = split !== "portalLevel" && !isTimeSplit(split) && groups.length > 1 && (
     <div className="segmented" role="group" aria-label={t.heading}>
-      {[{ key: null as string | null, label: t.all }, ...groups.map((g) => ({ key: g.key, label: groupLabel(s, split, g.key) }))].map((tab) => (
+      {[{ key: null as string | null, label: t.all }, ...groups.map((g) => ({ key: g.key, label: groupLabel(s, split, g.key, statistics.events) }))].map((tab) => (
         <button key={tab.key ?? "all"} type="button" aria-pressed={(selected?.key ?? null) === tab.key} onClick={() => store.setGridGroup(tab.key)}>
           {tab.label}
         </button>
@@ -362,8 +362,8 @@ function Levels({ store, state, s, statistics, paint }: { store: Store; state: A
         <p className="empty">{t.empty}</p>
       ) : (
         <div className="chart">
-          <LevelHeatmap cells={cells} rows={rows} paint={paint} label={t.mirrorCaption(selected ? groupLabel(s, split, selected.key) : t.all)} describe={describe} />
-          <LevelTable cells={cells} rows={rows} caption={t.mirrorCaption(selected ? groupLabel(s, split, selected.key) : t.all)} />
+          <LevelHeatmap cells={cells} rows={rows} paint={paint} label={t.mirrorCaption(selected ? groupLabel(s, split, selected.key, statistics.events) : t.all)} describe={describe} />
+          <LevelTable cells={cells} rows={rows} caption={t.mirrorCaption(selected ? groupLabel(s, split, selected.key, statistics.events) : t.all)} />
         </div>
       )}
       <p className="note">{t.note}</p>

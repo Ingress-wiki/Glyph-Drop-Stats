@@ -1,5 +1,5 @@
 import { isListedItem } from "./cells.ts";
-import { EVENTS, OUTSIDE_EVENTS, type IngressEvent } from "./events.ts";
+import { OUTSIDE_EVENTS, type IngressEvent } from "./events.ts";
 import { ITEMS_WITH_RARITY, KEY_COMMANDS, PANEL_EFFECTS, PORTAL_ALIGNMENTS, SPEED_COMMANDS } from "./format.ts";
 import type { HackResult, Item, Kind, ObservationRecord, PanelStage, PortalAlignment, ReadStatus } from "./record.ts";
 
@@ -221,8 +221,10 @@ export interface Statistics {
   /** Every matched record together. */
   summary: Summary;
   split: Split;
-  /** The matched records grouped by `split`, in the split's natural order, unknown last; only groups with records. */
+  /** The matched records grouped by `split`, in the split's natural order, unknown last; only groups with records. By event, a record can be in several groups. */
   groups: Group[];
+  /** The known events, by start: the event groups' names, and the periods a trend shades. */
+  events: IngressEvent[];
   items: {
     panels: PanelSelection;
     eligible: number;
@@ -381,16 +383,16 @@ function period(record: ObservationRecord, days: 1 | 7): string | null {
 }
 
 /**
- * The event a record's time interval lies in, `OUTSIDE_EVENTS` when it
- * touches none, and null when it crosses an event's start or end.
+ * Every event whose window holds a record's whole time interval: events
+ * overlap, so a record can be in several. `OUTSIDE_EVENTS` when it touches
+ * none, and unknown when it only crosses events' starts or ends.
  */
-function eventOf(record: ObservationRecord, events: readonly IngressEvent[]): string | null {
+function eventsOf(record: ObservationRecord, events: readonly IngressEvent[]): string[] {
   const { startUtc, endUtc } = record.time;
-  for (const event of events) {
-    if (endUtc <= event.startUtc || startUtc >= event.endUtc) continue;
-    return startUtc >= event.startUtc && endUtc <= event.endUtc ? event.id : null;
-  }
-  return OUTSIDE_EVENTS;
+  const touched = events.filter((event) => endUtc > event.startUtc && startUtc < event.endUtc);
+  if (touched.length === 0) return [OUTSIDE_EVENTS];
+  const inside = touched.filter((event) => startUtc >= event.startUtc && endUtc <= event.endUtc);
+  return inside.length > 0 ? inside.map((event) => event.id) : [UNKNOWN_GROUP];
 }
 
 /** Groups in a split's natural order; time splits instead sort by their dates. */
@@ -414,8 +416,13 @@ function panelEffect(record: ObservationRecord): string | null {
   return effects.size === 1 ? [...effects][0] : null;
 }
 
-/** Which group of `split` a record belongs to. `events` is the known events' list. */
-export function groupKey(record: ObservationRecord, split: Split, events: readonly IngressEvent[] = EVENTS): string {
+/** Which groups of `split` a record belongs to: one, except by event, where events overlap. `events` is the known events' list. */
+export function groupKeys(record: ObservationRecord, split: Split, events: readonly IngressEvent[] = []): string[] {
+  if (split === "event") return eventsOf(record, events);
+  return [groupKey(record, split)];
+}
+
+function groupKey(record: ObservationRecord, split: Exclude<Split, "event">): string {
   const { hack } = record;
   const known = (value: string | number | null | undefined) => (value === null || value === undefined ? UNKNOWN_GROUP : String(value));
   switch (split) {
@@ -431,8 +438,6 @@ export function groupKey(record: ObservationRecord, split: Split, events: readon
       return known(hack?.commands?.key);
     case "panelEffect":
       return known(panelEffect(record));
-    case "event":
-      return known(eventOf(record, events));
     case "week":
       return known(period(record, 7));
     case "day":
@@ -505,7 +510,7 @@ export function computeStatistics(
   records: readonly ObservationRecord[],
   filter: StatsFilter,
   uploadOf?: ReadonlyMap<string, number>,
-  events: readonly IngressEvent[] = EVENTS,
+  events: readonly IngressEvent[] = [],
 ): Statistics {
   const unplaced = zeroes(UNPLACED_REASONS);
   const byKind: Record<Kind, number> = { hack: 0, drop: 0 };
@@ -547,10 +552,11 @@ export function computeStatistics(
         ? (record.reading?.panels ?? []).filter((panel) => STAGES[filter.panels].includes(panel.stage)).flatMap((panel) => panel.items)
         : null;
     overall.add(record, items);
-    const key = groupKey(record, filter.split, events);
-    const group = groups.get(key) ?? new Tally();
-    group.add(record, items);
-    groups.set(key, group);
+    for (const key of groupKeys(record, filter.split, events)) {
+      const group = groups.get(key) ?? new Tally();
+      group.add(record, items);
+      groups.set(key, group);
+    }
     if (items === null) continue;
 
     /** This observation's quantity of each item: one item can fill several slots. */
@@ -618,6 +624,7 @@ export function computeStatistics(
     summary,
     split: filter.split,
     groups: [...groups].sort(byOrder).map(([key, tally]) => ({ key, summary: tally.summary() })),
+    events: [...events],
     items: {
       panels: filter.panels,
       eligible: summary.eligible,
