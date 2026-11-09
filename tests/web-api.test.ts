@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeStatistics, NO_FILTER } from "../src/domain/statistics.ts";
-import { confirmUpload, fetchStatistics, isStatistics, submissionStatus, withdrawUpload } from "../src/web/api.ts";
+import { confirmUpload, fetchStatistics, isStatistics, linkAgentKey, revokeAgentKey, submissionStatus, withdrawUpload } from "../src/web/api.ts";
 
 const SECRET = `gds1_${"a".repeat(43)}`;
 const FILE = new File(["format_version\r\n"], "export.csv", { type: "text/csv" });
@@ -235,5 +235,38 @@ describe("fetchStatistics", () => {
       breakIt(statistics);
       expect([name, isStatistics(statistics)]).toEqual([name, false]);
     }
+  });
+});
+
+describe("agent keys", () => {
+  const KEY = `gdsr_${"k".repeat(43)}`;
+  const HASH = "f".repeat(64);
+
+  it("link with the receipt in the header and only the key's hash in the body", async () => {
+    answer(json(200, { ok: true, submissions: 2 }));
+    expect(await linkAgentKey(SECRET, HASH)).toEqual({ kind: "linked", submissions: 2 });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/agent-keys");
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Receipt ${SECRET}`);
+    expect(JSON.parse(String(init?.body))).toEqual({ keyHash: HASH });
+  });
+
+  it("treat a link answer they can't use as uncertain, and a clear refusal as final", async () => {
+    answer(json(200, { ok: true, submissions: 0 }));
+    expect(await linkAgentKey(SECRET, HASH)).toMatchObject({ kind: "uncertain" });
+    answer(new TypeError("offline"));
+    expect(await linkAgentKey(SECRET, HASH)).toMatchObject({ kind: "uncertain", problem: { kind: "network" } });
+    answer(json(409, { ok: false, issues: [{ code: "submission_withdrawn", key: "api.submissionWithdrawn", message: "No." }] }));
+    expect(await linkAgentKey(SECRET, HASH)).toMatchObject({ kind: "refused", issues: [{ code: "submission_withdrawn" }] });
+  });
+
+  it("revoke with the key as its holder, reporting whether one matched", async () => {
+    answer(json(200, { ok: true, revoked: false }));
+    expect(await revokeAgentKey(KEY)).toEqual({ kind: "revoked", found: false });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/agent-key/revoke");
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Agent ${KEY}`);
+    answer(json(500, {}));
+    expect(await revokeAgentKey(KEY)).toMatchObject({ kind: "uncertain" });
   });
 });

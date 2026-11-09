@@ -216,41 +216,55 @@ interface StoredUpload {
   summary: SubmissionSummary;
 }
 
-export async function findSubmission(db: Db, secretHash: string): Promise<StoredUpload | null> {
-  const upload = await db
-    .prepare(
-      "SELECT id, file_hash, status, created_at, withdrawn_at, row_count, rejected_count FROM uploads WHERE secret_hash = ?1",
-    )
-    .bind(secretHash)
-    .first<{
-      id: number;
-      file_hash: string;
-      status: SubmissionSummary["status"];
-      created_at: number;
-      withdrawn_at: number | null;
-      row_count: number;
-      rejected_count: number;
-    }>();
-  if (!upload) return null;
+const UPLOAD_COLUMNS = "id, file_hash, status, created_at, withdrawn_at, row_count, rejected_count";
+
+interface UploadRow {
+  id: number;
+  file_hash: string;
+  status: SubmissionSummary["status"];
+  created_at: number;
+  withdrawn_at: number | null;
+  row_count: number;
+  rejected_count: number;
+}
+
+/** Each upload's summary, its outcome counts read in one query for all of them. */
+async function summarize(db: Db, uploads: readonly UploadRow[]): Promise<SubmissionSummary[]> {
+  if (uploads.length === 0) return [];
   const rows = await db
-    .prepare("SELECT outcome, COUNT(*) AS n FROM upload_records WHERE upload_id = ?1 GROUP BY outcome")
-    .bind(upload.id)
-    .all<{ outcome: Outcome; n: number }>();
-  const outcomes = emptyOutcomeCounts();
-  for (const row of rows.results) {
-    if (OUTCOMES.includes(row.outcome)) outcomes[row.outcome] = row.n;
-  }
-  return {
-    fileHash: upload.file_hash,
-    summary: {
+    .prepare("SELECT upload_id, outcome, COUNT(*) AS n FROM upload_records WHERE upload_id IN (SELECT value FROM json_each(?1)) GROUP BY upload_id, outcome")
+    .bind(JSON.stringify(uploads.map((upload) => upload.id)))
+    .all<{ upload_id: number; outcome: Outcome; n: number }>();
+  return uploads.map((upload) => {
+    const outcomes = emptyOutcomeCounts();
+    for (const row of rows.results) {
+      if (row.upload_id === upload.id && OUTCOMES.includes(row.outcome)) outcomes[row.outcome] = row.n;
+    }
+    return {
       status: upload.status,
       createdAt: upload.created_at,
       withdrawnAt: upload.withdrawn_at,
       rowCount: upload.row_count,
       rejected: upload.rejected_count,
       outcomes,
-    },
-  };
+    };
+  });
+}
+
+export async function findSubmission(db: Db, secretHash: string): Promise<StoredUpload | null> {
+  const upload = await db.prepare(`SELECT ${UPLOAD_COLUMNS} FROM uploads WHERE secret_hash = ?1`).bind(secretHash).first<UploadRow>();
+  if (!upload) return null;
+  const [summary] = await summarize(db, [upload]);
+  return { fileHash: upload.file_hash, summary };
+}
+
+/** The summaries of the given uploads, oldest first. */
+export async function uploadSummaries(db: Db, uploadIds: readonly number[]): Promise<SubmissionSummary[]> {
+  const uploads = await db
+    .prepare(`SELECT ${UPLOAD_COLUMNS} FROM uploads WHERE id IN (SELECT value FROM json_each(?1)) ORDER BY created_at, id`)
+    .bind(JSON.stringify(uploadIds))
+    .all<UploadRow>();
+  return summarize(db, uploads.results);
 }
 
 export type ConfirmResult =

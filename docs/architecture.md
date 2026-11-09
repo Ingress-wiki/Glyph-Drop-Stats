@@ -5,7 +5,7 @@
 | Path | Role |
 | --- | --- |
 | `src/domain/` | CSV reading, validation, normalization, version comparison and receipts. Uses only web-standard APIs, with no Cloudflare APIs, so it runs and is tested in Node. |
-| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `events.ts` (Ingress events from the activity board, refreshed by the daily cron), `index.ts` (entry: requests and the cron). |
+| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `events.ts` (Ingress events from the activity board, refreshed by the daily cron), `mcp.ts` (the read-only MCP server for AI agents), `agentKeys.ts` (read-only agent keys and the records they read), `index.ts` (entry: requests and the cron). |
 | `src/web/` | The site, served as Workers Static Assets. See [The web page](#the-web-page). |
 | `migrations/` | D1 schema migrations. |
 
@@ -105,6 +105,9 @@ upload → validate → preview → receipt → confirm → status → withdraw
 | `GET /api/submission` | Reports the submission for `Authorization: Receipt <secret>`. |
 | `GET /api/statistics` | Descriptive statistics over `counted_records`, with optional filters. See [statistics](statistics.md). |
 | `POST /api/submission/withdraw` | Withdraws it. Idempotent: again, it returns 200 with `alreadyWithdrawn: true` and changes nothing. A record id is never authorization. |
+| `POST /api/agent-keys` | Links the submission for `Authorization: Receipt <secret>` to a read-only agent key, sent as `{"keyHash": …}`, its SHA-256. Idempotent. See [MCP](mcp.md). |
+| `POST /api/agent-key/revoke` | Deletes the key in `Authorization: Agent <key>` and its links. Idempotent: `revoked` is false when none matched. |
+| `POST /mcp` | The statistics for AI agents over the Model Context Protocol, and a player's own records with their agent key: read-only tools and report prompts, no session. See [MCP](mcp.md). |
 
 ### Preview and confirm are stateless
 
@@ -169,6 +172,7 @@ See `migrations/` (`0001_initial.sql`, then `0002_portal_alignment.sql`).
 | `upload_records` | Which version each upload supplied for each record, and its outcome. |
 | `counted_records` (view) | Accepted versions still supported by a completed upload. Statistics read only this. |
 | `ingress_events` | Ingress events from the game's activity board: name, UTC window, a note, and when the board first and last listed each. Not submissions: the test-period wipe leaves them. |
+| `agent_keys`, `agent_key_uploads` | Read-only agent keys (their SHA-256 only) and the submissions each covers, linked by the holder of each receipt. Revoking deletes both; the test-period wipe deletes them all. |
 
 ## Equivalent copies and accepted versions
 

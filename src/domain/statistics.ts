@@ -405,6 +405,14 @@ const GROUP_ORDER: Record<Exclude<Split, "event" | "week" | "day">, readonly str
   panelEffect: [NO_EFFECT_GROUP, ...PANEL_EFFECTS],
 };
 
+/** Compares a split's group keys: its natural order (events by start), dates as text, unknown last. */
+export function groupOrder(split: Split, events: readonly IngressEvent[]): (a: string, b: string) => number {
+  const natural =
+    split === "event" ? [OUTSIDE_EVENTS, ...events.map((event) => event.id)] : split === "week" || split === "day" ? null : GROUP_ORDER[split];
+  const rank = (key: string) => (key === UNKNOWN_GROUP ? Number.POSITIVE_INFINITY : natural === null ? 0 : natural.indexOf(key));
+  return (a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0);
+}
+
 /**
  * The one effect a reading's panels showed, or none. A record with no
  * reading, or whose panels disagree, has no single effect.
@@ -604,12 +612,7 @@ export function computeStatistics(
       return { item, ...total, distribution, averagePerObservation: sum / n, variance };
     })
     .sort((a, b) => b.quantity - a.quantity || (a.item < b.item ? -1 : 1));
-  const { split } = filter;
-  const natural =
-    split === "event" ? [OUTSIDE_EVENTS, ...events.map((event) => event.id)] : split === "week" || split === "day" ? null : GROUP_ORDER[split];
-  // Dates sort as text; unknown goes last either way.
-  const rank = (key: string) => (key === UNKNOWN_GROUP ? Number.POSITIVE_INFINITY : natural === null ? 0 : natural.indexOf(key));
-  const byOrder = ([a]: [string, Tally], [b]: [string, Tally]) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0);
+  const order = groupOrder(filter.split, events);
 
   return {
     filter,
@@ -623,7 +626,7 @@ export function computeStatistics(
     },
     summary,
     split: filter.split,
-    groups: [...groups].sort(byOrder).map(([key, tally]) => ({ key, summary: tally.summary() })),
+    groups: [...groups].sort(([a], [b]) => order(a, b)).map(([key, tally]) => ({ key, summary: tally.summary() })),
     events: [...events],
     items: {
       panels: filter.panels,

@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { hashAgentKey } from "../src/domain/agentKey.ts";
 import type { Preview } from "../src/domain/preview.ts";
 import { computeStatistics, NO_FILTER } from "../src/domain/statistics.ts";
 import type { SubmissionSummary } from "../src/domain/submission.ts";
 import type {
   ConfirmOutcome,
+  LinkKeyOutcome,
   PreviewOutcome,
   StatisticsOutcome,
   StatusOutcome,
@@ -32,6 +34,8 @@ const SUMMARY: SubmissionSummary = {
 };
 
 const PREVIEW = { ok: true, rowCount: 7 } as unknown as Preview;
+const NEW_KEY = `gdsr_${"n".repeat(43)}`;
+const OTHER_KEY = `gdsr_${"o".repeat(43)}`;
 const fileA = new File(["a"], "a.csv");
 const fileB = new File(["b"], "b.csv");
 
@@ -48,9 +52,12 @@ function setup(overrides: Partial<StoreDeps> = {}, locale: Locale = "en") {
         submission: { ...SUMMARY, status: "withdrawn", withdrawnAt: 1_791_160_000 },
       }),
     ),
+    linkAgentKey: vi.fn(async (): Promise<LinkKeyOutcome> => ({ kind: "linked", submissions: 1 })),
+    revokeAgentKey: vi.fn(async () => ({ kind: "revoked" as const, found: true })),
     fetchStatistics: vi.fn(async (): Promise<StatisticsOutcome> => ({ kind: "ok", statistics: computeStatistics([], NO_FILTER) })),
     fetchConfig: vi.fn(async () => ({ submissionsOpen: true, testPeriod: false })),
     newSecret: vi.fn(() => `gds1_${"a".repeat(43)}`),
+    newAgentKey: vi.fn(() => NEW_KEY),
     download: vi.fn(),
     copy: vi.fn(async () => {}),
     storage: { get: (key) => saved.get(key) ?? null, set: (key, value) => void saved.set(key, value) },
@@ -209,6 +216,79 @@ describe("looking up and withdrawing", () => {
     await store.lookup();
     await store.confirmWithdraw();
     expect(store.state.status.withdrawal).toEqual({ step: "uncertain", problem: { kind: "network", detail: "lost" } });
+  });
+});
+
+describe("agent keys", () => {
+  async function looked(overrides: Partial<StoreDeps> = {}) {
+    const context = setup(overrides);
+    context.store.setStatusInput("A");
+    await context.store.lookup();
+    return context;
+  }
+
+  it("makes a key in the page, sends only its hash with the receipt, and shows the key once", async () => {
+    const { store, deps } = await looked();
+    await store.createAgentKey();
+    expect(deps.linkAgentKey).toHaveBeenCalledWith("A", await hashAgentKey(NEW_KEY));
+    expect(store.state.status.agentKey).toEqual({ step: "linked", key: NEW_KEY, submissions: 1 });
+    await store.copyAgentKey();
+    expect(deps.copy).toHaveBeenCalledWith(NEW_KEY);
+    expect(store.state.notice?.id).toBe("keyCopied");
+  });
+
+  it("adds the submission to a pasted key without showing that key again", async () => {
+    const { store, deps } = await looked({ linkAgentKey: vi.fn(async (): Promise<LinkKeyOutcome> => ({ kind: "linked", submissions: 3 })) });
+    store.setKeyInput(`  ${OTHER_KEY} `);
+    await store.addToAgentKey();
+    expect(deps.linkAgentKey).toHaveBeenCalledWith("A", await hashAgentKey(OTHER_KEY));
+    expect(store.state.status.agentKey).toEqual({ step: "linked", key: null, submissions: 3 });
+  });
+
+  it("revokes the pasted key and clears the field, saying when none matched", async () => {
+    const { store, deps } = await looked({ revokeAgentKey: vi.fn(async () => ({ kind: "revoked" as const, found: false })) });
+    store.setKeyInput(OTHER_KEY);
+    await store.revokeAgentKey();
+    expect(deps.revokeAgentKey).toHaveBeenCalledWith(OTHER_KEY);
+    expect(store.state.status.agentKey).toEqual({ step: "revoked", found: false });
+    expect(store.state.status.keyInput).toBe("");
+  });
+
+  it("retries an uncertain link with the same key, which is safe", async () => {
+    const link = vi.fn<StoreDeps["linkAgentKey"]>(async () => ({ kind: "uncertain", problem: { kind: "network", detail: "lost" } }));
+    const { store, deps } = await looked({ linkAgentKey: link });
+    await store.createAgentKey();
+    expect(store.state.status.agentKey).toEqual({ step: "uncertain", action: "create", key: NEW_KEY, problem: { kind: "network", detail: "lost" } });
+    link.mockResolvedValueOnce({ kind: "linked", submissions: 1 });
+    await store.retryAgentKey();
+    expect(deps.newAgentKey).toHaveBeenCalledTimes(1);
+    expect(link).toHaveBeenLastCalledWith("A", await hashAgentKey(NEW_KEY));
+    expect(store.state.status.agentKey).toEqual({ step: "linked", key: NEW_KEY, submissions: 1 });
+  });
+
+  it("shows a refusal, and drops an answer that arrives after another receipt was looked up", async () => {
+    const { store } = await looked({ linkAgentKey: vi.fn(async (): Promise<LinkKeyOutcome> => ({ kind: "refused", issues: [{ code: "submission_withdrawn", message: "No." }] })) });
+    await store.createAgentKey();
+    expect(store.state.status.agentKey).toMatchObject({ step: "refused" });
+
+    const slow = deferred<LinkKeyOutcome>();
+    const late = await looked({ linkAgentKey: vi.fn(() => slow.promise) });
+    const pending = late.store.createAgentKey();
+    late.store.setStatusInput("B");
+    slow.resolve({ kind: "linked", submissions: 1 });
+    await pending;
+    expect(late.store.state.status.agentKey).toEqual({ step: "idle" });
+  });
+
+  it("needs a looked-up submission, and starts afresh with each lookup", async () => {
+    const { store, deps } = setup();
+    await store.createAgentKey();
+    expect(deps.linkAgentKey).not.toHaveBeenCalled();
+    store.setStatusInput("A");
+    await store.lookup();
+    await store.createAgentKey();
+    await store.lookup();
+    expect(store.state.status.agentKey).toEqual({ step: "idle" });
   });
 });
 

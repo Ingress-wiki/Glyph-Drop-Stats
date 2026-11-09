@@ -33,6 +33,15 @@ before testing.
   - the receipt secret itself (only its SHA-256).
 - **Kept with each upload:** its time, row count, rejected-record count and
   the exporting app's version and build.
+- **Agent keys, only when a player makes one** (see [MCP](mcp.md)):
+  - the SHA-256 of the key and when it was made, never the key itself (the
+    browser sends only the hash to link it);
+  - which submissions it covers, and when each was linked.
+
+  Those links are new information: they say which submissions one player
+  chose to group. Without a key, submissions are linked only through
+  shared record ids. Revoking a key deletes it and every link, and ending
+  the test period deletes all keys.
 - The export holds no exact times, portal names, notes, images, device
   details or storage keys.
 - `record_id` is a hash of a key with a random number made at app launch.
@@ -108,6 +117,12 @@ would change this and needs its own review.
   server's list, so the uploader can see what will be held for review.
 - Never put a receipt secret in a URL. It travels only in the
   `Authorization: Receipt …` header.
+- Never log agent keys, and never put one in a URL. To revoke, a key
+  travels in `Authorization: Agent …`; to read over MCP, in
+  `Authorization: Bearer …` or a tool argument.
+- An agent key reads only the counted records of the submissions it
+  covers, as statistics: never another player's records, never a receipt,
+  and it can't change anything.
 - The receipt is made in the player's browser and never sent anywhere
   except to authorize their own requests. The server can't check that it
   is random; a player who picks a weak one only weakens their own

@@ -1,10 +1,12 @@
 import { handleApi } from "./api.ts";
 import { fetchActivityBoard, refreshEvents } from "./events.ts";
+import { handleMcp } from "./mcp.ts";
 
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (pathname.startsWith("/api/")) return handleApi(request, env);
+    if (pathname === "/mcp") return handleMcp(request, env);
     return new Response(null, { status: 404 });
   },
   /** The daily cron (wrangler.jsonc): the Ingress events from the activity board. */

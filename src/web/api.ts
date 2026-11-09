@@ -22,6 +22,15 @@ export type WithdrawOutcome =
   | { kind: "refused"; issues: ApiIssue[] }
   | { kind: "uncertain"; problem: Problem };
 
+/** Linking a submission to an agent key. Idempotent, so an uncertain outcome can be retried with the same key. */
+export type LinkKeyOutcome =
+  | { kind: "linked"; submissions: number }
+  | { kind: "refused"; issues: ApiIssue[] }
+  | { kind: "uncertain"; problem: Problem };
+
+/** Revoking an agent key; `found` is false when no key matched. Idempotent. */
+export type RevokeKeyOutcome = { kind: "revoked"; found: boolean } | { kind: "refused"; issues: ApiIssue[] } | { kind: "uncertain"; problem: Problem };
+
 export type StatusOutcome =
   | { kind: "found"; submission: SubmissionSummary }
   | { kind: "refused"; issues: ApiIssue[] }
@@ -158,6 +167,21 @@ export function withdrawUpload(secret: string): Promise<WithdrawOutcome> {
       body.submission.status === "withdrawn"
         ? { kind: "withdrawn" as const, alreadyWithdrawn: body.alreadyWithdrawn, submission: body.submission }
         : null,
+  );
+}
+
+/** Links the receipt's submission to the agent key whose SHA-256 is `keyHash`; the key itself never leaves the page. */
+export function linkAgentKey(secret: string, keyHash: string): Promise<LinkKeyOutcome> {
+  return idempotentRequest(
+    "/api/agent-keys",
+    { method: "POST", headers: { "content-type": "application/json", authorization: `Receipt ${secret}` }, body: JSON.stringify({ keyHash }) },
+    (body) => (isCount(body.submissions) && body.submissions > 0 ? { kind: "linked" as const, submissions: body.submissions } : null),
+  );
+}
+
+export function revokeAgentKey(key: string): Promise<RevokeKeyOutcome> {
+  return idempotentRequest("/api/agent-key/revoke", { method: "POST", headers: { authorization: `Agent ${key}` } }, (body) =>
+    typeof body.revoked === "boolean" ? { kind: "revoked" as const, found: body.revoked } : null,
   );
 }
 

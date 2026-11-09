@@ -4,3 +4,10 @@ export async function sha256Hex(data: Uint8Array<ArrayBuffer> | string): Promise
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+/** Bytes as unpadded base64url, the alphabet of receipts and agent keys. */
+export function base64url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}

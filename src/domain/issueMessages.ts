@@ -93,6 +93,10 @@ export const ISSUE_MESSAGES = {
   "api.noEndpoint": "No such endpoint.",
   "api.methodNotAllowed": "Use {methods}.",
   "api.submissionsClosed": "Submitting isn't open yet. Checking a file still works and stores nothing.",
+  "api.invalidAgentKey": "Send the agent key as `Authorization: Agent <key>`.",
+  "api.invalidKeyHash": "Send the agent key's SHA-256, in lowercase hex, as {\"keyHash\": \"…\"}.",
+  "api.submissionWithdrawn": "This submission was withdrawn, so a key can't read it.",
+  "api.keyFull": "This key already covers {limit} submissions, the most one key can.",
 
   "filter.unknown": "{name} is not a known filter.",
   "filter.repeated": "{name} is given more than once.",

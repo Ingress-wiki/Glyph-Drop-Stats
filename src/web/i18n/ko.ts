@@ -13,6 +13,8 @@ export const ko: Messages = {
     testPeriod:
       "테스트 기간: 제출은 테스트용으로만 받습니다. 지금 제출한 모든 데이터와 이를 바탕으로 한 통계는 사이트를 일반에 공개하기 전에 삭제되며, 그보다 일찍 지워질 수도 있습니다.",
     keyboardHelp: "단축키: F1 통계 · F2 제출 · F3 필터 · F4 숫자 읽는 방법",
+    mcp: "AI 에이전트는 MCP로 이 통계를 분석할 수 있습니다:",
+    mcpGuide: "연결 방법",
     close: "닫기",
     views: "보기",
   },
@@ -339,6 +341,27 @@ export const ko: Messages = {
     failed: (problem: string) => `철회를 확인하지 못했습니다 (${problem}). 철회가 완료되었을 수도 있습니다.`,
   },
 
+  agentKey: {
+    heading: "AI 에이전트 키",
+    explain: "읽기 전용 키로 내 AI 에이전트가 MCP를 통해 이 제출의 기록을 분석하고 다른 모든 사람의 기록과 비교할 수 있습니다. 제출을 철회하거나 다른 사람의 기록을 읽을 수는 없습니다. 키 하나로 여러 제출을 포함할 수 있으며 언제든지 폐기할 수 있습니다.",
+    create: "키 만들기",
+    yourKey: "내 에이전트 키",
+    shownOnce: "한 번만 표시됩니다. 지금 복사하세요. 키를 가진 사람은 누구나 포함된 제출의 기록을 읽을 수 있습니다.",
+    copy: "복사",
+    covers: (n: number) => `이 키는 제출 ${n}개를 포함합니다.`,
+    field: "에이전트 키",
+    placeholder: "에이전트 키 붙여넣기",
+    hint: "에이전트 키 (gdsr_…)",
+    add: "이 제출 추가",
+    revoke: "키 폐기",
+    sending: "보내는 중…",
+    revoked: "키를 폐기했습니다. 이 키를 쓰는 에이전트는 더 이상 내 기록을 읽을 수 없습니다.",
+    noKey: "일치하는 키가 없습니다. 만든 적이 없거나 이미 폐기되었습니다.",
+    failed: (problem: string) => `확인하지 못했습니다(${problem}). 처리되었을 수 있으며, 다시 시도해도 안전합니다.`,
+    retry: "다시 시도",
+    guide: "AI 에이전트 연결 방법",
+  },
+
   problems: {
     network: (detail: string) => `연결에 실패했습니다: ${detail}`,
     unreadable: (status: number) => `응답을 읽을 수 없습니다 (${status})`,
@@ -348,6 +371,8 @@ export const ko: Messages = {
   notice: {
     receiptCopied: "영수증을 복사했습니다",
     copyFailed: "복사하지 못했습니다. 대신 영수증을 다운로드하세요",
+    keyCopied: "에이전트 키를 복사했습니다",
+    keyCopyFailed: "복사하지 못했습니다. 키를 선택해 복사하세요",
     linkCopied: "링크를 복사했습니다",
     linkCopyFailed: "복사하지 못했습니다. 주소 표시줄의 링크를 사용하세요",
   },
@@ -484,6 +509,10 @@ export const ko: Messages = {
     "api.noEndpoint": "해당 엔드포인트가 없습니다.",
     "api.methodNotAllowed": "다음 메서드를 사용하세요: {methods}.",
     "api.submissionsClosed": "아직 제출을 받지 않습니다. 파일 확인은 할 수 있으며 아무것도 저장되지 않습니다.",
+    "api.invalidAgentKey": "에이전트 키를 `Authorization: Agent <key>`로 보내세요.",
+    "api.invalidKeyHash": "에이전트 키의 SHA-256을 소문자 16진수로 {\"keyHash\": \"…\"} 형식으로 보내세요.",
+    "api.submissionWithdrawn": "이 제출은 철회되어 키로 읽을 수 없습니다.",
+    "api.keyFull": "이 키는 이미 최대치인 {limit}개의 제출을 포함합니다.",
 
     "filter.unknown": "알 수 없는 필터입니다: {name}.",
     "filter.repeated": "{name} 값이 두 번 이상 지정되었습니다.",

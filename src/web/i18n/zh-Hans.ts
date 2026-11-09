@@ -13,6 +13,8 @@ export const zhHans: Messages = {
     testPeriod:
       "测试期：提交仅供测试。现在提交的所有数据及由此得出的统计，都会在网站正式公开前删除，也可能提前清除。",
     keyboardHelp: "快捷键：F1 统计 · F2 提交 · F3 筛选 · F4 数字说明",
+    mcp: "AI 智能体可通过 MCP 分析这些统计：",
+    mcpGuide: "连接方法",
     close: "关闭",
     views: "视图",
   },
@@ -338,6 +340,27 @@ export const zhHans: Messages = {
     failed: (problem: string) => `无法确认撤回（${problem}）。撤回可能已经成功。`,
   },
 
+  agentKey: {
+    heading: "AI 智能体密钥",
+    explain: "只读密钥让你自己的 AI 智能体通过 MCP 分析此提交的记录，并与其他所有人的记录比较。它不能撤回提交，也读不到别人的记录。一个密钥可涵盖你的多个提交，并可随时吊销。",
+    create: "创建密钥",
+    yourKey: "你的智能体密钥",
+    shownOnce: "仅显示这一次：请立即复制。任何持有它的人都能读取其涵盖的提交记录。",
+    copy: "复制",
+    covers: (n: number) => `此密钥涵盖 ${n} 个提交。`,
+    field: "智能体密钥",
+    placeholder: "粘贴智能体密钥",
+    hint: "智能体密钥，形如 gdsr_…",
+    add: "加入此提交",
+    revoke: "吊销密钥",
+    sending: "正在发送…",
+    revoked: "密钥已吊销。使用它的智能体再也无法读取你的记录。",
+    noKey: "没有匹配的密钥：它从未创建，或已被吊销。",
+    failed: (problem: string) => `无法确认（${problem}）。操作可能已完成，重试是安全的。`,
+    retry: "重试",
+    guide: "如何连接 AI 智能体",
+  },
+
   problems: {
     network: (detail: string) => `连接失败：${detail}`,
     unreadable: (status: number) => `无法读取响应，${status}`,
@@ -347,6 +370,8 @@ export const zhHans: Messages = {
   notice: {
     receiptCopied: "回执已复制",
     copyFailed: "无法复制：请改为下载回执",
+    keyCopied: "智能体密钥已复制",
+    keyCopyFailed: "无法复制：请选中密钥后复制",
     linkCopied: "链接已复制",
     linkCopyFailed: "无法复制：请改用地址栏中的链接",
   },
@@ -479,6 +504,10 @@ export const zhHans: Messages = {
     "api.noEndpoint": "没有此端点。",
     "api.methodNotAllowed": "请使用 {methods}。",
     "api.submissionsClosed": "提交尚未开放。仍可检查文件，检查不会存储任何内容。",
+    "api.invalidAgentKey": "请以 `Authorization: Agent <key>` 发送智能体密钥。",
+    "api.invalidKeyHash": "请以小写十六进制发送智能体密钥的 SHA-256，格式为 {\"keyHash\": \"…\"}。",
+    "api.submissionWithdrawn": "此提交已撤回，密钥无法读取。",
+    "api.keyFull": "此密钥已涵盖 {limit} 个提交，已达上限。",
 
     "filter.unknown": "{name} 不是已知的筛选条件。",
     "filter.repeated": "{name}给出了不止一次。",

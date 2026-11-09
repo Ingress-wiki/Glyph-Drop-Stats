@@ -13,6 +13,8 @@ export const zhHant: Messages = {
     testPeriod:
       "測試期：提交僅供測試。現在提交的所有資料及由此得出的統計，都會在網站正式公開前刪除，也可能提前清除。",
     keyboardHelp: "快速鍵：F1 統計 · F2 提交 · F3 篩選 · F4 數字解讀說明",
+    mcp: "AI 代理可透過 MCP 分析這些統計：",
+    mcpGuide: "連接方式",
     close: "關閉",
     views: "檢視",
   },
@@ -338,6 +340,27 @@ export const zhHant: Messages = {
     failed: (problem: string) => `無法確認撤回結果（${problem}）。撤回可能已經完成。`,
   },
 
+  agentKey: {
+    heading: "AI 代理金鑰",
+    explain: "唯讀金鑰讓你自己的 AI 代理透過 MCP 分析此提交的紀錄，並與其他所有人的紀錄比較。它無法撤回提交，也讀不到別人的紀錄。一把金鑰可涵蓋你的多個提交，並可隨時撤銷。",
+    create: "建立金鑰",
+    yourKey: "你的代理金鑰",
+    shownOnce: "只會顯示這一次：請立即複製。任何持有它的人都能讀取其涵蓋的提交紀錄。",
+    copy: "複製",
+    covers: (n: number) => `此金鑰涵蓋 ${n} 個提交。`,
+    field: "代理金鑰",
+    placeholder: "貼上代理金鑰",
+    hint: "代理金鑰，形如 gdsr_…",
+    add: "加入此提交",
+    revoke: "撤銷金鑰",
+    sending: "傳送中…",
+    revoked: "金鑰已撤銷。使用它的代理再也無法讀取你的紀錄。",
+    noKey: "沒有相符的金鑰：它從未建立，或已被撤銷。",
+    failed: (problem: string) => `無法確認（${problem}）。操作可能已完成，重試是安全的。`,
+    retry: "重試",
+    guide: "如何連接 AI 代理",
+  },
+
   problems: {
     network: (detail: string) => `連線失敗：${detail}`,
     unreadable: (status: number) => `無法讀取伺服器的回應（${status}）`,
@@ -347,6 +370,8 @@ export const zhHant: Messages = {
   notice: {
     receiptCopied: "已複製憑證",
     copyFailed: "無法複製：請改為下載憑證",
+    keyCopied: "已複製代理金鑰",
+    keyCopyFailed: "無法複製：請選取金鑰後複製",
     linkCopied: "連結已複製",
     linkCopyFailed: "無法複製：請改用網址列中的連結",
   },
@@ -479,6 +504,10 @@ export const zhHant: Messages = {
     "api.noEndpoint": "沒有這個端點。",
     "api.methodNotAllowed": "請使用 {methods}。",
     "api.submissionsClosed": "提交尚未開放。仍可檢查檔案，檢查不會儲存任何內容。",
+    "api.invalidAgentKey": "請以 `Authorization: Agent <key>` 傳送代理金鑰。",
+    "api.invalidKeyHash": "請以小寫十六進位傳送代理金鑰的 SHA-256，格式為 {\"keyHash\": \"…\"}。",
+    "api.submissionWithdrawn": "此提交已撤回，金鑰無法讀取。",
+    "api.keyFull": "此金鑰已涵蓋 {limit} 個提交，已達上限。",
 
     "filter.unknown": "{name} 不是已知的篩選條件。",
     "filter.repeated": "{name} 指定了不只一次。",

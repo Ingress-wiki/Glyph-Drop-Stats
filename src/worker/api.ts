@@ -1,9 +1,11 @@
+import { hashAgentKey, isAgentKey, isAgentKeyHash } from "../domain/agentKey.ts";
 import { DEFAULT_LIMITS, makeIssue, parseExport } from "../domain/importer.ts";
 import type { IssueKey, IssueParams } from "../domain/issueMessages.ts";
 import { previewOf } from "../domain/preview.ts";
 import { hashReceiptSecret, isReceiptSecret } from "../domain/receipt.ts";
 import { parseStatsQuery } from "../domain/statsQuery.ts";
 import { emptyOutcomeCounts } from "../domain/versions.ts";
+import { linkAgentKey, MAX_UPLOADS_PER_KEY, revokeAgentKey } from "./agentKeys.ts";
 import type { Db } from "./db.ts";
 import { statistics } from "./statistics.ts";
 import { classify, confirmSubmission, countOutcomes, findSubmission, withdrawSubmission } from "./submissions.ts";
@@ -72,6 +74,55 @@ export async function readBodyLimited(request: Request, maxBytes: number): Promi
 function receiptSecret(request: Request): string | null {
   const match = /^Receipt (\S+)$/.exec(request.headers.get("authorization") ?? "");
   return match && isReceiptSecret(match[1]) ? match[1] : null;
+}
+
+/** The agent key travels in `Authorization: Agent <key>`, never in a URL, like a receipt. */
+function agentKey(request: Request): string | null {
+  const match = /^Agent (\S+)$/.exec(request.headers.get("authorization") ?? "");
+  return match && isAgentKey(match[1]) ? match[1] : null;
+}
+
+/** `{"keyHash": "<64 hex>"}` is all a link request carries. */
+const MAX_KEY_BODY = 1024;
+
+function keyHashOf(body: Uint8Array): string | null {
+  try {
+    const value: unknown = JSON.parse(new TextDecoder().decode(body));
+    return typeof value === "object" && value !== null && "keyHash" in value && typeof value.keyHash === "string" && isAgentKeyHash(value.keyHash) ? value.keyHash : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Links the receipt's submission to a read-only agent key. The key is made
+ * in the player's browser and only its hash is sent, so the server never
+ * holds a usable key. Repeating it changes nothing.
+ */
+async function linkKey(request: Request, env: ApiEnv): Promise<Response> {
+  const secret = receiptSecret(request);
+  if (!secret) return error(400, "invalid_receipt", "api.invalidReceipt");
+  const body = await readBodyLimited(request, MAX_KEY_BODY);
+  const keyHash = body && keyHashOf(body);
+  if (!keyHash) return error(400, "invalid_key_hash", "api.invalidKeyHash");
+  const result = await linkAgentKey(env.DB, await hashReceiptSecret(secret), keyHash, Math.floor(Date.now() / 1000));
+  switch (result.kind) {
+    case "linked":
+      return json(200, { ok: true, submissions: result.submissions });
+    case "not_found":
+      return error(404, "not_found", "api.notFound");
+    case "withdrawn":
+      return error(409, "submission_withdrawn", "api.submissionWithdrawn");
+    case "full":
+      return error(409, "key_full", "api.keyFull", { limit: MAX_UPLOADS_PER_KEY });
+  }
+}
+
+/** Anyone holding the key may revoke it. Idempotent: `revoked` is false when no key matched. */
+async function revokeKey(request: Request, env: ApiEnv): Promise<Response> {
+  const key = agentKey(request);
+  if (!key) return error(400, "invalid_agent_key", "api.invalidAgentKey");
+  return json(200, { ok: true, revoked: await revokeAgentKey(env.DB, await hashAgentKey(key)) });
 }
 
 /** Validates an export and compares it with accepted data. Nothing is stored. */
@@ -151,6 +202,8 @@ const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiE
   "/api/submission": { GET: status },
   "/api/submission/withdraw": { POST: withdraw },
   "/api/statistics": { GET: stats },
+  "/api/agent-keys": { POST: linkKey },
+  "/api/agent-key/revoke": { POST: revokeKey },
 };
 
 export async function handleApi(request: Request, env: ApiEnv): Promise<Response> {

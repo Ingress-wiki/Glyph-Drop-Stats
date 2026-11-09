@@ -74,8 +74,8 @@ Production is `"test"`; locally it is `"true"`.
 1. Set production to `"false"` and `npm run deploy`, so nothing arrives
    during the wipe.
 2. `npm run db:wipe:production` deletes every submission and everything it
-   supplied (`scripts/wipe-submissions.sql`; the tests reset their database
-   with the same file). The schema stays.
+   supplied, and every agent key (`scripts/wipe-submissions.sql`; the tests
+   reset their database with the same file). The schema stays.
 3. Check that `/api/statistics` reports no records.
 4. D1 Time Travel still holds the deleted rows until its retention window
    passes (7 days on Workers Free, 30 on Paid). Don't restore across the

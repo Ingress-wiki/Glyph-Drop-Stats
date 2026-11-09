@@ -1,4 +1,4 @@
-import { sha256Hex } from "./hash.ts";
+import { base64url, sha256Hex } from "./hash.ts";
 
 /**
  * A submission receipt is a 256-bit secret made in the uploader's browser
@@ -10,12 +10,6 @@ import { sha256Hex } from "./hash.ts";
 
 const PREFIX = "gds1_";
 const SECRET_PATTERN = /^gds1_[A-Za-z0-9_-]{43}$/;
-
-function base64url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-}
 
 export function newReceiptSecret(): string {
   return PREFIX + base64url(crypto.getRandomValues(new Uint8Array(32)));

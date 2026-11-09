@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { announcement } from "./app/announce.ts";
 import type { AppState, Store, View } from "./app/store.ts";
 import { LOCALES, messages, problemText, type Locale } from "./i18n/index.ts";
-import { SOURCE_URL } from "./site.ts";
+import { MCP_GUIDE_URL, SOURCE_URL } from "./site.ts";
 import { StatisticsView } from "./Statistics.tsx";
 import { SubmitView } from "./Submit.tsx";
 
@@ -78,6 +78,12 @@ export function App({ store }: { store: Store }) {
         </header>
         <main>{view === "statistics" ? <StatisticsView store={store} state={state} /> : <SubmitView store={store} state={state} />}</main>
         <footer className="footer">
+          <p className="mcp">
+            {s.app.mcp} <code>{`${location.origin}/mcp`}</code> ·{" "}
+            <a href={MCP_GUIDE_URL} target="_blank" rel="noreferrer">
+              {s.app.mcpGuide}
+            </a>
+          </p>
           <p>{s.notices}</p>
           <p className="keys">{s.app.keyboardHelp}</p>
         </footer>

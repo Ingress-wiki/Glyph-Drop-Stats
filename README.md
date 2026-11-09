@@ -21,7 +21,9 @@ The code is public. Individual submissions and private receipts are not.
 Today a player can check an export, see which records are usable and which
 are already known, and submit it with a private receipt. With the receipt
 they can later look the submission up or withdraw it. The statistics view
-shows counts and item averages with their denominators and exclusions.
+shows counts and item averages with their denominators and exclusions. AI
+agents can query the same statistics over MCP at `https://stats.ingress.wiki/mcp`,
+and, with a read-only agent key, compare a player's own drops with everyone else's.
 
 The interface is plain HTML built with React, in a PlasticList-inspired
 style: lines and type do the layout, with one yellow accent. Charts are
@@ -46,6 +48,7 @@ See [docs/deployment.md](docs/deployment.md) for every command.
 - [Architecture](docs/architecture.md): components, lifecycle, data model
 - [Import format](docs/import-format.md): what is accepted and why
 - [Statistics](docs/statistics.md): what the numbers mean
+- [MCP](docs/mcp.md): the statistics, and your own drops, for AI agents
 - [Privacy](docs/privacy.md): what is and isn't stored
 - [Deployment](docs/deployment.md)
 

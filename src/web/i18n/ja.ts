@@ -13,6 +13,8 @@ export const ja: Messages = {
     testPeriod:
       "テスト期間：提出はテストのためだけに受け付けています。今提出されたデータとそこから作られた統計は、サイトの一般公開前にすべて削除されます。それより早く消去することもあります。",
     keyboardHelp: "ショートカット：F1 統計 · F2 提出 · F3 フィルター · F4 数値の見方",
+    mcp: "AI エージェントは MCP でこの統計を分析できます：",
+    mcpGuide: "接続方法",
     close: "閉じる",
     views: "表示",
   },
@@ -340,6 +342,27 @@ export const ja: Messages = {
     failed: (problem: string) => `取り下げを確認できませんでした（${problem}）。取り下げは完了している可能性があります。`,
   },
 
+  agentKey: {
+    heading: "AI エージェントキー",
+    explain: "読み取り専用キーを使うと、あなたの AI エージェントが MCP 経由でこの提出の記録を分析し、他の全員の記録と比べられます。取り下げや、他の人の記録を読むことはできません。1つのキーで複数の提出を対象にでき、いつでも無効にできます。",
+    create: "キーを作成",
+    yourKey: "あなたのエージェントキー",
+    shownOnce: "表示はこの一度だけです。今すぐコピーしてください。キーを持つ人は誰でも、対象の提出の記録を読めます。",
+    copy: "コピー",
+    covers: (n: number) => `このキーは ${n} 件の提出を対象にしています。`,
+    field: "エージェントキー",
+    placeholder: "エージェントキーを貼り付け",
+    hint: "エージェントキー（gdsr_…）",
+    add: "この提出を追加",
+    revoke: "キーを無効にする",
+    sending: "送信中…",
+    revoked: "キーを無効にしました。このキーを使うエージェントは、もうあなたの記録を読めません。",
+    noKey: "一致するキーがありません。作成されていないか、すでに無効です。",
+    failed: (problem: string) => `確認できませんでした（${problem}）。処理済みかもしれません。再試行しても問題ありません。`,
+    retry: "再試行",
+    guide: "AI エージェントの接続方法",
+  },
+
   problems: {
     network: (detail: string) => `接続に失敗しました：${detail}`,
     unreadable: (status: number) => `応答を読み取れませんでした（${status}）`,
@@ -349,6 +372,8 @@ export const ja: Messages = {
   notice: {
     receiptCopied: "レシートをコピーしました",
     copyFailed: "コピーできませんでした。代わりにレシートをダウンロードしてください",
+    keyCopied: "エージェントキーをコピーしました",
+    keyCopyFailed: "コピーできませんでした。キーを選択してコピーしてください",
     linkCopied: "リンクをコピーしました",
     linkCopyFailed: "コピーできませんでした。アドレスバーのリンクを使ってください",
   },
@@ -485,6 +510,10 @@ export const ja: Messages = {
     "api.noEndpoint": "そのようなエンドポイントはありません。",
     "api.methodNotAllowed": "{methods} を使用してください。",
     "api.submissionsClosed": "提出はまだ受け付けていません。ファイルの確認はでき、何も保存されません。",
+    "api.invalidAgentKey": "エージェントキーは `Authorization: Agent <key>` で送ってください。",
+    "api.invalidKeyHash": "エージェントキーの SHA-256 を小文字の16進数で {\"keyHash\": \"…\"} として送ってください。",
+    "api.submissionWithdrawn": "この提出は取り下げ済みのため、キーで読めません。",
+    "api.keyFull": "このキーはすでに上限の {limit} 件の提出を対象にしています。",
 
     "filter.unknown": "{name} は不明なフィルターです。",
     "filter.repeated": "{name} が複数回指定されています。",

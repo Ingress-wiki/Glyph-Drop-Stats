@@ -23,6 +23,8 @@ export const en = {
     testPeriod:
       "Test period: submissions are open for testing only. Everything submitted now, and the statistics built from it, will be deleted before the site opens to the public, and may be wiped sooner.",
     keyboardHelp: "Shortcuts: F1 statistics · F2 submit · F3 filters · F4 how to read the numbers",
+    mcp: "AI agents can analyze these statistics over MCP:",
+    mcpGuide: "how to connect",
     close: "Close",
     views: "Views",
   },
@@ -349,6 +351,27 @@ export const en = {
     failed: (problem: string) => `Couldn't confirm the withdrawal (${problem}). It may have gone through.`,
   },
 
+  agentKey: {
+    heading: "AI agent key",
+    explain: "A read-only key lets your own AI agent analyze this submission's records over MCP, against everyone else's. It can't withdraw, or read anyone else's records. One key can cover several of your submissions, and you can revoke it at any time.",
+    create: "Create a key",
+    yourKey: "Your agent key",
+    shownOnce: "Shown once: copy it now. Anyone with it can read the records of the submissions it covers.",
+    copy: "Copy",
+    covers: (n: number) => (n === 1 ? "This key covers 1 submission." : `This key covers ${n} submissions.`),
+    field: "Agent key",
+    placeholder: "Paste an agent key",
+    hint: "An agent key, as gdsr_…",
+    add: "Add this submission",
+    revoke: "Revoke key",
+    sending: "Sending…",
+    revoked: "Key revoked. Agents using it can no longer read your records.",
+    noKey: "No key matched: it was never made, or was already revoked.",
+    failed: (problem: string) => `Couldn't confirm (${problem}). It may have gone through; trying again is safe.`,
+    retry: "Try again",
+    guide: "How to connect an AI agent",
+  },
+
   /** Why an answer couldn't be used: shown inside the messages above. */
   problems: {
     network: (detail: string) => `the connection failed: ${detail}`,
@@ -359,6 +382,8 @@ export const en = {
   notice: {
     receiptCopied: "Receipt copied",
     copyFailed: "Couldn't copy: download the receipt instead",
+    keyCopied: "Agent key copied",
+    keyCopyFailed: "Couldn't copy: select the key and copy it",
     linkCopied: "Link copied",
     linkCopyFailed: "Couldn't copy: use the address bar instead",
   },

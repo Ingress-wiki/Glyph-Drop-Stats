@@ -52,3 +52,18 @@ export async function statistics(db: Db, filter: StatsFilter): Promise<Statistic
   const [{ records, uploadOf }, events] = await Promise.all([loadCountedRecords(db, filter.utc), loadEvents(db)]);
   return computeStatistics(records, filter, uploadOf, events);
 }
+
+export interface OwnStatistics {
+  /** The records in `own`. */
+  mine: Statistics;
+  /** Every other counted record: everyone else, never sharing a record with `mine`. */
+  others: Statistics;
+}
+
+/** Splits the counted records into a player's own and everyone else's, read once, so both sides see the same data. */
+export async function ownStatistics(db: Db, filter: StatsFilter, own: ReadonlySet<string>): Promise<OwnStatistics> {
+  const [{ records, uploadOf }, events] = await Promise.all([loadCountedRecords(db, filter.utc), loadEvents(db)]);
+  const mine = records.filter((record) => own.has(record.recordId));
+  const others = records.filter((record) => !own.has(record.recordId));
+  return { mine: computeStatistics(mine, filter, uploadOf, events), others: computeStatistics(others, filter, uploadOf, events) };
+}

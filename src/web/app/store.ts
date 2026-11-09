@@ -1,3 +1,4 @@
+import { hashAgentKey } from "../../domain/agentKey.ts";
 import type { Preview } from "../../domain/preview.ts";
 import { receiptText } from "../../domain/receipt.ts";
 import type { SubmissionSummary } from "../../domain/submission.ts";
@@ -5,8 +6,10 @@ import {
   networkProblem,
   type ApiIssue,
   type ConfirmOutcome,
+  type LinkKeyOutcome,
   type PreviewOutcome,
   type Problem,
+  type RevokeKeyOutcome,
   type SiteConfig,
   type StatisticsOutcome,
   type StatusOutcome,
@@ -71,12 +74,27 @@ export type Withdrawal =
   | { step: "uncertain"; problem: Problem }
   | { step: "refused"; issues: ApiIssue[] };
 
+export type AgentKeyAction = "create" | "add" | "revoke";
+
+export type AgentKeyStep =
+  | { step: "idle" }
+  | { step: "sending"; action: AgentKeyAction }
+  /** `key` is set only when the key was just made here: it is shown once, and the server never has it. */
+  | { step: "linked"; key: string | null; submissions: number }
+  | { step: "revoked"; found: boolean }
+  | { step: "refused"; issues: ApiIssue[] }
+  /** No clear answer. Linking and revoking are idempotent, so the same key is simply sent again. */
+  | { step: "uncertain"; action: AgentKeyAction; key: string; problem: Problem };
+
 export interface StatusState {
   input: string;
   checking: boolean;
   /** A lookup's answer, with the receipt it was for: withdrawal acts on that receipt only. */
   looked: { secret: string; outcome: StatusOutcome } | null;
   withdrawal: Withdrawal;
+  /** The agent key field: a key to add the looked-up submission to, or to revoke. */
+  keyInput: string;
+  agentKey: AgentKeyStep;
 }
 
 export interface AppState {
@@ -104,9 +122,12 @@ export interface StoreDeps {
   confirmUpload(file: File, secret: string): Promise<ConfirmOutcome>;
   submissionStatus(secret: string, signal: AbortSignal): Promise<StatusOutcome>;
   withdrawUpload(secret: string): Promise<WithdrawOutcome>;
+  linkAgentKey(secret: string, keyHash: string): Promise<LinkKeyOutcome>;
+  revokeAgentKey(key: string): Promise<RevokeKeyOutcome>;
   fetchStatistics(query: string, signal: AbortSignal): Promise<StatisticsOutcome>;
   fetchConfig(): Promise<SiteConfig | null>;
   newSecret(): string;
+  newAgentKey(): string;
   download(name: string, text: string, type: string): void;
   copy(text: string): Promise<void>;
   /** Per-viewer preferences; reads and writes may fail (private windows) and must not matter. */
@@ -141,7 +162,7 @@ export class Store {
       file: null,
       check: { phase: "idle" },
       submit: { step: "explain" },
-      status: { input: "", checking: false, looked: null, withdrawal: { step: "idle" } },
+      status: { input: "", checking: false, looked: null, withdrawal: { step: "idle" }, keyInput: "", agentKey: { step: "idle" } },
       statistics: {
         form: initial.form,
         applied: initial.form,
@@ -412,12 +433,12 @@ export class Store {
 
   setStatusInput(input: string): void {
     this.lookups.cancel();
-    this.updateStatus({ input, checking: false, looked: null, withdrawal: { step: "idle" } });
+    this.updateStatus({ input, checking: false, looked: null, withdrawal: { step: "idle" }, keyInput: "", agentKey: { step: "idle" } });
   }
 
   async lookup(): Promise<void> {
     const secret = this.state.status.input.trim();
-    this.updateStatus({ checking: true, looked: null, withdrawal: { step: "idle" } });
+    this.updateStatus({ checking: true, looked: null, withdrawal: { step: "idle" }, keyInput: "", agentKey: { step: "idle" } });
     let outcome: StatusOutcome;
     try {
       const result = await this.lookups.run((signal) => this.deps.submissionStatus(secret, signal));
@@ -460,5 +481,64 @@ export class Store {
         this.updateStatus({ withdrawal: { step: "uncertain", problem: outcome.problem } });
         return;
     }
+  }
+
+  // Read-only agent keys for the looked-up submission
+
+  setKeyInput(keyInput: string): void {
+    if (this.state.status.agentKey.step === "sending") return;
+    this.updateStatus({ keyInput, agentKey: { step: "idle" } });
+  }
+
+  /** Makes a key in the page and links the looked-up submission to it. */
+  createAgentKey(): Promise<void> {
+    return this.sendAgentKey("create", this.deps.newAgentKey());
+  }
+
+  /** Links the looked-up submission to the key in the field too. */
+  addToAgentKey(): Promise<void> {
+    return this.sendAgentKey("add", this.state.status.keyInput.trim());
+  }
+
+  revokeAgentKey(): Promise<void> {
+    return this.sendAgentKey("revoke", this.state.status.keyInput.trim());
+  }
+
+  retryAgentKey(): Promise<void> {
+    const step = this.state.status.agentKey;
+    return step.step === "uncertain" ? this.sendAgentKey(step.action, step.key) : Promise.resolve();
+  }
+
+  async copyAgentKey(): Promise<void> {
+    const step = this.state.status.agentKey;
+    if (step.step !== "linked" || step.key === null) return;
+    try {
+      await this.deps.copy(step.key);
+      this.notify("keyCopied");
+    } catch {
+      this.notify("keyCopyFailed");
+    }
+  }
+
+  /** Only the key's hash is sent to link it; revoking sends the key, as its holder. An answer for an earlier lookup is dropped. */
+  private async sendAgentKey(action: AgentKeyAction, key: string): Promise<void> {
+    const { looked, agentKey } = this.state.status;
+    if (!looked || agentKey.step === "sending") return;
+    this.updateStatus({ agentKey: { step: "sending", action } });
+    let next: AgentKeyStep;
+    if (action === "revoke") {
+      const outcome = await this.deps.revokeAgentKey(key);
+      next = outcome.kind === "revoked" ? { step: "revoked", found: outcome.found } : outcome.kind === "refused" ? { step: "refused", issues: outcome.issues } : { step: "uncertain", action, key, problem: outcome.problem };
+    } else {
+      const outcome = await this.deps.linkAgentKey(looked.secret, await hashAgentKey(key));
+      next =
+        outcome.kind === "linked"
+          ? { step: "linked", key: action === "create" ? key : null, submissions: outcome.submissions }
+          : outcome.kind === "refused"
+            ? { step: "refused", issues: outcome.issues }
+            : { step: "uncertain", action, key, problem: outcome.problem };
+    }
+    if (this.state.status.looked?.secret !== looked.secret) return;
+    this.updateStatus({ agentKey: next, ...(next.step === "revoked" ? { keyInput: "" } : {}) });
   }
 }

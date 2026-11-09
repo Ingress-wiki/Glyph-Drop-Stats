@@ -5,8 +5,8 @@
 	"compatibility_date": "2026-10-01",
 	"assets": {
 		"not_found_handling": "single-page-application",
-		// API routes must reach the Worker even when a static asset path could match.
-		"run_worker_first": ["/api/*"]
+		// API and MCP routes must reach the Worker, not the page's fallback.
+		"run_worker_first": ["/api/*", "/mcp"]
 	},
 	// Daily: the Ingress events from the game's activity board (src/worker/events.ts).
 	"triggers": {

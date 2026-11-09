@@ -916,6 +916,13 @@ dialog .actions {
   margin: 0 0 4px;
 }
 
+/* An address is copied as written: no capitals, and small enough for the footer. */
+.footer .mcp code {
+  font-size: inherit;
+  text-transform: none;
+  color: var(--fg);
+}
+
 /* No keyboard on a touch screen: its shortcuts would be noise. */
 @media (pointer: coarse) {
   .footer .keys {

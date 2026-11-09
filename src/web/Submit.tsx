@@ -1,3 +1,4 @@
+import { isAgentKey } from "../domain/agentKey.ts";
 import type { Preview } from "../domain/preview.ts";
 import { isReceiptSecret } from "../domain/receipt.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
@@ -6,6 +7,7 @@ import type { AppState, Store } from "./app/store.ts";
 import type { Messages } from "./i18n/en.ts";
 import { issuesText, issueText, messages, problemText, type Locale } from "./i18n/index.ts";
 import { confirmationMessage } from "./messages.ts";
+import { MCP_GUIDE_URL } from "./site.ts";
 
 /** Outcomes held back from the statistics until someone reviews them. */
 const HELD: ReadonlySet<Outcome> = new Set(["update_candidate", "conflict"]);
@@ -261,6 +263,99 @@ function summaryLine(s: Messages, locale: Locale, summary: SubmissionSummary): s
   return s.status.line(state, when(summary.createdAt), summary.rowCount, summary.rejected);
 }
 
+/**
+ * A read-only agent key for the looked-up submission. A new key is shown
+ * once, here, and never again: the server only ever receives its hash.
+ * Creating and adding need an active submission; revoking works on any.
+ */
+function AgentKeySection({ store, state, s, active }: { store: Store; state: AppState; s: Messages; active: boolean }) {
+  const { agentKey, keyInput } = state.status;
+  const busy = agentKey.step === "sending";
+  const ready = isAgentKey(keyInput.trim());
+  // While a new key is on screen, another would replace it before it was copied.
+  const showing = agentKey.step === "linked" && agentKey.key !== null;
+  return (
+    <div className="agent-key" data-testid="agent-key">
+      <h3>{s.agentKey.heading}</h3>
+      <p className="muted">{s.agentKey.explain}</p>
+      {active && !showing && (
+        <button type="button" disabled={busy} onClick={() => void store.createAgentKey()}>
+          {s.agentKey.create}
+        </button>
+      )}
+      {showing && (
+        <div className="receipt">
+          <p className="label">{s.agentKey.yourKey}</p>
+          <code data-testid="agent-key-value" aria-label={s.agentKey.yourKey}>
+            {agentKey.key}
+          </code>
+          <div className="actions">
+            <button type="button" onClick={() => void store.copyAgentKey()}>
+              {s.agentKey.copy}
+            </button>
+          </div>
+          <p className="notice">{s.agentKey.shownOnce}</p>
+        </div>
+      )}
+      {agentKey.step === "linked" && (
+        <p role="status" data-testid="agent-key-covers">
+          {s.agentKey.covers(agentKey.submissions)}
+        </p>
+      )}
+      <form
+        className="toolbar bare"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (ready && !busy && active) void store.addToAgentKey();
+        }}
+      >
+        <input
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          className="receipt-field"
+          aria-label={s.agentKey.field}
+          placeholder={s.agentKey.placeholder}
+          title={s.agentKey.hint}
+          value={keyInput}
+          disabled={busy}
+          onChange={(event) => store.setKeyInput(event.target.value)}
+        />
+        {active && (
+          <button type="submit" disabled={busy || !ready}>
+            {s.agentKey.add}
+          </button>
+        )}
+        <button type="button" className="danger" disabled={busy || !ready} onClick={() => void store.revokeAgentKey()}>
+          {s.agentKey.revoke}
+        </button>
+      </form>
+      {busy && <p className="muted">{s.agentKey.sending}</p>}
+      {agentKey.step === "revoked" && <p role="status">{agentKey.found ? s.agentKey.revoked : s.agentKey.noKey}</p>}
+      {agentKey.step === "refused" && (
+        <p className="error" role="alert">
+          {issuesText(s, agentKey.issues)}
+        </p>
+      )}
+      {agentKey.step === "uncertain" && (
+        <>
+          <p className="error" role="alert">
+            {s.agentKey.failed(problemText(s, agentKey.problem))}
+          </p>
+          <button type="button" onClick={() => void store.retryAgentKey()}>
+            {s.agentKey.retry}
+          </button>
+        </>
+      )}
+      <p>
+        <a href={MCP_GUIDE_URL} target="_blank" rel="noreferrer">
+          {s.agentKey.guide}
+        </a>
+      </p>
+    </div>
+  );
+}
+
 function StatusSection({ store, state, s }: { store: Store; state: AppState; s: Messages }) {
   const { status } = state;
   const busy = status.withdrawal.step === "sending";
@@ -312,6 +407,7 @@ function StatusSection({ store, state, s }: { store: Store; state: AppState; s: 
               )}
             </>
           )}
+          <AgentKeySection store={store} state={state} s={s} active={outcome.submission.status === "completed"} />
         </>
       )}
       {outcome?.kind === "refused" && (

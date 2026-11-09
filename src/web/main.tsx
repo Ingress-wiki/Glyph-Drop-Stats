@@ -1,7 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { newAgentKey } from "../domain/agentKey.ts";
 import { newReceiptSecret } from "../domain/receipt.ts";
-import { confirmUpload, fetchConfig, fetchStatistics, previewFile, submissionStatus, withdrawUpload } from "./api.ts";
+import { confirmUpload, fetchConfig, fetchStatistics, linkAgentKey, previewFile, revokeAgentKey, submissionStatus, withdrawUpload } from "./api.ts";
 import { App } from "./App.tsx";
 import { Store, type View } from "./app/store.ts";
 import { detectLocale, isLocale, LOCALE_KEY, type Locale } from "./i18n/index.ts";
@@ -80,9 +81,12 @@ const store = new Store(
     confirmUpload,
     submissionStatus,
     withdrawUpload,
+    linkAgentKey,
+    revokeAgentKey,
     fetchStatistics,
     fetchConfig,
     newSecret: newReceiptSecret,
+    newAgentKey,
     download,
     copy: copyText,
     storage,

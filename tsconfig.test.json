@@ -9,6 +9,7 @@
   "include": [
     "tests",
     "src/domain",
-    "src/worker/api.ts"
+    "src/worker/api.ts",
+    "src/worker/raw.d.ts"
   ]
 }

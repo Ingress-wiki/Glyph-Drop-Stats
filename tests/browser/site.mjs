@@ -204,6 +204,32 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await page.keyboard.press("Enter");
     await page.locator("[data-testid=status]").waitFor();
     check("lookup shows the submission active", (await page.locator("[data-testid=status]").textContent()).startsWith("Active"));
+
+    // A read-only agent key: made in the page, shown once, usable over MCP until revoked.
+    const mcpCall = (key, tool) =>
+      fetch(`${BASE}/mcp`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: {} } }),
+      }).then((response) => response.json());
+    await page.getByRole("button", { name: "Create a key" }).click();
+    const keyValue = page.locator("[data-testid=agent-key-value]");
+    await keyValue.waitFor();
+    const agentKey = (await keyValue.textContent()) ?? "";
+    check("a new agent key is shown once, in its own alphabet", /^gdsr_[A-Za-z0-9_-]{43}$/.test(agentKey), agentKey);
+    check("the page says how many submissions the key covers", (await page.locator("[data-testid=agent-key-covers]").textContent()) === "This key covers 1 submission.");
+    check("no second key replaces one still on screen", (await page.getByRole("button", { name: "Create a key" }).count()) === 0);
+    await page.locator("[data-testid=agent-key]").getByRole("button", { name: "Copy" }).click();
+    check("COPY copies the exact agent key", await clipboardBecomes(page, agentKey));
+    const mine = await mcpCall(agentKey, "get_my_submissions");
+    const counted = JSON.parse(mine.result?.content?.[0]?.text ?? "{}").countedRecords;
+    check("an agent reads the submission's records with the key", counted === 6, JSON.stringify(mine).slice(0, 200));
+    await page.getByRole("textbox", { name: "Agent key", exact: true }).fill(agentKey);
+    await page.getByRole("button", { name: "Revoke key" }).click();
+    await page.getByText("Key revoked.", { exact: false }).waitFor();
+    check("revoking clears the field", (await page.getByRole("textbox", { name: "Agent key", exact: true }).inputValue()) === "");
+    const revoked = await mcpCall(agentKey, "get_my_submissions");
+    check("a revoked key reads nothing", revoked.result?.isError === true && revoked.result.content[0].text.includes("No agent key matches"), JSON.stringify(revoked).slice(0, 200));
     await page.getByRole("button", { name: "Withdraw this submission" }).click();
     const confirm = page.getByRole("dialog", { name: "Withdraw this submission?" });
     await confirm.waitFor();
