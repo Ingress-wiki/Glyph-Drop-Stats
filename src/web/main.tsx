@@ -6,10 +6,10 @@ import { confirmUpload, fetchConfig, fetchStatistics, linkAgentKey, previewFile,
 import { App } from "./App.tsx";
 import { Store, type View } from "./app/store.ts";
 import { detectLocale, isLocale, LOCALE_KEY, type Locale } from "./i18n/index.ts";
-import { viewFromQuery } from "./viewLink.ts";
+import { viewFromHash, viewFromQuery } from "./viewLink.ts";
 import "./index.css";
 
-const viewFromHash = (): View => (window.location.hash === "#submit" ? "submit" : "statistics");
+const currentView = (): View => viewFromHash(window.location.hash);
 
 /** Preferences only: failing storage (private windows, blocked site data) just means they aren't kept. */
 const storage = {
@@ -94,7 +94,7 @@ const store = new Store(
     origin: window.location.origin,
     now: () => new Date(),
   },
-  viewFromHash(),
+  currentView(),
   initialLocale(),
   // A linked view opens as it was seen.
   viewFromQuery(window.location.search),
@@ -111,7 +111,7 @@ window.addEventListener("drop", (event) => {
   store.setView("submit");
   store.chooseFile(file);
 });
-window.addEventListener("hashchange", () => store.setView(viewFromHash()));
+window.addEventListener("hashchange", () => store.setView(currentView()));
 
 // F1/F2 switch views, F3 the filters, F4 the guide. Not while a dialog is open: it keeps the keyboard.
 document.addEventListener("keydown", (event) => {

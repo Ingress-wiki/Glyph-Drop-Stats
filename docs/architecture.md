@@ -22,7 +22,7 @@ pale-to-full yellow ramp for "more", light and dark following the system.
 | --- | --- |
 | `src/web/app/store.ts` | All page state and actions, with no rendering. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
 | `src/web/App.tsx` | The top bar, the view, the dialogs and the live region. Components read the store with `useSyncExternalStore` and call its actions. |
-| `src/web/Statistics.tsx`, `src/web/Submit.tsx` | The two views. |
+| `src/web/Statistics.tsx`, `src/web/Submit.tsx`, `src/web/Agents.tsx` | The three views: statistics (the home page), submitting, and AI agents (`#agents`), the MCP server's landing page. |
 | `src/web/charts.tsx` | The charts, drawn with [TanStack Charts](https://tanstack.com/charts) as SVG: bars for comparisons and for what an observation gives, a heatmap for the level grid. |
 | `src/web/dashboard.ts` | What the statistics page derives from an answer (shares, bars, group names, the few-observations mark). Unit-tested. |
 | `src/web/app/announce.ts` | What the live region says after each change. Unit-tested. |

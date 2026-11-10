@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_FORM } from "../src/web/statsForm.ts";
-import { address, DEFAULT_VIEW, hasRanges, viewFromQuery, viewQuery, type ViewState } from "../src/web/viewLink.ts";
+import { address, DEFAULT_VIEW, hasRanges, viewFromHash, viewFromQuery, viewQuery, type ViewState } from "../src/web/viewLink.ts";
 
 describe("view links", () => {
   it("write nothing for the default view", () => {
     expect(viewQuery(DEFAULT_VIEW)).toBe("");
-    expect(address(DEFAULT_VIEW, false)).toBe("");
-    expect(address(DEFAULT_VIEW, true)).toBe("#submit");
+    expect(address(DEFAULT_VIEW, "statistics")).toBe("");
+    expect(address(DEFAULT_VIEW, "submit")).toBe("#submit");
+    expect(address(DEFAULT_VIEW, "agents")).toBe("#agents");
+  });
+
+  it("name each view by its hash, the statistics being the home page", () => {
+    expect(viewFromHash("")).toBe("statistics");
+    expect(viewFromHash("#submit")).toBe("submit");
+    expect(viewFromHash("#agents")).toBe("agents");
+    expect(viewFromHash("#elsewhere")).toBe("statistics");
   });
 
   it("round-trip every part of a view, in the forms the page shows", () => {

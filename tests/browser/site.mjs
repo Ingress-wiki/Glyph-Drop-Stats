@@ -248,6 +248,26 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     check("retry shows it withdrawn and closes the dialog", true);
     if (SCREENS) await page.screenshot({ path: `${SCREENS}/submit.png`, fullPage: true });
 
+    // The AI agents page: reached from the top bar and from the footer, its addresses copied as written.
+    await page.locator("footer").getByRole("link", { name: "how to connect" }).click();
+    const agentsHeading = page.getByRole("heading", { name: "Analyze drops with your AI agent" });
+    await agentsHeading.waitFor();
+    check("the footer opens the AI agents page at its top", (await page.evaluate(() => window.scrollY)) === 0 && page.url().endsWith("#agents"), page.url());
+    check("the top bar marks the AI agents tab", (await page.getByRole("navigation").getByRole("button", { name: "AI agents" }).getAttribute("aria-current")) === "page");
+    const serverAddress = (await page.locator(".agents .receipt code").textContent()) ?? "";
+    check("the page shows this site's own MCP address", serverAddress === `${BASE}/mcp`, serverAddress);
+    await page.getByRole("button", { name: "Copy: Server address" }).click();
+    check("the server address is copied as written", await clipboardBecomes(page, `${BASE}/mcp`));
+    check("the setup commands use the same address", (await page.locator(".agents .copyable code").allTextContents()).every((text) => text.includes(`${BASE}/mcp`)));
+    await page.getByRole("button", { name: "Go to Submit" }).click();
+    await page.getByRole("heading", { name: "Check or withdraw a submission" }).waitFor();
+    check("the page leads on to making a key", page.url().endsWith("#submit"), page.url());
+    await page.getByRole("navigation").getByRole("button", { name: "AI agents" }).click();
+    await agentsHeading.waitFor();
+    await page.goBack();
+    await page.goForward();
+    check("the AI agents page has its own address, kept through history", await agentsHeading.isVisible());
+
     // Statistics reflect the withdrawal at once. The UI upload of a.csv still supports h1-h6.
     await page.keyboard.press("F1");
     await page.waitForTimeout(800);

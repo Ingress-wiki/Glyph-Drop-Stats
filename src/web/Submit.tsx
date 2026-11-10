@@ -7,7 +7,6 @@ import type { AppState, Store } from "./app/store.ts";
 import type { Messages } from "./i18n/en.ts";
 import { issuesText, issueText, messages, problemText, type Locale } from "./i18n/index.ts";
 import { confirmationMessage } from "./messages.ts";
-import { MCP_GUIDE_URL } from "./site.ts";
 
 /** Outcomes held back from the statistics until someone reviews them. */
 const HELD: ReadonlySet<Outcome> = new Set(["update_candidate", "conflict"]);
@@ -348,7 +347,7 @@ function AgentKeySection({ store, state, s, active }: { store: Store; state: App
         </>
       )}
       <p>
-        <a href={MCP_GUIDE_URL} target="_blank" rel="noreferrer">
+        <a href="#agents">
           {s.agentKey.guide}
         </a>
       </p>

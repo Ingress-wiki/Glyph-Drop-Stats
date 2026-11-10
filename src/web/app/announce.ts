@@ -7,7 +7,7 @@ export function announcement(previous: AppState, next: AppState): string | null 
   const s = messages(next.locale);
   if (next.locale !== previous.locale) return s.language.name;
   if (next.notice !== previous.notice && next.notice) return s.notice[next.notice.id];
-  if (next.view !== previous.view) return next.view === "statistics" ? s.app.statistics : s.app.submit;
+  if (next.view !== previous.view) return { statistics: s.app.statistics, submit: s.app.submit, agents: s.app.agents }[next.view];
   if (next.check !== previous.check) {
     if (next.check.phase === "done") {
       const { preview } = next.check;

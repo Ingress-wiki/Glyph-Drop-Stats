@@ -58,6 +58,18 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
       await page.screenshot({ path: `${DIR}/language-${locale}.png`, fullPage: true });
       check(`${locale} renders`, (await page.title()) === messages(locale).app.title && (await page.evaluate(() => document.documentElement.lang)) === locale);
     }
+    // The AI agents page in every language, at phone width: nothing wider than the screen.
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const locale of LOCALES) {
+      await page.evaluate((value) => localStorage.setItem("glyph-drop-stats:locale", value), locale);
+      // Only the hash differs from the page already open, so reload to read the saved language.
+      await page.goto(`${BASE}/#agents`, { waitUntil: "domcontentloaded" });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("heading", { name: messages(locale).agents.title }).waitFor();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      check(`the AI agents page fits a phone in ${locale}`, overflow <= 0, `${overflow}px`);
+      await page.screenshot({ path: `${DIR}/agents-${locale}.png`, fullPage: true });
+    }
     check("no page errors", errors.length === 0, errors.join("; "));
   } catch (error) {
     check("language check ran to the end", false, String(error).slice(0, 400));

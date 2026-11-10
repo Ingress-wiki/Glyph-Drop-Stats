@@ -9,6 +9,10 @@ else's.
 https://stats.ingress.wiki/mcp
 ```
 
+The site's **AI agents** page (`https://stats.ingress.wiki/#agents`, in the
+top bar) explains all this in the page's five languages, with commands to
+copy. This document is the full reference.
+
 Everything through it is read-only. The public tools need no sign-in.
 Your own records need a read-only **agent key**. Nothing through the server
 can submit, look up a receipt or withdraw.

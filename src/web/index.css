@@ -916,6 +916,51 @@ dialog .actions {
   margin: 0 0 4px;
 }
 
+/* The AI agents page */
+
+.agents ol,
+.agents ul {
+  margin: 8px 0;
+  padding-left: 1.4em;
+}
+
+.agents li + li {
+  margin-top: 6px;
+}
+
+.agents .notice {
+  margin: 12px 0;
+}
+
+/* A command or address shown in full, selected in one click, with its copy button. */
+.copyable {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0 12px;
+}
+
+.copyable code {
+  flex: 1 1 18rem;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  user-select: all;
+}
+
+.receipt .copyable {
+  margin: 0;
+}
+
+.receipt .copyable code {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 /* An address is copied as written: no capitals, and small enough for the footer. */
 .footer .mcp code {
   font-size: inherit;

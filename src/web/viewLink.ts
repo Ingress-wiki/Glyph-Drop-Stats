@@ -105,8 +105,17 @@ export function viewFromQuery(query: string): ViewState {
   };
 }
 
-/** The page's address for a view: its query, and `#submit` for the submit view. */
-export function address(view: ViewState, submitting: boolean): string {
+/** The page's views. The statistics are the home page; the others are named by the address's hash. */
+export type View = "statistics" | "submit" | "agents";
+
+const VIEW_HASH: Record<View, string> = { statistics: "", submit: "#submit", agents: "#agents" };
+
+export function viewFromHash(hash: string): View {
+  return (Object.keys(VIEW_HASH) as View[]).find((view) => VIEW_HASH[view] !== "" && VIEW_HASH[view] === hash) ?? "statistics";
+}
+
+/** The page's address: the statistics view's query, and the hash of the view shown. */
+export function address(view: ViewState, page: View): string {
   const query = viewQuery(view);
-  return `${query === "" ? "" : `?${query}`}${submitting ? "#submit" : ""}`;
+  return `${query === "" ? "" : `?${query}`}${VIEW_HASH[page]}`;
 }

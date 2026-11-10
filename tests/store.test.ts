@@ -219,6 +219,26 @@ describe("looking up and withdrawing", () => {
   });
 });
 
+describe("the AI agents page", () => {
+  it("is a view of its own in the address, with no dialog to wait for", () => {
+    const { store, deps } = setup();
+    store.setView("agents");
+    expect(vi.mocked(deps.setAddress).mock.calls.at(-1)?.[0]).toBe("#agents");
+    expect(store.dialogOpen()).toBe(false);
+    expect(announcement({ ...store.state, view: "submit" }, store.state)).toBe("AI agents");
+  });
+
+  it("copies an address or command and says so", async () => {
+    const { store, deps } = setup();
+    await store.copyText("https://stats.test/mcp");
+    expect(deps.copy).toHaveBeenCalledWith("https://stats.test/mcp");
+    expect(store.state.notice?.id).toBe("textCopied");
+    const failing = setup({ copy: vi.fn(async () => Promise.reject(new Error("denied"))) });
+    await failing.store.copyText("x");
+    expect(failing.store.state.notice?.id).toBe("textCopyFailed");
+  });
+});
+
 describe("agent keys", () => {
   async function looked(overrides: Partial<StoreDeps> = {}) {
     const context = setup(overrides);

@@ -20,7 +20,7 @@ import { LOCALE_KEY, messages, type Locale } from "../i18n/index.ts";
 import { itemsTsv, type Sort, type SortKey } from "../itemTable.ts";
 import { LatestOnly, STALE } from "../latest.ts";
 import { EMPTY_FORM, formQuery, type StatsForm } from "../statsForm.ts";
-import { address, DEFAULT_VIEW, hasRanges, type ViewState } from "../viewLink.ts";
+import { address, DEFAULT_VIEW, hasRanges, type View, type ViewState } from "../viewLink.ts";
 
 /**
  * Everything the page shows and every action on it, with no rendering. The
@@ -29,7 +29,7 @@ import { address, DEFAULT_VIEW, hasRanges, type ViewState } from "../viewLink.ts
  * them be tested without a browser.
  */
 
-export type View = "statistics" | "submit";
+export type { View };
 
 export interface StatisticsState {
   /** The form as typed; ranges apply only when asked. */
@@ -188,7 +188,7 @@ export class Store {
   /** The address for the current state: the applied view, and whether submitting. */
   private address(): string {
     const { applied, search, sort, gridGroup, distItem } = this.state.statistics;
-    return address({ form: applied, search, sort, gridGroup, item: distItem }, this.state.view === "submit");
+    return address({ form: applied, search, sort, gridGroup, item: distItem }, this.state.view);
   }
 
   async loadConfig(): Promise<void> {
@@ -248,6 +248,7 @@ export class Store {
   dialogOpen(): boolean {
     const { view, statistics, status } = this.state;
     if (view === "statistics") return statistics.disclaimerOpen || statistics.guideOpen;
+    if (view === "agents") return false;
     return status.withdrawal.step === "confirming" || status.withdrawal.step === "uncertain" || status.withdrawal.step === "sending";
   }
 
@@ -392,6 +393,16 @@ export class Store {
       receiptText(secret, this.deps.origin, this.deps.now(), this.strings.receiptFile),
       "text/plain",
     );
+  }
+
+  /** Copies text shown on the page, such as the MCP server's address or a command. */
+  async copyText(text: string): Promise<void> {
+    try {
+      await this.deps.copy(text);
+      this.notify("textCopied");
+    } catch {
+      this.notify("textCopyFailed");
+    }
   }
 
   async copyReceipt(): Promise<void> {

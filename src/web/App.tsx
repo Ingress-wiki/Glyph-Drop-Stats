@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { announcement } from "./app/announce.ts";
 import type { AppState, Store, View } from "./app/store.ts";
 import { LOCALES, messages, problemText, type Locale } from "./i18n/index.ts";
-import { MCP_GUIDE_URL, SOURCE_URL } from "./site.ts";
+import { AgentsView } from "./Agents.tsx";
+import { SOURCE_URL } from "./site.ts";
 import { StatisticsView } from "./Statistics.tsx";
 import { SubmitView } from "./Submit.tsx";
 
@@ -27,10 +28,8 @@ function useAnnouncement(store: Store): string {
   return said;
 }
 
-const TABS: readonly { view: View; key: string }[] = [
-  { view: "statistics", key: "F1" },
-  { view: "submit", key: "F2" },
-];
+/** The views in the top bar; the first two have function-key shortcuts. */
+const TABS: readonly { view: View; key?: string }[] = [{ view: "statistics", key: "F1" }, { view: "submit", key: "F2" }, { view: "agents" }];
 
 export function App({ store }: { store: Store }) {
   const state = useAppState(store);
@@ -43,6 +42,11 @@ export function App({ store }: { store: Store }) {
     document.documentElement.lang = state.locale;
     document.title = s.app.title;
   }, [state.locale, s]);
+
+  // A view opened from a link low on another, such as the footer's, starts at its top.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view]);
 
   return (
     <>
@@ -59,7 +63,7 @@ export function App({ store }: { store: Store }) {
                 aria-keyshortcuts={tab.key}
                 onClick={() => store.setView(tab.view)}
               >
-                {tab.view === "statistics" ? s.app.statistics : s.app.submit}
+                {{ statistics: s.app.statistics, submit: s.app.submit, agents: s.app.agents }[tab.view]}
               </button>
             ))}
           </nav>
@@ -76,11 +80,15 @@ export function App({ store }: { store: Store }) {
             </a>
           </div>
         </header>
-        <main>{view === "statistics" ? <StatisticsView store={store} state={state} /> : <SubmitView store={store} state={state} />}</main>
+        <main>
+          {view === "statistics" && <StatisticsView store={store} state={state} />}
+          {view === "submit" && <SubmitView store={store} state={state} />}
+          {view === "agents" && <AgentsView store={store} state={state} />}
+        </main>
         <footer className="footer">
           <p className="mcp">
             {s.app.mcp} <code>{`${location.origin}/mcp`}</code> ·{" "}
-            <a href={MCP_GUIDE_URL} target="_blank" rel="noreferrer">
+            <a href="#agents">
               {s.app.mcpGuide}
             </a>
           </p>
