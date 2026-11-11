@@ -122,7 +122,7 @@ export const zhHant: Messages = {
       few: (min: number) => `顏色較暗的列合格觀測少於 ${min} 次。`,
       notes: {
         alignment:
-          "只有 DynamicGlyph 1.0.0 之後的版本記錄的 Glyph Hack 才有陣營關係。它來自 Hack 前剛讀取的能量塔畫面，並非經過驗證的能量塔；中立能量塔目前還無法辨識。",
+          "每次 Hack 都有陣營關係；掉落沒有，也不歸入任何組。它來自 Hack 前剛讀取的能量塔畫面，並非經過驗證的能量塔；中立能量塔目前還無法辨識。",
         portalLevel: "只計 App 確定的精確能量塔等級。等級範圍、衝突和低信心度都歸為未知。",
         glyphCount: "掉落沒有 Glyph 數量。",
         speedCommand: "只計 App 確認看到的指令。",
@@ -208,7 +208,6 @@ export const zhHant: Messages = {
     hacking_bonus_not_final: "筆 Hack 加成不是最終值",
     no_speed_bonus: "筆沒有速度加成（包括所有掉落）",
     speed_bonus_not_final: "筆速度加成不是最終值",
-    no_alignment: "筆沒有能量塔陣營關係（包括所有掉落）",
   },
 
   coverage: {
@@ -249,7 +248,7 @@ export const zhHant: Messages = {
       "每次觀測 = 數量 ÷ 合格觀測次數，包括沒有該物品的觀測。",
       "數值越接近該欄的最大值，底色越亮。亮代表較多，不代表較好。",
       "無法判定某筆記錄的篩選條件（掉落沒有能量塔等級；舊記錄沒有當地時間）會將它擱置並加以註明，而不是去猜測。",
-      "這裡只有 App 讀取到的內容，而且提交哪些資料由玩家自行決定。特工等級、模組和 Hack 類型都沒有記錄，也不會儲存任何人的陣營：只有較新版本記錄的能量塔陣營關係。沒有提供信賴區間：記錄會依玩家和遊玩時段聚集，所以少於 30 次觀測的數字會變暗。",
+      "這裡只有 App 讀取到的內容，而且提交哪些資料由玩家自行決定。特工等級、模組和 Hack 類型都沒有記錄，也不會儲存任何人的陣營：只有能量塔的陣營關係。沒有提供信賴區間：記錄會依玩家和遊玩時段聚集，所以少於 30 次觀測的數字會變暗。",
     ],
   },
 
@@ -554,6 +553,7 @@ export const zhHant: Messages = {
     "file.mixedExporters": "各列由不同的 App 組建寫入；請分別上傳每個匯出檔。",
 
     "warning.ignoredColumns": "有 {count} 個本站不認得的欄位已被忽略，且未儲存：{columns}。",
+    "warning.noFactionColumns": "此匯出沒有 portal_alignment 欄，因此其中的 Hack 未被接受：只接受能量塔陣營已知的 Hack。其中若有掉落，仍會接受。",
     "warning.factionsNotStored": "你的陣營和能量塔的陣營只用來核對 portal_alignment，不會儲存，所以沒有人能從這次上傳看出你的陣營。",
     "warning.unlistedItems":
       "尚未列入本站清單的物品名稱，以及擷取它們的 App 組建：{items}。這些名稱會以未經驗證的文字保留，絕不公開顯示；在名稱審核完成之前，相關記錄不會計入物品統計。",
@@ -603,6 +603,7 @@ export const zhHant: Messages = {
     "hack.levelColumns": "能量塔等級欄位必須全部填寫或全部留空。",
     "hack.levelOrder": "portal_level_low 大於 portal_level_high。",
     "hack.alignment": "portal_alignment 與 portal_faction 和 player_faction 不一致。",
+    "hack.unknownFaction": "能量塔的陣營未知（portal_alignment 為空）。只接受能量塔陣營已知的 Hack。",
 
     "panel.withoutPanel": "沒有面板的列必須是該記錄唯一的一列，且物品欄位留空。",
     "panel.order": "能量塔面板的列必須排在獎勵面板的列之前。",

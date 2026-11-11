@@ -1,6 +1,6 @@
 import { COLUMN_NAMES, type ColumnName } from "../../src/domain/format.ts";
 
-export type Row = Partial<Record<ColumnName, string>>;
+export type Row = Partial<Record<ColumnName | "portal_alignment", string>>;
 
 export const HACK_ID = "h3f9a0c7e5b1d2a4c8e6f0b9d7c5a3e1f";
 export const DROP_ID = "d81c2e94b07fa3d5e6a1f0c9b8d7e6f5a";
@@ -129,13 +129,18 @@ function quote(field: string): string {
   return /[",\r\n]/.test(field) ? `"${field.replaceAll('"', '""')}"` : field;
 }
 
-/** A v1 file: the real header, then each row's cells in column order. */
+/**
+ * A v1 file: the real header and the appended `portal_alignment`, then each
+ * row's cells in column order. Every hack needs an alignment to be accepted,
+ * so a hack row without one gets `same_faction`; drops have none. With
+ * `header`, the file has exactly those columns: the v1 cells, then `extra`.
+ */
 export function csv(rows: Row[], options: { header?: readonly string[]; extra?: string[][] } = {}): string {
-  const header = options.header ?? COLUMN_NAMES;
+  const header = options.header ?? [...COLUMN_NAMES, "portal_alignment"];
   const lines = [header.map(quote).join(",")];
   rows.forEach((row, index) => {
     const cells = COLUMN_NAMES.map((name) => row[name] ?? "");
-    const extra = options.extra?.[index] ?? [];
+    const extra = options.header ? (options.extra?.[index] ?? []) : [row.portal_alignment ?? (row.kind === "hack" ? "same_faction" : "")];
     lines.push([...cells, ...extra].map(quote).join(","));
   });
   return lines.map((line) => `${line}\r\n`).join("");

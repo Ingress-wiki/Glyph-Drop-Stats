@@ -104,7 +104,6 @@ export const UNPLACED_REASONS = [
   "hacking_bonus_not_final",
   "no_speed_bonus",
   "speed_bonus_not_final",
-  "no_alignment",
 ] as const;
 export type UnplacedReason = (typeof UNPLACED_REASONS)[number];
 
@@ -310,11 +309,8 @@ export function place(record: ObservationRecord, filter: StatsFilter): Placement
   bonus(hack?.hackingBonus ?? null, filter.hackingBonus, "no_hacking_bonus", "hacking_bonus_not_final");
   bonus(hack?.speedBonus ?? null, filter.speedBonus, "no_speed_bonus", "speed_bonus_not_final");
 
-  if (filter.alignment) {
-    const alignment = hack?.portalAlignment;
-    if (alignment === undefined) verdicts.push("no_alignment");
-    else verdicts.push(alignment === filter.alignment ? "in" : "out");
-  }
+  // Every accepted hack has an alignment; a drop has no portal, so it is on no side.
+  if (filter.alignment) verdicts.push(hack?.portalAlignment === filter.alignment ? "in" : "out");
 
   if (verdicts.includes("out")) return "out";
   return verdicts.find((verdict) => verdict !== "in") ?? "in";
@@ -427,15 +423,15 @@ function panelEffect(record: ObservationRecord): string | null {
 /** Which groups of `split` a record belongs to: one, except by event, where events overlap. `events` is the known events' list. */
 export function groupKeys(record: ObservationRecord, split: Split, events: readonly IngressEvent[] = []): string[] {
   if (split === "event") return eventsOf(record, events);
+  // Alignment groups hacks only: a drop has no portal, and no hack is accepted without an alignment.
+  if (split === "alignment") return record.hack?.portalAlignment ? [record.hack.portalAlignment] : [];
   return [groupKey(record, split)];
 }
 
-function groupKey(record: ObservationRecord, split: Exclude<Split, "event">): string {
+function groupKey(record: ObservationRecord, split: Exclude<Split, "event" | "alignment">): string {
   const { hack } = record;
   const known = (value: string | number | null | undefined) => (value === null || value === undefined ? UNKNOWN_GROUP : String(value));
   switch (split) {
-    case "alignment":
-      return known(hack?.portalAlignment);
     case "portalLevel":
       return known(exactPortalLevel(hack));
     case "glyphCount":

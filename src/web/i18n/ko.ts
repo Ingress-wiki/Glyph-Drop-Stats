@@ -122,7 +122,7 @@ export const ko: Messages = {
       few: (min: number) => `흐린 행은 집계 대상 관측이 ${min}건 미만입니다.`,
       notes: {
         alignment:
-          "진영 관계는 DynamicGlyph 1.0.0 이후 빌드가 기록한 Glyph 해킹에만 있습니다. 해킹 직전에 읽은 포탈 화면에서 나온 것이며 확인된 포탈이 아닙니다. 중립 포탈은 아직 인식하지 못합니다.",
+          "모든 해킹에는 진영 관계가 있습니다. 드롭에는 없으며 어느 그룹에도 들어가지 않습니다. 해킹 직전에 읽은 포탈 화면에서 나온 것이며 확인된 포탈이 아닙니다. 중립 포탈은 아직 인식하지 못합니다.",
         portalLevel: "앱이 확신한 정확한 포탈 레벨만 씁니다. 범위, 충돌, 낮은 신뢰도는 알 수 없음으로 둡니다.",
         glyphCount: "드롭에는 Glyph 수가 없습니다.",
         speedCommand: "앱이 확정을 확인한 명령만 셉니다.",
@@ -208,7 +208,6 @@ export const ko: Messages = {
     hacking_bonus_not_final: "해킹 보너스가 최종값이 아님",
     no_speed_bonus: "속도 보너스 없음 (모든 드롭 포함)",
     speed_bonus_not_final: "속도 보너스가 최종값이 아님",
-    no_alignment: "포탈 진영 관계 없음 (모든 드롭 포함)",
   },
 
   coverage: {
@@ -249,7 +248,7 @@ export const ko: Messages = {
       "관측당 값은 수량 ÷ 집계 대상 관측 수이며, 그 아이템이 나오지 않은 관측도 포함합니다.",
       "음영은 값이 해당 열의 최댓값에 가까울수록 밝아집니다. 더 많다는 뜻이지 더 좋다는 뜻이 아닙니다.",
       "기록을 판정할 수 없는 필터 (드롭에는 포탈 레벨이 없고, 오래된 기록에는 현지 시각이 없음)는 추측하지 않고 그 기록을 따로 두며, 그 사실을 표시합니다.",
-      "여기에는 앱이 읽은 내용만 있으며, 무엇을 제출할지는 플레이어가 선택합니다. 에이전트 레벨, 모드, 해킹 종류는 기록되지 않고 누구의 진영도 저장하지 않습니다. 새 빌드가 기록한 포탈 진영 관계만 저장합니다. 신뢰 구간은 없습니다. 기록이 플레이어와 세션별로 몰려 있으므로 관측이 30건 미만인 수치는 흐리게 표시합니다.",
+      "여기에는 앱이 읽은 내용만 있으며, 무엇을 제출할지는 플레이어가 선택합니다. 에이전트 레벨, 모드, 해킹 종류는 기록되지 않고 누구의 진영도 저장하지 않습니다. 포탈 진영 관계만 저장합니다. 신뢰 구간은 없습니다. 기록이 플레이어와 세션별로 몰려 있으므로 관측이 30건 미만인 수치는 흐리게 표시합니다.",
     ],
   },
 
@@ -558,6 +557,7 @@ export const ko: Messages = {
     "file.mixedExporters": "서로 다른 앱 빌드가 작성한 행이 섞여 있습니다. 내보내기 파일을 각각 따로 업로드하세요.",
 
     "warning.ignoredColumns": "이 사이트가 모르는 열 {count}개는 무시되었고 저장되지 않았습니다: {columns}.",
+    "warning.noFactionColumns": "이 내보내기에는 portal_alignment 열이 없어 해킹을 받지 않았습니다. 진영을 아는 포탈의 해킹만 받습니다. 드롭이 있으면 그것은 받습니다.",
     "warning.factionsNotStored":
       "내 진영과 포탈 진영은 portal_alignment를 확인하는 데만 쓰고 저장하지 않습니다. 이 업로드로 내 진영을 알 수 없습니다.",
     "warning.unlistedItems":
@@ -608,6 +608,7 @@ export const ko: Messages = {
     "hack.levelColumns": "포탈 레벨 열은 모두 값이 있거나 모두 비어 있어야 합니다.",
     "hack.levelOrder": "portal_level_low가 portal_level_high보다 큽니다.",
     "hack.alignment": "portal_alignment가 portal_faction 및 player_faction과 맞지 않습니다.",
+    "hack.unknownFaction": "포탈의 진영을 알 수 없습니다(portal_alignment가 비어 있음). 진영을 아는 포탈의 해킹만 받습니다.",
 
     "panel.withoutPanel": "패널이 없는 행은 그 기록의 유일한 행이어야 하며, 아이템 열은 비어 있어야 합니다.",
     "panel.order": "포탈 패널의 행이 보너스 패널의 행보다 앞에 와야 합니다.",

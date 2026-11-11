@@ -132,7 +132,7 @@ export const en = {
       few: (min: number) => `Dimmed rows rest on fewer than ${min} eligible observations.`,
       notes: {
         alignment:
-          "Only Glyph hacks from DynamicGlyph builds after 1.0.0 have an alignment. It comes from the portal screen read just before the hack, not a verified portal, and neutral portals aren't recognized yet.",
+          "Every hack has an alignment; drops have none and are in no group. It comes from the portal screen read just before the hack, not a verified portal, and neutral portals aren't recognized yet.",
         portalLevel: "Only exact portal levels the app was sure of. Ranges, conflicts and low confidence are Unknown.",
         glyphCount: "Drops have no Glyph count.",
         speedCommand: "A command counts only when the app saw it confirmed.",
@@ -218,7 +218,6 @@ export const en = {
     hacking_bonus_not_final: "whose hacking bonus isn't final",
     no_speed_bonus: "with no speed bonus (includes every drop)",
     speed_bonus_not_final: "whose speed bonus isn't final",
-    no_alignment: "with no portal alignment (includes every drop)",
   } as Record<UnplacedReason, string>,
 
   coverage: {
@@ -259,7 +258,7 @@ export const en = {
       "Per observation is quantity ÷ eligible observations, including observations without that item.",
       "Shading brightens as a value approaches its column's largest. It means more, not better.",
       "Filters that can't judge a record (a drop has no portal level; an old record has no local time) set it aside and say so, instead of guessing.",
-      "Only what the app read is here, and players choose what to submit. Agent level, mods and hack type aren't recorded, and no one's faction is stored: only a portal's alignment, from newer builds. There are no confidence intervals: records cluster by player and session, so figures from fewer than 30 observations are dimmed.",
+      "Only what the app read is here, and players choose what to submit. Agent level, mods and hack type aren't recorded, and no one's faction is stored: only a portal's alignment. There are no confidence intervals: records cluster by player and session, so figures from fewer than 30 observations are dimmed.",
     ],
   },
 

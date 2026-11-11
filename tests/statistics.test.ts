@@ -36,10 +36,11 @@ describe("the whole dataset", () => {
     expect(result.items).toEqual({ panels: "portal", ...EXPECTED.portalItems });
   });
 
-  it("summarizes every matched record, and puts them all in one unknown group without alignments", () => {
+  it("summarizes every matched record, and groups only the hacks by alignment", () => {
     expect(result.summary).toEqual(EXPECTED.summary);
     expect(result.split).toBe("alignment");
-    expect(result.groups).toEqual([{ key: "unknown", summary: EXPECTED.summary }]);
+    // Every hack here is same_faction; drops have no portal, so no group.
+    expect(result.groups.map((group) => [group.key, group.summary.records])).toEqual([["same_faction", EXPECTED.records.byKind.hack]]);
   });
 
   it("can't count uploads unless told where records came from", () => {
@@ -264,7 +265,7 @@ describe("query parameters", () => {
  * | a  | hack | enemy        | 6 high              | complex | ITO EN (+) | 0.1.0 (74) | Resonator L6 ×2, Portal Shield rare ×1, Portal Key ×1 |
  * | b  | hack | enemy        | 6 low, conflict     | complex | —          | 0.1.0 (74) | Resonator L5 ×1                                    |
  * | c  | hack | machina      | 3 medium            | simple  | ITO EN (-) | 0.1.0 (74) | Portal Shield rarity unread ×1, XMP Burster L3 ×1  |
- * | d  | hack | —            | 7 high              | complex | —          | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
+ * | d  | hack | same_faction | 7 high              | complex | —          | 1.0.0 (2)  | Heat Sink common ×1, Resonator L7 ×1               |
  * | e  | drop | —            | —                   | —       | —          | 0.1.0 (74) | Power Cube L8 ×1                                   |
  * | f  | hack | same_faction | 2 low               | complex | —          | 0.1.0 (10) | Resonator L2 ×1, Hypercube ×1, Resonator L3 ×1     |
  */
@@ -349,9 +350,9 @@ describe("alignment, trusted levels, shares and splits", () => {
         ...d,
         ...item("portal", 0, noLevel("Heat Sink", { rarity: "common", rarity_source: "read" })),
       },
-      "",
+      "same_faction",
     ],
-    [{ ...d, ...item("portal", 1, { level: "7" }) }, ""],
+    [{ ...d, ...item("portal", 1, { level: "7" }) }, "same_faction"],
     [{ ...e, ...item("portal", 0, { item: "Power Cube", level: "8" }) }, ""],
     [{ ...f, ...item("portal", 0, { level: "2" }) }, "same_faction"],
     [
@@ -423,13 +424,12 @@ describe("alignment, trusted levels, shares and splits", () => {
     });
   });
 
-  it("groups by alignment in a fixed order, unknown last", () => {
+  it("groups hacks by alignment in a fixed order, with no unknown group", () => {
     const result = run();
     expect(result.groups.map((group) => [group.key, group.summary.records])).toEqual([
-      ["same_faction", 1],
+      ["same_faction", 2],
       ["enemy", 2],
       ["machina", 1],
-      ["unknown", 2],
     ]);
     const enemy = result.groups[1].summary;
     expect(enemy).toMatchObject({
@@ -471,11 +471,11 @@ describe("alignment, trusted levels, shares and splits", () => {
     expect(groups[1].summary).toMatchObject({ eligible: 1, totalQuantity: 4, averagePerObservation: 4 });
   });
 
-  it("filters by alignment, setting aside records without one", () => {
+  it("filters by alignment, leaving out records on no side", () => {
     const result = run({ alignment: "enemy" });
     expect(result.selection.matched).toBe(2);
-    // d has no alignment and e is a drop; c and f are out.
-    expect(result.selection.unplaced.no_alignment).toBe(2);
+    // e is a drop, on no side: like c, d and f, it is out, not unplaced.
+    expect(Object.values(result.selection.unplaced).every((n) => n === 0)).toBe(true);
     expect(result.selection.uploads).toBe(1);
   });
 

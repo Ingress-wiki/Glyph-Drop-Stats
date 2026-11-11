@@ -259,6 +259,11 @@ export function parseExport(bytes: Uint8Array, options: ImportOptions = {}): Imp
     }
   }
 
+  // Without the column every hack is refused for the same reason; say so once, for the whole file.
+  if (!appendedAt.has("portal_alignment") && rejected.some((record) => record.issues.some((issue) => issue.key === "hack.unknownFaction"))) {
+    warnings.push(makeIssue("no_faction_columns", "warning.noFactionColumns"));
+  }
+
   // Named by the build that captured each record, not the one that exported the file.
   const unlisted = new Map<string, Set<string>>();
   for (const { record } of records) {
@@ -519,7 +524,10 @@ function buildHack(r: DecodedRow, line: number, issues: RecordIssues, checkAlign
     }
   }
 
-  if (checkAlignment && r.portal_alignment !== expectedAlignment(r)) {
+  // Only hacks on a portal of known faction are accepted: an unknown one would sit outside every alignment.
+  if (r.portal_alignment === null) {
+    issues.add("missing_value", "hack.unknownFaction", undefined, line, "portal_alignment");
+  } else if (checkAlignment && r.portal_alignment !== expectedAlignment(r)) {
     issues.add("inconsistent_record", "hack.alignment", undefined, line, "portal_alignment");
   }
 

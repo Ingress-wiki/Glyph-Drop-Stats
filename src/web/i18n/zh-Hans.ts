@@ -122,7 +122,7 @@ export const zhHans: Messages = {
       few: (min: number) => `颜色较暗的行合格观测少于 ${min} 次。`,
       notes: {
         alignment:
-          "只有 DynamicGlyph 1.0.0 之后的版本记录的 Glyph Hack 才有阵营关系。它来自 Hack 前刚读取的能量塔画面，并非经过验证的能量塔；中立能量塔暂时还无法识别。",
+          "每次 Hack 都有阵营关系；掉落没有，也不归入任何组。它来自 Hack 前刚读取的能量塔画面，并非经过验证的能量塔；中立能量塔暂时还无法识别。",
         portalLevel: "只计应用确定的精确能量塔等级。等级范围、冲突和低置信度都归为未知。",
         glyphCount: "掉落没有 Glyph 数量。",
         speedCommand: "只计应用确认看到的指令。",
@@ -208,7 +208,6 @@ export const zhHans: Messages = {
     hacking_bonus_not_final: "Hack 加成不是最终值",
     no_speed_bonus: "没有速度加成（包括所有掉落）",
     speed_bonus_not_final: "速度加成不是最终值",
-    no_alignment: "没有能量塔阵营关系（包括所有掉落）",
   },
 
   coverage: {
@@ -249,7 +248,7 @@ export const zhHans: Messages = {
       "每次观测 = 数量 ÷ 合格观测数，包括没有该物品的观测。",
       "数值越接近该列的最大值，底色越亮。亮表示更多，而不是更好。",
       "无法判断某条记录的筛选条件（掉落没有能量塔等级；旧记录没有本地时间）会将其单独列出并注明，而不会猜测。",
-      "这里只有应用读取到的内容，而且提交什么由玩家自行选择。特工等级、模组和 Hack 类型都不会记录，也不会存储任何人的阵营：只有较新版本记录的能量塔阵营关系。不提供置信区间：记录会按玩家和会话聚集，所以少于 30 次观测的数字会变暗。",
+      "这里只有应用读取到的内容，而且提交什么由玩家自行选择。特工等级、模组和 Hack 类型都不会记录，也不会存储任何人的阵营：只有能量塔的阵营关系。不提供置信区间：记录会按玩家和会话聚集，所以少于 30 次观测的数字会变暗。",
     ],
   },
 
@@ -554,6 +553,7 @@ export const zhHans: Messages = {
     "file.mixedExporters": "各行由不同的应用版本写入；请分别上传每个导出文件。",
 
     "warning.ignoredColumns": "已忽略 {count} 个本站不认识的列，且未存储：{columns}。",
+    "warning.noFactionColumns": "此导出没有 portal_alignment 列，因此其中的 Hack 未被接受：只接受能量塔阵营已知的 Hack。其中若有掉落，仍会接受。",
     "warning.factionsNotStored": "你的阵营和能量塔的阵营只用于核对 portal_alignment，不会存储，因此没人能从这次上传看出你的阵营。",
     "warning.unlistedItems":
       "以下物品名称尚未列入本站的列表（附捕获它们的应用版本）：{items}。它们会作为未经验证的文本保存，从不公开显示；在名称审核之前，其记录不计入物品统计。",
@@ -603,6 +603,7 @@ export const zhHans: Messages = {
     "hack.levelColumns": "能量塔等级的各列必须全部填写或全部为空。",
     "hack.levelOrder": "portal_level_low 高于 portal_level_high。",
     "hack.alignment": "portal_alignment 与 portal_faction 和 player_faction 不一致。",
+    "hack.unknownFaction": "能量塔的阵营未知（portal_alignment 为空）。只接受能量塔阵营已知的 Hack。",
 
     "panel.withoutPanel": "没有面板的行必须是该记录唯一的一行，且物品列为空。",
     "panel.order": "能量塔面板的行必须排在奖励面板的行之前。",

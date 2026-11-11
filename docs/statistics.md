@@ -15,11 +15,11 @@ datasets (`tests/helpers/dataset.ts`). The endpoint is `GET /api/statistics`.
 - **A drop is a group of panels, not a confirmed hack.** `association` says
   how it was matched; `ordered` is first-in-first-out, not proof.
 - **Not captured:** agent level, mods, hack type. Drops depend on them.
-- **Portal alignment only from newer builds.** DynamicGlyph builds after
-  1.0.0 say whether a hack's portal was the player's own faction, the
-  enemy's or Machina's. It comes from the portal screen read just before
-  the hack, not a verified portal, and neutral portals aren't recognized
-  yet. Older records and drops have no alignment.
+- **Portal alignment is read, not verified.** Every hack says whether its
+  portal was the player's own faction, the enemy's or Machina's; hacks
+  without it are refused at import. It comes from the portal screen read
+  just before the hack, not a verified portal, and neutral portals aren't
+  recognized yet. Drops have no portal, so no alignment.
 - **OCR can misread, and files can be edited.** Nothing is signed.
 
 ## Population
@@ -45,7 +45,7 @@ dropped: each reason's total is reported.
 | Local dates (inclusive) | its local date is inside | no UTC offset was recorded |
 | Local hours (inclusive) | its local hour is inside | no offset, or a whole-day interval |
 | Portal level (inclusive) | its whole estimated range is inside | no level (every drop), the level is unreliable, or the range crosses the filter |
-| Portal alignment | its alignment | no alignment (every drop, and hacks from older builds) |
+| Portal alignment | its alignment | never: a drop has none, so it is out |
 | Hacking or speed bonus (inclusive) | its **final** value is inside | no value (every drop), or the value isn't final |
 
 **Records without a UTC offset** come from builds before the offset was
@@ -164,7 +164,8 @@ The comparison groups the matching records by **portal alignment** (the
 default), exact reliable portal level, Glyph count, speed command, key
 command, **panel effect**, **Ingress event**, **UTC week** or **UTC day**,
 each group with the same figures. Records without the value form an
-"unknown" group, shown last.
+"unknown" group, shown last. Alignment has none: it groups only hacks,
+which all have one, and drops are in no alignment group.
 
 **Panel effect** is the ITO EN (+) or (−) the app read on the record's
 panels. The export leaves `panel_effects` blank both when no effect was

@@ -23,8 +23,12 @@ the server reads that format. The code is `src/domain/`.
 
 ## Appended faction columns
 
-DynamicGlyph builds after 1.0.0 append three columns. Files without them
-stay valid.
+DynamicGlyph builds after 1.0.0 append three columns.
+
+**A hack must have `portal_alignment`.** A hack whose portal faction is
+unknown is rejected (`missing_value`): it would sit outside every
+alignment. A file without the column keeps only its drops, and the
+preview says why once (`no_faction_columns`) instead of on every hack.
 
 | Column | Values | Stored |
 | --- | --- | --- |
@@ -37,8 +41,8 @@ stay valid.
   and then dropped, and the preview says so (`factions_not_stored`).
 - When both faction columns are present, a hack's alignment must follow
   from them: `machina` for a Machina portal; otherwise `same_faction` or
-  `enemy` when both factions are known; otherwise blank. Anything else
-  rejects the record (`inconsistent_record`).
+  `enemy` when both factions are known. Anything else rejects the record
+  (`inconsistent_record`), and so does a blank alignment.
 - `neutral` is reserved by the app for when it recognizes neutral
   portals, and is rejected until then.
 - A drop may have `player_faction`, but not `portal_faction` or
@@ -165,4 +169,4 @@ Record-level (that record is rejected): `row_width`, `invalid_value`,
 `malformed_record`, `invalid_time`.
 
 Warnings (the file is accepted): `ignored_columns`, `factions_not_stored`,
-`unlisted_items`.
+`no_faction_columns`, `unlisted_items`.

@@ -24,6 +24,8 @@ export const ISSUE_MESSAGES = {
   "file.mixedExporters": "Rows were written by different app builds; upload each export separately.",
 
   "warning.ignoredColumns": "{count} column(s) this site doesn't know were ignored and not stored: {columns}.",
+  "warning.noFactionColumns":
+    "This export has no portal_alignment column, so its hacks were refused: only hacks with a known portal faction are accepted. Any drops in it are still accepted.",
   "warning.factionsNotStored":
     "Your faction and the portal's faction were read only to check portal_alignment. They aren't stored, so no one can tell your faction from this upload.",
   "warning.unlistedItems":
@@ -74,6 +76,7 @@ export const ISSUE_MESSAGES = {
   "hack.levelColumns": "Portal level columns must all be set or all blank.",
   "hack.levelOrder": "portal_level_low is above portal_level_high.",
   "hack.alignment": "portal_alignment doesn't follow from portal_faction and player_faction.",
+  "hack.unknownFaction": "The portal's faction is unknown (portal_alignment is blank). Only hacks with a known portal faction are accepted.",
 
   "panel.withoutPanel": "A row without a panel must be the record's only row, with item columns blank.",
   "panel.order": "The portal panel's rows must come before the bonus panel's.",

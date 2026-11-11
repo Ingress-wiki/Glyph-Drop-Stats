@@ -69,8 +69,9 @@ export const COLUMN_NAMES: readonly ColumnName[] = COLUMNS.map(([name]) => name)
 
 /**
  * Columns appended within v1 that this site reads when a file has them
- * (faction metadata, from DynamicGlyph builds after 1.0.0). Files without
- * them stay valid. Only `portal_alignment` is stored: the two faction
+ * (faction metadata). Every hack needs `portal_alignment`: one without it
+ * is refused, so a file without the column keeps only its drops. Only
+ * `portal_alignment` is stored: the two faction
  * columns are read to check it and then dropped, because either one with
  * the alignment tells the uploader's faction.
  */

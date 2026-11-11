@@ -75,6 +75,7 @@ describe("the synthetic sample export", () => {
       speedBonus: { percent: 40, final: false },
       commands: { mode: "portal", speed: "complex", speedStatus: "confirmed", key: null, keyStatus: "noCommandObserved" },
       portalLevel: { low: 6, high: 6, confidence: "high", conflict: false },
+      portalAlignment: "same_faction",
     });
     expect(record.reading?.panels).toEqual([
       {
@@ -176,8 +177,8 @@ describe("file-level checks", () => {
   it("ignores columns appended later in v1 and doesn't store them", () => {
     const rows = fullHackRows();
     const text = csv(rows, {
-      header: [...COLUMN_NAMES, "portal_name"],
-      extra: rows.map(() => ["Secret Portal"]),
+      header: [...COLUMN_NAMES, "portal_alignment", "portal_name"],
+      extra: rows.map(() => ["same_faction", "Secret Portal"]),
     });
     const result = accepted(parseExport(bytes(text), { now: NOW }));
     expect(result.records).toHaveLength(1);
@@ -491,9 +492,19 @@ describe("faction columns", () => {
     expect(alignmentOf("resistance", "resistance", "same_faction")).toBe("same_faction");
     expect(alignmentOf("machina", "", "machina")).toBe("machina");
     expect(alignmentOf("machina", "enlightened", "machina")).toBe("machina");
-    // No portal screen, or no faction set: unknown, and left absent.
-    expect(alignmentOf("", "resistance", "")).toBeUndefined();
-    expect(alignmentOf("enlightened", "", "")).toBeUndefined();
+  });
+
+  it("refuses a hack whose portal faction is unknown", () => {
+    // No portal screen read, or no faction set in the app: the alignment is blank.
+    for (const cells of [
+      ["", "resistance", ""],
+      ["enlightened", "", ""],
+      ["", "", ""],
+    ]) {
+      const result = accepted(withFactions(fullHackRows(), () => cells));
+      expect(result.records, cells.join("/")).toEqual([]);
+      expect(result.rejected[0].issues.map((issue) => [issue.key, issue.column])).toEqual([["hack.unknownFaction", "portal_alignment"]]);
+    }
   });
 
   it("rejects an alignment that doesn't follow from the factions", () => {
@@ -549,11 +560,15 @@ describe("faction columns", () => {
     });
   });
 
-  it("leaves a record without an alignment exactly as a file without the columns gives it", () => {
-    const plain = parseRows(fullHackRows()).records[0].record;
-    const blank = accepted(withFactions(fullHackRows(), () => ["", "", ""])).records[0].record;
-    expect(blank).toEqual(plain);
-    expect(JSON.stringify(blank)).toBe(JSON.stringify(plain));
-    expect("portalAlignment" in (blank.hack ?? {})).toBe(false);
+  it("keeps only the drops of a file without the alignment column, and says why once", () => {
+    const rows = [...fullHackRows(), ...fullHackRows({ record_id: OTHER_HACK_ID, order: "3" }), { ...dropRecord(), ...item("portal", 0) }];
+    const result = accepted(parseExport(bytes(csv(rows, { header: COLUMN_NAMES })), { now: NOW }));
+    expect(result.records.map((parsed) => parsed.record.kind)).toEqual(["drop"]);
+    expect(result.rejected.map((rejected) => rejected.issues.map((issue) => issue.key))).toEqual([["hack.unknownFaction"], ["hack.unknownFaction"]]);
+    expect(result.warnings.map((warning) => warning.code)).toEqual(["no_faction_columns"]);
+  });
+
+  it("doesn't warn about the columns when the file has them", () => {
+    expect(parseRows(fullHackRows()).warnings).toEqual([]);
   });
 });

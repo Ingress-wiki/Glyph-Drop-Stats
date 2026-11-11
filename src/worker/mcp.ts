@@ -63,7 +63,7 @@ const STATISTICS_ARGUMENTS = {
   hackingBonusMax: bounded(0, 1000, "Highest final hacking bonus, in percent").optional(),
   speedBonusMin: bounded(0, 1000, "Lowest final speed bonus, in percent").optional(),
   speedBonusMax: bounded(0, 1000, "Highest final speed bonus, in percent").optional(),
-  alignment: z.enum(PORTAL_ALIGNMENTS).optional().describe("The hacked portal's alignment relative to the player. Only newer app builds record it; other records are set aside."),
+  alignment: z.enum(PORTAL_ALIGNMENTS).optional().describe("The hacked portal's alignment relative to the player. Every hack has one; drops have none, so this filter leaves them out."),
   panels: z.enum(["portal", "bonus", "both"]).optional().describe("Which item panels count: the portal's own, the hacking-bonus panel, or both (the default)."),
   multiplied: z
     .enum(["include", "exclude"])
