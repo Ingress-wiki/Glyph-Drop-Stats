@@ -266,7 +266,9 @@ export async function siteSuite({ browser, base: BASE, lan: LAN, dir: DIR, scree
     await agentsHeading.waitFor();
     await page.goBack();
     await page.goForward();
-    check("the AI agents page has its own address, kept through history", await agentsHeading.isVisible());
+    // Going back and forward fires hashchange after navigation settles: wait for the view, don't sample it.
+    const keptThroughHistory = await agentsHeading.waitFor({ timeout: 5000 }).then(() => true, () => false);
+    check("the AI agents page has its own address, kept through history", keptThroughHistory, page.url());
 
     // Statistics reflect the withdrawal at once. The UI upload of a.csv still supports h1-h6.
     await page.keyboard.press("F1");
