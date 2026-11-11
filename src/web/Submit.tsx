@@ -3,6 +3,7 @@ import type { Preview } from "../domain/preview.ts";
 import { isReceiptSecret } from "../domain/receipt.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import type { Outcome } from "../domain/versions.ts";
+import { KeepInAccount } from "./Account.tsx";
 import type { AppState, Store } from "./app/store.ts";
 import type { Messages } from "./i18n/en.ts";
 import { issuesText, issueText, messages, problemText, type Locale } from "./i18n/index.ts";
@@ -197,6 +198,7 @@ function SubmitSection({ store, state, s, valid }: { store: Store; state: AppSta
         </p>
         <Outcomes s={s} outcomes={submit.summary.outcomes} />
         <Receipt store={store} s={s} secret={submit.secret} />
+        {submit.summary.status === "completed" && <KeepInAccount store={store} state={state} s={s} secret={submit.secret} />}
       </section>
     );
   }
@@ -404,6 +406,7 @@ function StatusSection({ store, state, s }: { store: Store; state: AppState; s: 
                   {s.status.notWithdrawn(issuesText(s, status.withdrawal.issues))}
                 </p>
               )}
+              {status.looked && <KeepInAccount store={store} state={state} s={s} secret={status.looked.secret} />}
             </>
           )}
           <AgentKeySection store={store} state={state} s={s} active={outcome.submission.status === "completed"} />

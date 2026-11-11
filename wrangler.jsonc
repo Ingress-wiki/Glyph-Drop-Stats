@@ -40,8 +40,10 @@
 				"crons": ["17 6 * * *"]
 			},
 			"preview_urls": false,
+			// Passkeys are bound to this one origin (src/worker/passkeys.ts).
 			"vars": {
-				"SUBMISSIONS_OPEN": "test"
+				"SUBMISSIONS_OPEN": "test",
+				"SITE_ORIGIN": "https://stats.ingress.wiki"
 			},
 			"d1_databases": [
 				{

@@ -1,13 +1,23 @@
+import type { Messages } from "../i18n/en.ts";
 import { issuesText, messages } from "../i18n/index.ts";
-import { confirmationMessage } from "../messages.ts";
-import type { AppState } from "./store.ts";
+import { accountMessageText, confirmationMessage } from "../messages.ts";
+import type { AppState, View } from "./store.ts";
+
+/** A view's name, as its tab and announcements say it. */
+export function viewName(s: Messages, view: View): string {
+  return { statistics: s.app.statistics, submit: s.app.submit, agents: s.app.agents, account: s.app.account }[view];
+}
 
 /** One line saying what just happened, for a live region; null when nothing new to say. */
 export function announcement(previous: AppState, next: AppState): string | null {
   const s = messages(next.locale);
   if (next.locale !== previous.locale) return s.language.name;
   if (next.notice !== previous.notice && next.notice) return s.notice[next.notice.id];
-  if (next.view !== previous.view) return { statistics: s.app.statistics, submit: s.app.submit, agents: s.app.agents }[next.view];
+  if (next.view !== previous.view) return viewName(s, next.view);
+  if (next.account.message !== previous.account.message) {
+    const text = accountMessageText(s, next.account.message);
+    if (text) return text;
+  }
   if (next.check !== previous.check) {
     if (next.check.phase === "done") {
       const { preview } = next.check;

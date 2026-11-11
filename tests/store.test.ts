@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AccountView } from "../src/domain/account.ts";
 import { hashAgentKey } from "../src/domain/agentKey.ts";
 import type { Preview } from "../src/domain/preview.ts";
 import { computeStatistics, NO_FILTER } from "../src/domain/statistics.ts";
 import type { SubmissionSummary } from "../src/domain/submission.ts";
+import type { CeremonyOutcome } from "../src/web/passkeys.ts";
 import type {
+  AccountEndOutcome,
+  AccountFetch,
+  AccountOutcome,
   ConfirmOutcome,
   LinkKeyOutcome,
   PreviewOutcome,
@@ -33,6 +38,16 @@ const SUMMARY: SubmissionSummary = {
   outcomes: { new: 3, duplicate: 0, duplicate_other_precision: 0, update_candidate: 0, conflict: 0 },
 };
 
+const ACCOUNT: AccountView = {
+  createdAt: 1_791_000_000,
+  submissions: [{ id: 7, ...SUMMARY }],
+  passkeys: [
+    { id: "pk-1", createdAt: 1_791_000_000, lastUsedAt: null, backedUp: true },
+    { id: "pk-2", createdAt: 1_791_000_100, lastUsedAt: 1_791_000_200, backedUp: false },
+  ],
+  agentKeys: [{ id: 3, createdAt: 1_791_000_300 }],
+};
+
 const PREVIEW = { ok: true, rowCount: 7 } as unknown as Preview;
 const NEW_KEY = `gdsr_${"n".repeat(43)}`;
 const OTHER_KEY = `gdsr_${"o".repeat(43)}`;
@@ -56,6 +71,11 @@ function setup(overrides: Partial<StoreDeps> = {}, locale: Locale = "en") {
     revokeAgentKey: vi.fn(async () => ({ kind: "revoked" as const, found: true })),
     fetchStatistics: vi.fn(async (): Promise<StatisticsOutcome> => ({ kind: "ok", statistics: computeStatistics([], NO_FILTER) })),
     fetchConfig: vi.fn(async () => ({ submissionsOpen: true, testPeriod: false })),
+    fetchAccount: vi.fn(async (): Promise<AccountFetch> => ({ kind: "ok", account: null })),
+    runCeremony: vi.fn(async (): Promise<CeremonyOutcome> => ({ kind: "ok", account: ACCOUNT })),
+    accountRequest: vi.fn(async (): Promise<AccountOutcome> => ({ kind: "ok", account: ACCOUNT })),
+    accountEnd: vi.fn(async (): Promise<AccountEndOutcome> => ({ kind: "done" })),
+    forgetPasskeys: vi.fn(),
     newSecret: vi.fn(() => `gds1_${"a".repeat(43)}`),
     newAgentKey: vi.fn(() => NEW_KEY),
     download: vi.fn(),
@@ -504,6 +524,165 @@ describe("a deployment in a test period", () => {
     expect(store.state.testPeriod).toBe(true);
     store.createReceipt();
     expect(store.state.submit.step).toBe("receipt");
+  });
+});
+
+describe("the optional account", () => {
+  const RECEIPT = `gds1_${"r".repeat(43)}`;
+  const SIGNED_OUT: AccountIssueOutcome = { kind: "refused", issues: [{ code: "signed_out", key: "api.signedOut", message: "You're signed out." }] };
+  type AccountIssueOutcome = Extract<AccountOutcome, { kind: "refused" }>;
+
+  it("isn't known until read, then shows who is signed in, if anyone", async () => {
+    const { store, deps } = setup();
+    expect(store.state.account).toMatchObject({ known: false, view: null });
+    await store.loadAccount();
+    expect(store.state.account).toMatchObject({ known: true, view: null, loadProblem: null });
+    vi.mocked(deps.fetchAccount).mockResolvedValueOnce({ kind: "ok", account: ACCOUNT });
+    await store.loadAccount();
+    expect(store.state.account.view).toBe(ACCOUNT);
+    vi.mocked(deps.fetchAccount).mockResolvedValueOnce({ kind: "failed", problem: { kind: "unclear", status: 500 } });
+    await store.loadAccount();
+    expect(store.state.account.loadProblem).toEqual({ kind: "unclear", status: 500 });
+  });
+
+  it("is created and signed in to with a passkey ceremony", async () => {
+    const { store, deps } = setup();
+    expect(await store.createAccount()).toBe(true);
+    expect(deps.runCeremony).toHaveBeenCalledWith("register");
+    expect(store.state.account).toMatchObject({ view: ACCOUNT, busy: null, message: { task: "register", kind: "done" } });
+    await store.signIn();
+    expect(deps.runCeremony).toHaveBeenLastCalledWith("signIn");
+  });
+
+  it("says when the passkey dialog was closed, or passkeys can't be used here", async () => {
+    const { store, deps } = setup();
+    vi.mocked(deps.runCeremony).mockResolvedValueOnce({ kind: "cancelled" });
+    expect(await store.signIn()).toBe(false);
+    expect(store.state.account).toMatchObject({ view: null, message: { task: "signIn", kind: "cancelled" } });
+    vi.mocked(deps.runCeremony).mockResolvedValueOnce({ kind: "unsupported" });
+    await store.createAccount();
+    expect(store.state.account.message).toEqual({ task: "register", kind: "unsupported" });
+  });
+
+  it("runs one task at a time", async () => {
+    const answer = deferred<CeremonyOutcome>();
+    const { store, deps } = setup({ runCeremony: vi.fn(() => answer.promise) });
+    const first = store.signIn();
+    expect(store.state.account.busy).toBe("signIn");
+    expect(await store.createAccount()).toBe(false);
+    answer.resolve({ kind: "ok", account: ACCOUNT });
+    await first;
+    expect(deps.runCeremony).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds a submission with its receipt in the header, signing in first when asked", async () => {
+    const { store, deps } = setup();
+    await store.keepInAccount(RECEIPT, "signIn");
+    expect(deps.runCeremony).toHaveBeenCalledWith("signIn");
+    expect(deps.accountRequest).toHaveBeenCalledWith("/api/account/submissions", {}, { authorization: `Receipt ${RECEIPT}` });
+    expect(store.state.account).toMatchObject({ claimFor: RECEIPT, message: { task: "claim", kind: "done" } });
+  });
+
+  it("adds nothing when signing in or creating the account didn't happen", async () => {
+    const { store, deps } = setup();
+    vi.mocked(deps.runCeremony).mockResolvedValueOnce({ kind: "cancelled" });
+    await store.keepInAccount(RECEIPT, "register");
+    expect(deps.accountRequest).not.toHaveBeenCalled();
+    expect(store.state.account).toMatchObject({ claimFor: RECEIPT, message: { task: "register", kind: "cancelled" } });
+  });
+
+  it("adds a receipt typed on the account page and clears the field once it's in", async () => {
+    const { store, deps } = setup();
+    store.setAccountReceipt(`  ${RECEIPT} `);
+    await store.addReceiptToAccount();
+    expect(deps.accountRequest).toHaveBeenCalledWith("/api/account/submissions", {}, { authorization: `Receipt ${RECEIPT}` });
+    expect(store.state.account.receiptInput).toBe("");
+    vi.mocked(deps.accountRequest).mockResolvedValueOnce({ kind: "refused", issues: [{ code: "claimed_elsewhere", key: "api.claimedElsewhere", message: "…" }] });
+    store.setAccountReceipt(RECEIPT);
+    await store.addReceiptToAccount();
+    expect(store.state.account.receiptInput).toBe(RECEIPT);
+    expect(store.state.account.message).toMatchObject({ task: "claim", kind: "refused" });
+  });
+
+  it("shows the page signed out when the session has ended", async () => {
+    const { store, deps } = setup();
+    await store.signIn();
+    vi.mocked(deps.accountRequest).mockResolvedValueOnce(SIGNED_OUT);
+    await store.keepInAccount(RECEIPT);
+    expect(store.state.account.view).toBeNull();
+  });
+
+  it("reads the account again after an unclear answer", async () => {
+    const { store, deps } = setup();
+    await store.signIn();
+    vi.mocked(deps.accountRequest).mockResolvedValueOnce({ kind: "uncertain", problem: { kind: "network", detail: "offline" } });
+    await store.keepInAccount(RECEIPT);
+    expect(store.state.account.message).toMatchObject({ task: "claim", kind: "failed" });
+    expect(deps.fetchAccount).toHaveBeenCalled();
+  });
+
+  it("makes an agent key in the page, sends only its hash, and shows it once", async () => {
+    const { store, deps } = setup();
+    await store.signIn();
+    await store.createAccountKey();
+    expect(deps.accountRequest).toHaveBeenCalledWith("/api/account/agent-keys", { keyHash: await hashAgentKey(NEW_KEY) });
+    expect(JSON.stringify(vi.mocked(deps.accountRequest).mock.calls)).not.toContain(NEW_KEY);
+    expect(store.state.account.newKey).toBe(NEW_KEY);
+    await store.copyNewKey();
+    expect(deps.copy).toHaveBeenCalledWith(NEW_KEY);
+    // The next task hides it.
+    await store.signOut();
+    expect(store.state.account.newKey).toBeNull();
+  });
+
+  it("asks before a change that can't be undone, and does nothing if told no", async () => {
+    const { store, deps } = setup();
+    await store.signIn();
+    store.askAccount({ what: "withdraw", id: 7 });
+    expect(store.state.account.confirm).toEqual({ what: "withdraw", id: 7 });
+    store.cancelAccountConfirm();
+    await store.confirmAccount();
+    expect(deps.accountRequest).not.toHaveBeenCalled();
+
+    store.askAccount({ what: "withdraw", id: 7 });
+    await store.confirmAccount();
+    expect(deps.accountRequest).toHaveBeenCalledWith("/api/account/submissions/withdraw", { submissionId: 7 });
+    expect(store.state.account.confirm).toBeNull();
+    store.askAccount({ what: "revokeKey", id: 3 });
+    await store.confirmAccount();
+    expect(deps.accountRequest).toHaveBeenLastCalledWith("/api/account/agent-keys/revoke", { keyId: 3 });
+  });
+
+  it("tells passkey providers about a removed passkey, or all of a deleted account's", async () => {
+    const { store, deps } = setup();
+    await store.signIn();
+    store.askAccount({ what: "removePasskey", id: "pk-2" });
+    await store.confirmAccount();
+    expect(deps.accountRequest).toHaveBeenCalledWith("/api/account/passkeys/remove", { passkeyId: "pk-2" });
+    expect(deps.forgetPasskeys).toHaveBeenCalledWith(["pk-2"]);
+
+    store.askAccount({ what: "delete" });
+    await store.confirmAccount();
+    expect(deps.accountEnd).toHaveBeenCalledWith("/api/account/delete");
+    expect(deps.forgetPasskeys).toHaveBeenLastCalledWith(["pk-1", "pk-2"]);
+    expect(store.state.account).toMatchObject({ view: null, message: { task: "delete", kind: "done" } });
+  });
+
+  it("keeps the passkeys offered when deleting failed", async () => {
+    const { store, deps } = setup({ accountEnd: vi.fn(async (): Promise<AccountEndOutcome> => ({ kind: "uncertain", problem: { kind: "network", detail: "offline" } })) });
+    await store.signIn();
+    store.askAccount({ what: "delete" });
+    await store.confirmAccount();
+    expect(deps.forgetPasskeys).not.toHaveBeenCalled();
+  });
+
+  it("has its own view, with no dialog, and says what happened", async () => {
+    const { store } = setup();
+    store.setView("account");
+    expect(store.dialogOpen()).toBe(false);
+    const before = store.state;
+    await store.signIn();
+    expect(announcement(before, store.state)).toBe("Signed in.");
   });
 });
 

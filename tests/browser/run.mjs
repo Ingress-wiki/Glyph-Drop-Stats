@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { chromium, firefox } from "playwright-core";
 import { datasetRecords } from "../helpers/dataset.ts";
 import { csv } from "../helpers/export.ts";
+import { accountSuite } from "./account.mjs";
 import { firefoxSuite } from "./firefox.mjs";
 import { languageSuite } from "./language.mjs";
 import { siteSuite } from "./site.mjs";
@@ -58,7 +59,8 @@ try {
   try {
     const site = await siteSuite({ browser, base, lan: lan ? `http://${lan}:${PORT}` : undefined, dir, screens: screenshots });
     const languages = await languageSuite({ browser, base, dir: screenshots });
-    passed = site && languages;
+    const account = await accountSuite({ browser, base, dir, screens: screenshots });
+    passed = site && languages && account;
   } finally {
     await browser.close();
   }

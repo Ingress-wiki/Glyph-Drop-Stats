@@ -10,7 +10,7 @@ import type { Db } from "./db.ts";
 /** A player's exports, many times over; it bounds what one key's queries read. */
 export const MAX_UPLOADS_PER_KEY = 100;
 
-export type LinkResult = { kind: "linked"; submissions: number } | { kind: "not_found" } | { kind: "withdrawn" } | { kind: "full" };
+export type LinkResult = { kind: "linked"; submissions: number } | { kind: "not_found" } | { kind: "withdrawn" } | { kind: "full" } | { kind: "account_key" };
 
 const linkedCount = (db: Db, keyHash: string) =>
   db
@@ -31,11 +31,14 @@ export async function linkAgentKey(db: Db, secretHash: string, keyHash: string, 
   const key = await db
     .prepare(
       `SELECT (SELECT COUNT(*) FROM agent_key_uploads WHERE key_id = agent_key.id) AS n,
-         EXISTS (SELECT 1 FROM agent_key_uploads WHERE key_id = agent_key.id AND upload_id = ?2) AS linked
+         EXISTS (SELECT 1 FROM agent_key_uploads WHERE key_id = agent_key.id AND upload_id = ?2) AS linked,
+         agent_key.account_id
        FROM agent_keys AS agent_key WHERE agent_key.key_hash = ?1`,
     )
     .bind(keyHash, upload.id)
-    .first<{ n: number; linked: number }>();
+    .first<{ n: number; linked: number; account_id: number | null }>();
+  // An account's key reads what the account holds; a submission joins it through the account.
+  if (key && key.account_id !== null) return { kind: "account_key" };
   if (key && !key.linked && key.n >= MAX_UPLOADS_PER_KEY) return { kind: "full" };
   await db.batch([
     db.prepare("INSERT INTO agent_keys (key_hash, created_at) VALUES (?1, ?2) ON CONFLICT (key_hash) DO NOTHING").bind(keyHash, now),
@@ -55,14 +58,18 @@ export async function revokeAgentKey(db: Db, keyHash: string): Promise<boolean> 
   return results[1].meta.changes > 0;
 }
 
-/** The uploads a key is linked to, oldest link first; null when no key matches. */
+/**
+ * The uploads a key reads, oldest link first; null when no key matches. An
+ * account's key reads every submission in the account, including ones added
+ * after it was made.
+ */
 export async function keyUploads(db: Db, keyHash: string): Promise<number[] | null> {
-  const key = await db.prepare("SELECT id FROM agent_keys WHERE key_hash = ?1").bind(keyHash).first<{ id: number }>();
+  const key = await db.prepare("SELECT id, account_id FROM agent_keys WHERE key_hash = ?1").bind(keyHash).first<{ id: number; account_id: number | null }>();
   if (!key) return null;
-  const rows = await db
-    .prepare("SELECT upload_id FROM agent_key_uploads WHERE key_id = ?1 ORDER BY linked_at, upload_id")
-    .bind(key.id)
-    .all<{ upload_id: number }>();
+  const rows = await (key.account_id === null
+    ? db.prepare("SELECT upload_id FROM agent_key_uploads WHERE key_id = ?1 ORDER BY linked_at, upload_id").bind(key.id)
+    : db.prepare("SELECT upload_id FROM account_uploads WHERE account_id = ?1 ORDER BY linked_at, upload_id").bind(key.account_id)
+  ).all<{ upload_id: number }>();
   return rows.results.map((row) => row.upload_id);
 }
 

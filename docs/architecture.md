@@ -5,7 +5,7 @@
 | Path | Role |
 | --- | --- |
 | `src/domain/` | CSV reading, validation, normalization, version comparison and receipts. Uses only web-standard APIs, with no Cloudflare APIs, so it runs and is tested in Node. |
-| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `events.ts` (Ingress events from the activity board, refreshed by the daily cron), `mcp.ts` (the read-only MCP server for AI agents), `agentKeys.ts` (read-only agent keys and the records they read), `index.ts` (entry: requests and the cron). |
+| `src/worker/` | The Cloudflare Worker: `api.ts` (endpoints), `submissions.ts` (classification and confirmation), `rows.ts` (records ↔ tables), `db.ts` (the D1 subset used), `events.ts` (Ingress events from the activity board, refreshed by the daily cron), `mcp.ts` (the read-only MCP server for AI agents), `agentKeys.ts` (read-only agent keys and the records they read), `accounts.ts`, `passkeys.ts` and `accountApi.ts` (the optional passkey account: its tables, ceremonies and endpoints), `http.ts` (responses and bodies shared by the endpoints), `index.ts` (entry: requests and the cron). |
 | `src/web/` | The site, served as Workers Static Assets. See [The web page](#the-web-page). |
 | `migrations/` | D1 schema migrations. |
 
@@ -22,7 +22,8 @@ pale-to-full yellow ramp for "more", light and dark following the system.
 | --- | --- |
 | `src/web/app/store.ts` | All page state and actions, with no rendering. It enforces the rules: only the newest answer may update the page; a receipt belongs to the file whose preview is shown. Unit-tested. |
 | `src/web/App.tsx` | The top bar, the view, the dialogs and the live region. Components read the store with `useSyncExternalStore` and call its actions. |
-| `src/web/Statistics.tsx`, `src/web/Submit.tsx`, `src/web/Agents.tsx` | The three views: statistics (the home page), submitting, and AI agents (`#agents`), the MCP server's landing page. |
+| `src/web/Statistics.tsx`, `src/web/Submit.tsx`, `src/web/Agents.tsx`, `src/web/Account.tsx` | The four views: statistics (the home page), submitting, AI agents (`#agents`), the MCP server's landing page, and the optional account (`#account`). |
+| `src/web/passkeys.ts` | The passkey ceremonies in the browser, through SimpleWebAuthn. |
 | `src/web/charts.tsx` | The charts, drawn with [TanStack Charts](https://tanstack.com/charts) as SVG: bars for comparisons and for what an observation gives, a heatmap for the level grid. |
 | `src/web/dashboard.ts` | What the statistics page derives from an answer (shares, bars, group names, the few-observations mark). Unit-tested. |
 | `src/web/app/announce.ts` | What the live region says after each change. Unit-tested. |
@@ -108,6 +109,7 @@ upload → validate → preview → receipt → confirm → status → withdraw
 | `POST /api/agent-keys` | Links the submission for `Authorization: Receipt <secret>` to a read-only agent key, sent as `{"keyHash": …}`, its SHA-256. Idempotent. See [MCP](mcp.md). |
 | `POST /api/agent-key/revoke` | Deletes the key in `Authorization: Agent <key>` and its links. Idempotent: `revoked` is false when none matched. |
 | `POST /mcp` | The statistics for AI agents over the Model Context Protocol, and a player's own records with their agent key: read-only tools and report prompts, no session. See [MCP](mcp.md). |
+| `/api/account/…` | The optional passkey account: signing in, the submissions its holder added with their receipts, its agent keys and passkeys. See [Accounts](accounts.md). |
 
 ### Preview and confirm are stateless
 
@@ -161,7 +163,7 @@ export (2,000 records, 50,000 rows, 16.7 MB) commits in one batch in about
 
 ## Data model
 
-See `migrations/` (`0001_initial.sql`, then `0002_portal_alignment.sql`).
+See `migrations/`, applied in order from `0001_initial.sql`.
 
 | Table | Holds |
 | --- | --- |
@@ -172,7 +174,8 @@ See `migrations/` (`0001_initial.sql`, then `0002_portal_alignment.sql`).
 | `upload_records` | Which version each upload supplied for each record, and its outcome. |
 | `counted_records` (view) | Accepted versions still supported by a completed upload. Statistics read only this. |
 | `ingress_events` | Ingress events from the game's activity board: name, UTC window, a note, and when the board first and last listed each. Not submissions: the test-period wipe leaves them. |
-| `agent_keys`, `agent_key_uploads` | Read-only agent keys (their SHA-256 only) and the submissions each covers, linked by the holder of each receipt. Revoking deletes both; the test-period wipe deletes them all. |
+| `agent_keys`, `agent_key_uploads` | Read-only agent keys (their SHA-256 only) and the submissions each covers, linked by the holder of each receipt. A key with an `account_id` reads that account's submissions instead. Revoking deletes both; the test-period wipe deletes them all. |
+| `accounts`, `passkeys`, `sessions`, `passkey_challenges`, `account_uploads` | The optional account: a random user handle, its passkeys' public keys, session token hashes, pending WebAuthn challenges, and the submissions added to it. The test-period wipe deletes `account_uploads` and keeps the rest. See [Accounts](accounts.md). |
 
 ## Equivalent copies and accepted versions
 

@@ -42,6 +42,21 @@ before testing.
   chose to group. Without a key, submissions are linked only through
   shared record ids. Revoking a key deletes it and every link, and ending
   the test period deletes all keys.
+- **Accounts, only when a player makes one** (see [Accounts](accounts.md)).
+  There is no email, name or password. The site keeps:
+  - a random user handle;
+  - each passkey's credential id and public key, signature counter,
+    transport hints, whether its provider syncs it, and when it was added
+    and last used;
+  - which submissions the player added, proving each with its receipt,
+    and when (never the receipts themselves);
+  - the SHA-256 of each session's token, with its expiry;
+  - the account's agent keys, as above.
+
+  Adding submissions to one account links them, as a key does. Deleting
+  the account deletes all of this and leaves the submissions as they were
+  before they were added. Ending the test period empties accounts of their
+  submissions and keys but keeps the accounts.
 - The export holds no exact times, portal names, notes, images, device
   details or storage keys.
 - `record_id` is a hash of a key with a random number made at app launch.
@@ -50,9 +65,9 @@ before testing.
 
 ## In the visitor's browser
 
-No cookies, analytics or tracking. The page keeps two preferences in
-`localStorage`, each written only when the visitor chooses it, and never
-sent to the server:
+No analytics or tracking. Without an account, no cookies. The page keeps
+two preferences in `localStorage`, each written only when the visitor
+chooses it, and never sent to the server:
 
 | Key | Holds |
 | --- | --- |
@@ -63,11 +78,16 @@ The earlier canvas interface also kept `glyph-drop-stats:crt`,
 `smooth-text`, `cjk-size` and `text-view`; the page deletes them when a
 returning visitor opens it.
 
-These are interface settings the visitor asked for, so they need no
-consent banner (they are "strictly necessary" under the ePrivacy rules).
-Receipts are never stored by the page: the visitor downloads or copies
-them. Adding cookies, analytics or anything that identifies a visitor
-would change this and needs its own review.
+Signing in to an account sets one cookie, `__Host-gds_session`
+(HttpOnly, Secure, SameSite=Strict, 14 days), which holds only a random
+session token. Signing out or deleting the account clears it.
+
+These are interface settings the visitor asked for, and a sign-in they
+started, so they need no consent banner (they are "strictly necessary"
+under the ePrivacy rules). Receipts are never stored by the page: the
+visitor downloads or copies them. Adding other cookies, analytics or
+anything that identifies a visitor would change this and needs its own
+review.
 
 ## Withdrawal
 
@@ -104,8 +124,8 @@ would change this and needs its own review.
 - **Withdrawn records under review.** A maintainer review of update
   candidates and conflicts should ignore those from withdrawn submissions.
 - **Operational logging.** What Cloudflare records about requests (IP
-  addresses, user agents), and for how long. Having no accounts does not
-  mean no connection metadata.
+  addresses, user agents), and for how long. Anonymous use does not mean
+  no connection metadata.
 - **Terms.** The terms for submitting and publishing data, separate from
   the MIT code licence.
 
@@ -117,6 +137,7 @@ would change this and needs its own review.
   server's list, so the uploader can see what will be held for review.
 - Never put a receipt secret in a URL. It travels only in the
   `Authorization: Receipt …` header.
+- Never log session tokens. The session travels only in its cookie.
 - Never log agent keys, and never put one in a URL. To revoke, a key
   travels in `Authorization: Agent …`; to read over MCP, in
   `Authorization: Bearer …` or a tool argument.

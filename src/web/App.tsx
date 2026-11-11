@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { announcement } from "./app/announce.ts";
+import { announcement, viewName } from "./app/announce.ts";
 import type { AppState, Store, View } from "./app/store.ts";
 import { LOCALES, messages, problemText, type Locale } from "./i18n/index.ts";
+import { AccountPage } from "./Account.tsx";
 import { AgentsView } from "./Agents.tsx";
 import { SOURCE_URL } from "./site.ts";
 import { StatisticsView } from "./Statistics.tsx";
@@ -29,7 +30,7 @@ function useAnnouncement(store: Store): string {
 }
 
 /** The views in the top bar; the first two have function-key shortcuts. */
-const TABS: readonly { view: View; key?: string }[] = [{ view: "statistics", key: "F1" }, { view: "submit", key: "F2" }, { view: "agents" }];
+const TABS: readonly { view: View; key?: string }[] = [{ view: "statistics", key: "F1" }, { view: "submit", key: "F2" }, { view: "agents" }, { view: "account" }];
 
 export function App({ store }: { store: Store }) {
   const state = useAppState(store);
@@ -63,7 +64,7 @@ export function App({ store }: { store: Store }) {
                 aria-keyshortcuts={tab.key}
                 onClick={() => store.setView(tab.view)}
               >
-                {{ statistics: s.app.statistics, submit: s.app.submit, agents: s.app.agents }[tab.view]}
+                {viewName(s, tab.view)}
               </button>
             ))}
           </nav>
@@ -84,6 +85,7 @@ export function App({ store }: { store: Store }) {
           {view === "statistics" && <StatisticsView store={store} state={state} />}
           {view === "submit" && <SubmitView store={store} state={state} />}
           {view === "agents" && <AgentsView store={store} state={state} />}
+          {view === "account" && <AccountPage store={store} state={state} />}
         </main>
         <footer className="footer">
           <p className="mcp">

@@ -1,3 +1,4 @@
+import type { AccountView } from "../domain/account.ts";
 import { COUNT_CAP, COVERAGES, ITEM_EXCLUSIONS, SPLITS, UNPLACED_REASONS, type ItemTotal, type Statistics, type Summary } from "../domain/statistics.ts";
 import type { SubmissionSummary } from "../domain/submission.ts";
 import type { Preview } from "../domain/preview.ts";
@@ -183,6 +184,73 @@ export function revokeAgentKey(key: string): Promise<RevokeKeyOutcome> {
   return idempotentRequest("/api/agent-key/revoke", { method: "POST", headers: { authorization: `Agent ${key}` } }, (body) =>
     typeof body.revoked === "boolean" ? { kind: "revoked" as const, found: body.revoked } : null,
   );
+}
+
+// The optional account (src/worker/accountApi.ts). The browser sends the
+// session cookie and the page's Origin with each request itself.
+
+export type AccountFetch = { kind: "ok"; account: AccountView | null } | { kind: "failed"; problem: Problem };
+
+/** An account request that answers with the account as it now is. */
+export type AccountOutcome = { kind: "ok"; account: AccountView } | { kind: "refused"; issues: ApiIssue[] } | { kind: "uncertain"; problem: Problem };
+
+/** Signing out or deleting the account: nothing to show after. */
+export type AccountEndOutcome = { kind: "done" } | { kind: "refused"; issues: ApiIssue[] } | { kind: "uncertain"; problem: Problem };
+
+export type OptionsOutcome = { kind: "ok"; options: Record<string, unknown> } | { kind: "refused"; issues: ApiIssue[] } | { kind: "uncertain"; problem: Problem };
+
+const isSeconds = isCount;
+
+export function isAccountView(value: unknown): value is AccountView {
+  if (!isObject(value)) return false;
+  const { createdAt, submissions, passkeys, agentKeys } = value;
+  return (
+    isSeconds(createdAt) &&
+    Array.isArray(submissions) &&
+    submissions.every((submission) => isObject(submission) && isCount(submission.id) && isSubmissionSummary(submission)) &&
+    Array.isArray(passkeys) &&
+    passkeys.every(
+      (passkey) =>
+        isObject(passkey) && typeof passkey.id === "string" && isSeconds(passkey.createdAt) && (passkey.lastUsedAt === null || isSeconds(passkey.lastUsedAt)) && typeof passkey.backedUp === "boolean",
+    ) &&
+    Array.isArray(agentKeys) &&
+    agentKeys.every((key) => isObject(key) && isCount(key.id) && isSeconds(key.createdAt))
+  );
+}
+
+export async function fetchAccount(): Promise<AccountFetch> {
+  let response: Response;
+  try {
+    response = await fetch("/api/account", { credentials: "same-origin" });
+  } catch (error) {
+    return { kind: "failed", problem: networkProblem(error) };
+  }
+  const body = await readJson(response);
+  if (response.status === 200 && isObject(body) && body.ok === true && (body.account === null || isAccountView(body.account))) {
+    return { kind: "ok", account: body.account };
+  }
+  return { kind: "failed", problem: { kind: "unclear", status: response.status } };
+}
+
+const accountInit = (body: unknown, headers: Record<string, string> = {}): RequestInit => ({
+  method: "POST",
+  credentials: "same-origin",
+  headers: { "content-type": "application/json", ...headers },
+  body: JSON.stringify(body),
+});
+
+/** Every account change answers with the account as it now is. */
+export function accountRequest(path: string, body: unknown = {}, headers?: Record<string, string>): Promise<AccountOutcome> {
+  return idempotentRequest(path, accountInit(body, headers), (answer) => (isAccountView(answer.account) ? { kind: "ok" as const, account: answer.account } : null));
+}
+
+export function accountEnd(path: "/api/account/logout" | "/api/account/delete"): Promise<AccountEndOutcome> {
+  return idempotentRequest(path, accountInit({}), () => ({ kind: "done" as const }));
+}
+
+/** The options for a passkey ceremony; the WebAuthn library checks their shape. */
+export function ceremonyOptions(path: string): Promise<OptionsOutcome> {
+  return idempotentRequest(path, accountInit({}), (answer) => (isObject(answer.options) ? { kind: "ok" as const, options: answer.options } : null));
 }
 
 /** What this deployment allows. Null when it couldn't be read: the server still enforces it. */

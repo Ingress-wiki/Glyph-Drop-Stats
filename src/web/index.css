@@ -932,6 +932,71 @@ dialog .actions {
   margin: 12px 0;
 }
 
+/* The optional account page */
+
+.account ul:not(.rows) {
+  margin: 8px 0;
+  padding-left: 1.4em;
+}
+
+.account li + li {
+  margin-top: 6px;
+}
+
+.account .notice {
+  margin: 12px 0;
+}
+
+.account .actions + p,
+.account section > p + button,
+.account section > .muted + button {
+  margin-top: 12px;
+}
+
+.page h2 .tag {
+  vertical-align: baseline;
+}
+
+/* One thing per row, with what can be done to it at the end. */
+.rows {
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.rows > li > span {
+  flex: 1 1 18rem;
+}
+
+/* The second press of a button for a change that can't be undone. */
+.confirm-inline {
+  flex: 1 1 100%;
+  padding: 8px;
+  border-left: 2px solid var(--bad);
+}
+
+.confirm-inline p {
+  margin: 0 0 8px;
+}
+
+.keep-in-account {
+  margin-top: 12px;
+}
+
+.keep-in-account p {
+  margin: 0 0 8px;
+}
+
 /* A command or address shown in full, selected in one click, with its copy button. */
 .copyable {
   display: flex;
@@ -976,6 +1041,19 @@ dialog .actions {
 }
 
 @media (max-width: 40rem) {
+  /* Four tabs on one row of a phone, wrapping on the narrowest. */
+  .tabs {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .tabs button {
+    padding: 8px 5px 4px;
+    font-size: 14px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+
   .toolbar > * {
     flex: 1 1 100%;
   }

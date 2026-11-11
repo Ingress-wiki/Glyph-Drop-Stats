@@ -49,6 +49,7 @@ See [docs/deployment.md](docs/deployment.md) for every command.
 - [Import format](docs/import-format.md): what is accepted and why
 - [Statistics](docs/statistics.md): what the numbers mean
 - [MCP](docs/mcp.md): the statistics, and your own drops, for AI agents
+- [Accounts](docs/accounts.md): the optional passkey account
 - [Privacy](docs/privacy.md): what is and isn't stored
 - [Deployment](docs/deployment.md)
 

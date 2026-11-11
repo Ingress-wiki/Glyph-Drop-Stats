@@ -258,13 +258,14 @@ export async function findSubmission(db: Db, secretHash: string): Promise<Stored
   return { fileHash: upload.file_hash, summary };
 }
 
-/** The summaries of the given uploads, oldest first. */
-export async function uploadSummaries(db: Db, uploadIds: readonly number[]): Promise<SubmissionSummary[]> {
+/** The summaries of the given uploads, oldest first, each with its id. */
+export async function uploadSummaries(db: Db, uploadIds: readonly number[]): Promise<(SubmissionSummary & { id: number })[]> {
   const uploads = await db
     .prepare(`SELECT ${UPLOAD_COLUMNS} FROM uploads WHERE id IN (SELECT value FROM json_each(?1)) ORDER BY created_at, id`)
     .bind(JSON.stringify(uploadIds))
     .all<UploadRow>();
-  return summarize(db, uploads.results);
+  const summaries = await summarize(db, uploads.results);
+  return summaries.map((summary, index) => ({ id: uploads.results[index].id, ...summary }));
 }
 
 export type ConfirmResult =

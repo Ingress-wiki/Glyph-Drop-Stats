@@ -69,13 +69,23 @@ environment in `wrangler.jsonc`; the top level is for local development.
 
 Production is `"test"`; locally it is `"true"`.
 
+### Accounts
+
+Production sets `SITE_ORIGIN` to `https://stats.ingress.wiki`. Passkeys
+are bound to that host, and account requests must come from that origin.
+Changing the site's address would strand every passkey, so it isn't
+changed lightly. Locally, and in the browser tests, the request's own
+origin is used (`http://localhost:…`, which browsers treat as secure).
+See [Accounts](accounts.md).
+
 **Ending the test period** keeps that promise, in this order:
 
 1. Set production to `"false"` and `npm run deploy`, so nothing arrives
    during the wipe.
 2. `npm run db:wipe:production` deletes every submission and everything it
-   supplied, and every agent key (`scripts/wipe-submissions.sql`; the tests
-   reset their database with the same file). The schema stays.
+   supplied, every agent key, and which submissions each account held
+   (`scripts/wipe-submissions.sql`; the tests reset their database with the
+   same file). The schema stays, and so do accounts and their passkeys.
 3. Check that `/api/statistics` reports no records.
 4. D1 Time Travel still holds the deleted rows until its retention window
    passes (7 days on Workers Free, 30 on Paid). Don't restore across the

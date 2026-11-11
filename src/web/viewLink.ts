@@ -106,9 +106,9 @@ export function viewFromQuery(query: string): ViewState {
 }
 
 /** The page's views. The statistics are the home page; the others are named by the address's hash. */
-export type View = "statistics" | "submit" | "agents";
+export type View = "statistics" | "submit" | "agents" | "account";
 
-const VIEW_HASH: Record<View, string> = { statistics: "", submit: "#submit", agents: "#agents" };
+const VIEW_HASH: Record<View, string> = { statistics: "", submit: "#submit", agents: "#agents", account: "#account" };
 
 export function viewFromHash(hash: string): View {
   return (Object.keys(VIEW_HASH) as View[]).find((view) => VIEW_HASH[view] !== "" && VIEW_HASH[view] === hash) ?? "statistics";

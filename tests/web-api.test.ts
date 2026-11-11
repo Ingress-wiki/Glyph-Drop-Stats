@@ -1,6 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeStatistics, NO_FILTER } from "../src/domain/statistics.ts";
-import { confirmUpload, fetchStatistics, isStatistics, linkAgentKey, revokeAgentKey, submissionStatus, withdrawUpload } from "../src/web/api.ts";
+import {
+  accountEnd,
+  accountRequest,
+  ceremonyOptions,
+  confirmUpload,
+  fetchAccount,
+  fetchStatistics,
+  isAccountView,
+  isStatistics,
+  linkAgentKey,
+  revokeAgentKey,
+  submissionStatus,
+  withdrawUpload,
+} from "../src/web/api.ts";
 
 const SECRET = `gds1_${"a".repeat(43)}`;
 const FILE = new File(["format_version\r\n"], "export.csv", { type: "text/csv" });
@@ -268,5 +281,65 @@ describe("agent keys", () => {
     expect(new Headers(init?.headers).get("authorization")).toBe(`Agent ${KEY}`);
     answer(json(500, {}));
     expect(await revokeAgentKey(KEY)).toMatchObject({ kind: "uncertain" });
+  });
+});
+
+describe("the account", () => {
+  const ACCOUNT = {
+    createdAt: 1_791_000_000,
+    submissions: [{ id: 7, ...SUMMARY }],
+    passkeys: [{ id: "pk", createdAt: 1_791_000_000, lastUsedAt: null, backedUp: true }],
+    agentKeys: [{ id: 3, createdAt: 1_791_000_300 }],
+  };
+
+  it("is validated field by field", () => {
+    expect(isAccountView(ACCOUNT)).toBe(true);
+    expect(isAccountView({ ...ACCOUNT, submissions: [SUMMARY] })).toBe(false);
+    expect(isAccountView({ ...ACCOUNT, passkeys: [{ id: "pk", createdAt: 1, lastUsedAt: "never", backedUp: true }] })).toBe(false);
+    expect(isAccountView({ ...ACCOUNT, agentKeys: [{ id: -1, createdAt: 1 }] })).toBe(false);
+    expect(isAccountView(null)).toBe(false);
+  });
+
+  it("reads who is signed in, with the session cookie", async () => {
+    answer(json(200, { ok: true, account: null }));
+    expect(await fetchAccount()).toEqual({ kind: "ok", account: null });
+    expect(vi.mocked(fetch).mock.calls[0][1]?.credentials).toBe("same-origin");
+    answer(json(200, { ok: true, account: ACCOUNT }));
+    expect(await fetchAccount()).toEqual({ kind: "ok", account: ACCOUNT });
+    answer(json(200, { ok: true, account: { createdAt: 1 } }));
+    expect(await fetchAccount()).toMatchObject({ kind: "failed" });
+    answer(new TypeError("offline"));
+    expect(await fetchAccount()).toMatchObject({ kind: "failed", problem: { kind: "network" } });
+  });
+
+  it("sends changes as JSON, with any receipt in the header, and reads back the account", async () => {
+    answer(json(200, { ok: true, account: ACCOUNT }));
+    expect(await accountRequest("/api/account/submissions", {}, { authorization: `Receipt ${SECRET}` })).toEqual({ kind: "ok", account: ACCOUNT });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("/api/account/submissions");
+    expect(init?.method).toBe("POST");
+    expect(init?.credentials).toBe("same-origin");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("authorization")).toBe(`Receipt ${SECRET}`);
+    expect(init?.body).toBe("{}");
+  });
+
+  it("treats a refusal as final and anything unclear as uncertain", async () => {
+    answer(json(409, { ok: false, issues: [{ code: "claimed_elsewhere", key: "api.claimedElsewhere", message: "…" }] }));
+    expect(await accountRequest("/api/account/submissions")).toMatchObject({ kind: "refused", issues: [{ code: "claimed_elsewhere" }] });
+    answer(json(200, { ok: true }));
+    expect(await accountRequest("/api/account/submissions")).toMatchObject({ kind: "uncertain" });
+    answer(json(502, {}));
+    expect(await accountEnd("/api/account/delete")).toMatchObject({ kind: "uncertain" });
+    answer(json(200, { ok: true }));
+    expect(await accountEnd("/api/account/logout")).toEqual({ kind: "done" });
+  });
+
+  it("asks for ceremony options", async () => {
+    answer(json(200, { ok: true, options: { challenge: "abc" } }));
+    expect(await ceremonyOptions("/api/account/login/options")).toEqual({ kind: "ok", options: { challenge: "abc" } });
+    answer(json(200, { ok: true }));
+    expect(await ceremonyOptions("/api/account/login/options")).toMatchObject({ kind: "uncertain" });
   });
 });

@@ -1,12 +1,13 @@
 import { hashAgentKey, isAgentKey, isAgentKeyHash } from "../domain/agentKey.ts";
-import { DEFAULT_LIMITS, makeIssue, parseExport } from "../domain/importer.ts";
-import type { IssueKey, IssueParams } from "../domain/issueMessages.ts";
+import { DEFAULT_LIMITS, parseExport } from "../domain/importer.ts";
 import { previewOf } from "../domain/preview.ts";
 import { hashReceiptSecret, isReceiptSecret } from "../domain/receipt.ts";
 import { parseStatsQuery } from "../domain/statsQuery.ts";
 import { emptyOutcomeCounts } from "../domain/versions.ts";
+import { handleAccountApi, isAccountPath } from "./accountApi.ts";
 import { linkAgentKey, MAX_UPLOADS_PER_KEY, revokeAgentKey } from "./agentKeys.ts";
 import type { Db } from "./db.ts";
+import { error, json, readBodyLimited } from "./http.ts";
 import { statistics } from "./statistics.ts";
 import { classify, confirmSubmission, countOutcomes, findSubmission, withdrawSubmission } from "./submissions.ts";
 
@@ -20,52 +21,14 @@ export interface ApiEnv {
    * deliberately, once retention and the data terms are in place.
    */
   SUBMISSIONS_OPEN?: string;
+  /** The site's one origin in production; passkeys are bound to it (src/worker/passkeys.ts). */
+  SITE_ORIGIN?: string;
 }
 
 const testPeriod = (env: ApiEnv) => env.SUBMISSIONS_OPEN === "test";
 const submissionsOpen = (env: ApiEnv) => env.SUBMISSIONS_OPEN === "true" || testPeriod(env);
 
-const NO_STORE = { "cache-control": "no-store" };
-
-function json(status: number, body: unknown): Response {
-  return Response.json(body, { status, headers: NO_STORE });
-}
-
-function error(status: number, code: string, key: IssueKey, params?: IssueParams): Response {
-  return json(status, { ok: false, issues: [makeIssue(code, key, params)] });
-}
-
 const tooLarge = () => error(413, "file_too_large", "file.tooLarge", { limit: DEFAULT_LIMITS.maxBytes });
-
-/**
- * Reads the body into memory, giving up as soon as it passes `maxBytes`, so
- * a body without a Content-Length can't make the Worker buffer more.
- * Returns null when the body is too large.
- */
-export async function readBodyLimited(request: Request, maxBytes: number): Promise<Uint8Array<ArrayBuffer> | null> {
-  if (Number(request.headers.get("content-length") ?? "0") > maxBytes) return null;
-  if (!request.body) return new Uint8Array();
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > maxBytes) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  const body = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return body;
-}
 
 /**
  * The receipt travels in `Authorization: Receipt <secret>`, never in a URL,
@@ -115,6 +78,8 @@ async function linkKey(request: Request, env: ApiEnv): Promise<Response> {
       return error(409, "submission_withdrawn", "api.submissionWithdrawn");
     case "full":
       return error(409, "key_full", "api.keyFull", { limit: MAX_UPLOADS_PER_KEY });
+    case "account_key":
+      return error(409, "account_key", "api.accountKey");
   }
 }
 
@@ -208,6 +173,7 @@ const ROUTES: Record<string, Partial<Record<string, (request: Request, env: ApiE
 
 export async function handleApi(request: Request, env: ApiEnv): Promise<Response> {
   const { pathname } = new URL(request.url);
+  if (isAccountPath(pathname)) return handleAccountApi(request, env);
   const route = ROUTES[pathname];
   if (!route) return error(404, "not_found", "api.noEndpoint");
   const handler = route[request.method];

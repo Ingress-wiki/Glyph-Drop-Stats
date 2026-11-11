@@ -2,7 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { newAgentKey } from "../domain/agentKey.ts";
 import { newReceiptSecret } from "../domain/receipt.ts";
-import { confirmUpload, fetchConfig, fetchStatistics, linkAgentKey, previewFile, revokeAgentKey, submissionStatus, withdrawUpload } from "./api.ts";
+import { forgetPasskeys, runCeremony } from "./passkeys.ts";
+import { accountEnd, accountRequest, confirmUpload, fetchAccount, fetchConfig, fetchStatistics, linkAgentKey, previewFile, revokeAgentKey, submissionStatus, withdrawUpload } from "./api.ts";
 import { App } from "./App.tsx";
 import { Store, type View } from "./app/store.ts";
 import { detectLocale, isLocale, LOCALE_KEY, type Locale } from "./i18n/index.ts";
@@ -85,6 +86,11 @@ const store = new Store(
     revokeAgentKey,
     fetchStatistics,
     fetchConfig,
+    fetchAccount,
+    runCeremony,
+    accountRequest,
+    accountEnd,
+    forgetPasskeys: (ids) => forgetPasskeys(window.location.hostname, ids),
     newSecret: newReceiptSecret,
     newAgentKey,
     download,
@@ -144,4 +150,5 @@ createRoot(root).render(
   </StrictMode>,
 );
 void store.loadConfig();
+void store.loadAccount();
 if (store.state.view === "statistics") void store.loadStatistics();

@@ -70,6 +70,16 @@ export async function languageSuite({ browser, base: BASE, dir: DIR }) {
       check(`the AI agents page fits a phone in ${locale}`, overflow <= 0, `${overflow}px`);
       await page.screenshot({ path: `${DIR}/agents-${locale}.png`, fullPage: true });
     }
+    // The account page, signed out, in every language at phone width, with its four tabs.
+    for (const locale of LOCALES) {
+      await page.evaluate((value) => localStorage.setItem("glyph-drop-stats:locale", value), locale);
+      await page.goto(`${BASE}/#account`, { waitUntil: "domcontentloaded" });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("heading", { name: messages(locale).account.storedHeading }).waitFor();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      check(`the account page fits a phone in ${locale}`, overflow <= 0, `${overflow}px`);
+      await page.screenshot({ path: `${DIR}/account-${locale}.png`, fullPage: true });
+    }
     check("no page errors", errors.length === 0, errors.join("; "));
   } catch (error) {
     check("language check ran to the end", false, String(error).slice(0, 400));

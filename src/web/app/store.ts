@@ -1,9 +1,14 @@
+import type { AccountView } from "../../domain/account.ts";
 import { hashAgentKey } from "../../domain/agentKey.ts";
 import type { Preview } from "../../domain/preview.ts";
 import { receiptText } from "../../domain/receipt.ts";
 import type { SubmissionSummary } from "../../domain/submission.ts";
+import type { Ceremony, CeremonyOutcome } from "../passkeys.ts";
 import {
   networkProblem,
+  type AccountEndOutcome,
+  type AccountFetch,
+  type AccountOutcome,
   type ApiIssue,
   type ConfirmOutcome,
   type LinkKeyOutcome,
@@ -97,6 +102,38 @@ export interface StatusState {
   agentKey: AgentKeyStep;
 }
 
+/** What the optional account is doing; one task at a time. */
+export type AccountTask = "register" | "signIn" | "addPasskey" | "claim" | "withdraw" | "removePasskey" | "createKey" | "revokeKey" | "signOut" | "delete";
+
+/** How the last account task ended, shown until the next one starts. */
+export type AccountMessage =
+  | { task: AccountTask; kind: "done" }
+  | { task: AccountTask; kind: "refused"; issues: ApiIssue[] }
+  /** No clear answer: it may have gone through. The account is read again to show where it stands. */
+  | { task: AccountTask; kind: "failed"; problem: Problem }
+  | { task: AccountTask; kind: "cancelled" | "unsupported" };
+
+/** A change that can't be undone, waiting for a second press. */
+export type AccountConfirm = { what: "withdraw"; id: number } | { what: "removePasskey"; id: string } | { what: "revokeKey"; id: number } | { what: "delete" };
+
+export interface AccountState {
+  /** False until the first answer: whether someone is signed in isn't known yet. */
+  known: boolean;
+  /** Null when signed out. */
+  view: AccountView | null;
+  /** Why the account couldn't be read, if it couldn't. */
+  loadProblem: Problem | null;
+  busy: AccountTask | null;
+  message: AccountMessage | null;
+  /** The receipt the last attempt to add a submission was for, so the page answers beside that receipt. */
+  claimFor: string | null;
+  confirm: AccountConfirm | null;
+  /** A key just made here: shown once, like an anonymous one. */
+  newKey: string | null;
+  /** A receipt typed on the account page, to add its submission. */
+  receiptInput: string;
+}
+
 export interface AppState {
   view: View;
   file: File | null;
@@ -115,6 +152,7 @@ export interface AppState {
   testPeriod: boolean;
   /** A short message for the status line, by id. A new object each time. */
   notice: { id: keyof Messages["notice"] } | null;
+  account: AccountState;
 }
 
 export interface StoreDeps {
@@ -126,6 +164,12 @@ export interface StoreDeps {
   revokeAgentKey(key: string): Promise<RevokeKeyOutcome>;
   fetchStatistics(query: string, signal: AbortSignal): Promise<StatisticsOutcome>;
   fetchConfig(): Promise<SiteConfig | null>;
+  fetchAccount(): Promise<AccountFetch>;
+  runCeremony(ceremony: Ceremony): Promise<CeremonyOutcome>;
+  accountRequest(path: string, body?: unknown, headers?: Record<string, string>): Promise<AccountOutcome>;
+  accountEnd(path: "/api/account/logout" | "/api/account/delete"): Promise<AccountEndOutcome>;
+  /** Tells passkey providers that these passkeys no longer work here. */
+  forgetPasskeys(ids: readonly string[]): void;
   newSecret(): string;
   newAgentKey(): string;
   download(name: string, text: string, type: string): void;
@@ -181,6 +225,7 @@ export class Store {
       submissionsOpen: null,
       testPeriod: false,
       notice: null,
+      account: { known: false, view: null, loadProblem: null, busy: null, message: null, claimFor: null, confirm: null, newKey: null, receiptInput: "" },
     };
     this.recorded = this.address();
   }
@@ -248,7 +293,7 @@ export class Store {
   dialogOpen(): boolean {
     const { view, statistics, status } = this.state;
     if (view === "statistics") return statistics.disclaimerOpen || statistics.guideOpen;
-    if (view === "agents") return false;
+    if (view === "agents" || view === "account") return false;
     return status.withdrawal.step === "confirming" || status.withdrawal.step === "uncertain" || status.withdrawal.step === "sending";
   }
 
@@ -551,5 +596,142 @@ export class Store {
     }
     if (this.state.status.looked?.secret !== looked.secret) return;
     this.updateStatus({ agentKey: next, ...(next.step === "revoked" ? { keyInput: "" } : {}) });
+  }
+
+  // The optional account
+
+  private updateAccount(patch: Partial<AccountState>): void {
+    this.update({ account: { ...this.state.account, ...patch } });
+  }
+
+  /** Whether someone is signed in. Read once when the page opens, and again after an unclear answer. */
+  async loadAccount(): Promise<void> {
+    const result = await this.deps.fetchAccount();
+    if (result.kind === "ok") this.updateAccount({ known: true, view: result.account, loadProblem: null });
+    else this.updateAccount({ known: true, loadProblem: result.problem });
+  }
+
+  createAccount(): Promise<boolean> {
+    return this.accountTask("register", () => this.deps.runCeremony("register"));
+  }
+
+  signIn(): Promise<boolean> {
+    return this.accountTask("signIn", () => this.deps.runCeremony("signIn"));
+  }
+
+  addPasskey(): Promise<boolean> {
+    return this.accountTask("addPasskey", () => this.deps.runCeremony("addPasskey"));
+  }
+
+  /**
+   * Adds the submission whose receipt this is to the account, after signing
+   * in or creating the account first when asked to. The receipt proves the
+   * player holds it; it is sent in its header, never stored by the page.
+   */
+  async keepInAccount(secret: string, first: "signIn" | "register" | null = null): Promise<void> {
+    if (this.state.account.busy) return;
+    this.updateAccount({ claimFor: secret });
+    if (first === "signIn" && !(await this.signIn())) return;
+    if (first === "register" && !(await this.createAccount())) return;
+    await this.accountTask("claim", () => this.deps.accountRequest("/api/account/submissions", {}, { authorization: `Receipt ${secret}` }));
+  }
+
+  setAccountReceipt(receiptInput: string): void {
+    this.updateAccount({ receiptInput });
+  }
+
+  async addReceiptToAccount(): Promise<void> {
+    const secret = this.state.account.receiptInput.trim();
+    await this.keepInAccount(secret);
+    const { message, claimFor } = this.state.account;
+    if (claimFor === secret && message?.task === "claim" && message.kind === "done") this.updateAccount({ receiptInput: "" });
+  }
+
+  /** Makes a key in the page; only its hash is sent, and the key is shown here once. */
+  async createAccountKey(): Promise<void> {
+    const key = this.deps.newAgentKey();
+    const keyHash = await hashAgentKey(key);
+    if (await this.accountTask("createKey", () => this.deps.accountRequest("/api/account/agent-keys", { keyHash }))) this.updateAccount({ newKey: key });
+  }
+
+  async copyNewKey(): Promise<void> {
+    const { newKey } = this.state.account;
+    if (!newKey) return;
+    try {
+      await this.deps.copy(newKey);
+      this.notify("keyCopied");
+    } catch {
+      this.notify("keyCopyFailed");
+    }
+  }
+
+  askAccount(confirm: AccountConfirm): void {
+    if (!this.state.account.busy) this.updateAccount({ confirm, message: null });
+  }
+
+  cancelAccountConfirm(): void {
+    this.updateAccount({ confirm: null });
+  }
+
+  /** Does what `askAccount` asked about. */
+  async confirmAccount(): Promise<void> {
+    const { confirm, view } = this.state.account;
+    if (!confirm || !view) return;
+    switch (confirm.what) {
+      case "withdraw":
+        await this.accountTask("withdraw", () => this.deps.accountRequest("/api/account/submissions/withdraw", { submissionId: confirm.id }));
+        return;
+      case "revokeKey":
+        await this.accountTask("revokeKey", () => this.deps.accountRequest("/api/account/agent-keys/revoke", { keyId: confirm.id }));
+        return;
+      case "removePasskey":
+        if (await this.accountTask("removePasskey", () => this.deps.accountRequest("/api/account/passkeys/remove", { passkeyId: confirm.id }))) this.deps.forgetPasskeys([confirm.id]);
+        return;
+      case "delete": {
+        const passkeys = view.passkeys.map((passkey) => passkey.id);
+        if (await this.accountTask("delete", () => this.deps.accountEnd("/api/account/delete"))) this.deps.forgetPasskeys(passkeys);
+        return;
+      }
+    }
+  }
+
+  signOut(): Promise<boolean> {
+    return this.accountTask("signOut", () => this.deps.accountEnd("/api/account/logout"));
+  }
+
+  /**
+   * Runs one account task and shows how it ended. True when it succeeded.
+   * A refusal saying the session ended shows the page signed out.
+   */
+  private async accountTask(task: AccountTask, run: () => Promise<CeremonyOutcome | AccountEndOutcome>): Promise<boolean> {
+    if (this.state.account.busy) return false;
+    this.updateAccount({ busy: task, message: null, confirm: null, ...(task === "createKey" ? {} : { newKey: null }) });
+    let outcome: CeremonyOutcome | AccountEndOutcome;
+    try {
+      outcome = await run();
+    } catch (error) {
+      outcome = { kind: "uncertain", problem: networkProblem(error) };
+    }
+    switch (outcome.kind) {
+      case "ok":
+        this.updateAccount({ busy: null, view: outcome.account, known: true, message: { task, kind: "done" } });
+        return true;
+      case "done":
+        this.updateAccount({ busy: null, view: null, newKey: null, message: { task, kind: "done" } });
+        return true;
+      case "refused": {
+        const signedOut = outcome.issues.some((issue) => issue.code === "signed_out");
+        this.updateAccount({ busy: null, message: { task, kind: "refused", issues: outcome.issues }, ...(signedOut ? { view: null } : {}) });
+        return false;
+      }
+      case "uncertain":
+        this.updateAccount({ busy: null, message: { task, kind: "failed", problem: outcome.problem } });
+        void this.loadAccount();
+        return false;
+      case "cancelled":
+      case "unsupported":
+        this.updateAccount({ busy: null, message: { task, kind: outcome.kind } });
+        return false;
+    }
   }
 }

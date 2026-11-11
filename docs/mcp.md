@@ -39,6 +39,10 @@ in any client that supports one:
 4. To cover another submission, look it up with its receipt, paste the key
    and press *Add this submission*. One key covers up to 100 submissions.
 
+With an optional [account](accounts.md), make the key on the **Account**
+page instead: it reads every submission in your account, including ones
+you add later, so it needs no linking.
+
 Then give the key to your agent in one of two ways:
 
 - **As a header**, where the client supports it. The model never sees the
